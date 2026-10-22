@@ -12,7 +12,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const REPO = 'lucasnpinheiro/office'
 const MARKET = 'office'
 const MIN_CLAUDE = [2, 1, 300] // UNVERIFIED lower bound: the mod API was developed against 2.1.306
-const CAVEMAN_URL = 'https://github.com/JuliusBrussee/caveman'
+const CAVEMAN_URL = 'https://github.com/JuliusBrussee/caveman' // upstream, verified via gh repo view
 const LAYA_URL = 'https://github.com/lucasnpinheiro/laya'
 const PLUGINS = ['agent-office', 'personas', 'learning', 'laya']
 

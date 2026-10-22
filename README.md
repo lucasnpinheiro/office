@@ -26,7 +26,7 @@ A marketplace with four independent plugins for Claude Code:
 | `learning` | `task-observer` skill + empty observation log + CLAUDE.md snippet | optional |
 | `laya` | MCP wiring + skill for the [Laya](https://github.com/lucasnpinheiro/laya) decision model (not bundled) | optional |
 
-`caveman` (terse replies) is also optional and not bundled: see https://github.com/JuliusBrussee/caveman.
+`caveman` (terse replies) is also optional and not bundled (upstream, Apache-2.0): https://github.com/JuliusBrussee/caveman.
 
 ## Install
 

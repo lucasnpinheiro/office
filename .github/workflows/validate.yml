@@ -1,0 +1,32 @@
+name: validate
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Claude Code CLI
+        run: npm i -g @anthropic-ai/claude-code
+      - name: Validate marketplace
+        run: claude plugin validate .
+      - name: Validate each plugin
+        run: |
+          for p in plugins/*; do claude plugin validate "$p" || exit 1; done
+      - name: Plugin tests (non-fatal)
+        # `claude plugin test` runs in a child of the claude binary and may be unavailable
+        # or need auth/runtime in CI; kept as informational.
+        continue-on-error: true
+        run: claude plugin test plugins/agent-office
+      - name: Sanitization check
+        run: bash scripts/check-sanitized.sh
+      - name: Installer dry run
+        run: node bin/install.mjs --dry-run --all
+      - name: Pack dry run
+        run: npm pack --dry-run
