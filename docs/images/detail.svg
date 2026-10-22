@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="789" height="262" font-family="Menlo,Consolas,monospace" font-size="14"><rect width="100%" height="100%" rx="8" fill="#0f172a"/>
+<text y="22"><tspan x="12.0" fill="#3b82f6" xml:space="preserve">● </tspan><tspan x="28.8" fill="#e5e7eb" font-weight="bold" xml:space="preserve">Implementar API</tspan></text>
+<text y="40"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Pleno · Sonnet · baixo</tspan></text>
+<text y="58"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Estado: </tspan><tspan x="79.2" fill="#e5e7eb" xml:space="preserve">running</tspan></text>
+<text y="76"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Progresso: </tspan><tspan x="104.4" fill="#e5e7eb" xml:space="preserve">1/3</tspan></text>
+<text y="94"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Duração: </tspan><tspan x="87.6" fill="#e5e7eb" xml:space="preserve">02:00</tspan></text>
+<text y="112"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Descrição: </tspan><tspan x="104.4" fill="#e5e7eb" xml:space="preserve">🛠️ Pleno · 🎼 Sonnet · 🟢 baixo: Implementar API</tspan></text>
+<text y="130"></text>
+<text y="148"><tspan x="12.0" fill="#e5e7eb" font-weight="bold" xml:space="preserve">Dependências</tspan></text>
+<text y="166"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Pai: </tspan><tspan x="54.0" fill="#22c55e" xml:space="preserve">✓ Planejar migração</tspan></text>
+<text y="184"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Filhos: </tspan><tspan x="79.2" fill="#22c55e" xml:space="preserve">✓ rotas</tspan><tspan x="138.0" fill="#e5e7eb" xml:space="preserve"> </tspan><tspan x="146.4" fill="#3b82f6" xml:space="preserve">● testes</tspan><tspan x="213.6" fill="#e5e7eb" xml:space="preserve"> </tspan><tspan x="222.0" fill="#e5e7eb" xml:space="preserve">○ docs</tspan></text>
+<text y="202"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Bloqueado por: </tspan><tspan x="138.0" fill="#3b82f6" xml:space="preserve">● testes</tspan></text>
+<text y="220"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Bloqueia: </tspan><tspan x="96.0" fill="#e5e7eb" xml:space="preserve">—</tspan></text>
+<text y="238"><tspan x="12.0" fill="#9ca3af" xml:space="preserve">Irmãos (1/5): </tspan><tspan x="129.6" fill="#e5e7eb" xml:space="preserve">] próximo</tspan><tspan x="205.2" fill="#e5e7eb" xml:space="preserve"> </tspan><tspan x="213.6" fill="#3b82f6" xml:space="preserve">● Rodar suíte</tspan><tspan x="322.8" fill="#e5e7eb" xml:space="preserve"> </tspan><tspan x="331.2" fill="#3b82f6" xml:space="preserve">● Ajustar docs #1</tspan><tspan x="474.0" fill="#e5e7eb" xml:space="preserve"> </tspan><tspan x="482.4" fill="#3b82f6" xml:space="preserve">● Ajustar docs #2</tspan><tspan x="625.2" fill="#e5e7eb" xml:space="preserve"> </tspan><tspan x="633.6" fill="#3b82f6" xml:space="preserve">● Ajustar docs #3</tspan></text>
+</svg>

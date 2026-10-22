@@ -3,6 +3,8 @@ import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig } from './office'
 import { renderMonitor, inlineSize, detailLines } from './monitor'
+import { renderCompact, detailCompact, previewLines, detectCaps, statusText, NEXT_MODE } from './compact'
+import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf } from './stats'
 import { resolveGit } from './git'
@@ -15,9 +17,37 @@ const isOpen = atom({ plugin: 'agent-office', key: 'open' } as const, false)
 const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as const, {})
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
+const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'compact')
+const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, 'tree')
+const queryAt = atom({ plugin: 'agent-office', key: 'query' } as const, '')
+const expandedAt = atom({ plugin: 'agent-office', key: 'expanded' } as const, [])
+const attachAt = atom({ plugin: 'agent-office', key: 'attach' } as const, '')
+
+// Terminal capabilities from the environment (ASCII, color depth, reduced motion). Cached for the session.
+let capsCache: Caps | undefined
+async function capsOf($: EngineInterface, surface?: string): Promise<Caps> {
+  if (capsCache) return capsCache
+  const g = (v: Promise<string | undefined>) => v.catch(() => undefined)
+  const env: Record<string, string | undefined> = {
+    TERM: await g($.env.get('TERM')),
+    LANG: await g($.env.get('LANG')),
+    LC_ALL: await g($.env.get('LC_ALL')),
+    LC_CTYPE: await g($.env.get('LC_CTYPE')),
+    COLORTERM: await g($.env.get('COLORTERM')),
+    NO_COLOR: await g($.env.get('NO_COLOR')),
+    OFFICE_ASCII: await g($.env.get('OFFICE_ASCII')),
+    OFFICE_REDUCED_MOTION: await g($.env.get('OFFICE_REDUCED_MOTION')),
+    CI: await g($.env.get('CI')),
+    OS: await g($.env.get('OS')),
+    WT_SESSION: await g($.env.get('WT_SESSION')),
+    TERM_PROGRAM: await g($.env.get('TERM_PROGRAM')),
+  }
+  capsCache = detectCaps(env, { isTTY: surface === 'terminal' || surface === undefined ? true : true })
+  return capsCache
+}
 
 const HELP =
-  'Uso: /office start | stop | (alterna). /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
+  'Uso: /office start | stop | (alterna). /office view map|compact; /office mode tree|grouped|cards|waterfall (ou g); /office search <texto> (vazio limpa); /office open <id> (detalhe). Teclas/botoes: g modo, / buscar, Enter detalhe, Esc/voltar, [ ] irmaos. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
 
 async function toggleBranch($: EngineInterface, id: string) {
   await update($, collapsedAt, list => (list.includes(id) ? list.filter(x => x !== id) : [...list, id]))
@@ -54,6 +84,10 @@ const withGit = (list: OfficeAgent[], sessionCwd: string): OfficeAgent[] =>
     return info ? { ...a, git: info } : a
   })
 
+const errText = (res: unknown): string => {
+  const t = (res as { text?: string; content?: unknown })?.text ?? JSON.stringify((res as { content?: unknown })?.content ?? '')
+  return String(t).slice(0, 200)
+}
 let timer: { cancel: () => void } | undefined
 let lastSig = ''
 
@@ -68,7 +102,9 @@ async function schedule($: EngineInterface) {
   if (!(await read($, isOpen))) return
   const list: OfficeAgent[] = await read($, office)
   void resizeIfNeeded($)
-  const delay = nextDelay(list)
+  const caps = await capsOf($)
+  void $.ui.status(statusText(list, Date.now(), caps.ascii))
+  const delay = nextDelay(list, Date.now(), { reducedMotion: caps.reducedMotion, compact: (await read($, viewAt)) === 'compact' })
   if (delay === undefined) return // nothing running: no animation, no timer
   timer = $.clock.after(delay, () => {
     timer = undefined
@@ -121,6 +157,7 @@ async function openOffice($: EngineInterface) {
 async function closeOffice($: EngineInterface) {
   stopTicking()
   shots.clear()
+  void $.ui.status(undefined)
   await update($, isOpen, () => false)
   await $.ui.close({ id: PANE })
 }
@@ -138,6 +175,16 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'office' }, async ($, e) => {
+    const [w0 = '', ...restW] = (e.args || '').trim().split(/\s+/)
+    const arg = restW.join(' ')
+    if (w0 === 'view') { const v = arg === 'map' ? 'map' : 'compact'; await update($, viewAt, () => v); return { text: `Visão: ${v}.` } }
+    if (w0 === 'mode' || w0 === 'g') {
+      const cur = (await read($, modeAt)) as Mode
+      const m = (['tree', 'grouped', 'cards', 'waterfall'] as Mode[]).includes(arg as Mode) ? (arg as Mode) : NEXT_MODE[cur]
+      await update($, modeAt, () => m); $.ui.invalidate('ui.render'); return { text: `Modo: ${m}.` }
+    }
+    if (w0 === 'search' || w0 === 'buscar') { await update($, queryAt, () => arg); $.ui.invalidate('ui.render'); return { text: arg ? `Busca: ${arg}` : 'Busca limpa.' } }
+    if (w0 === 'open' || w0 === 'detalhe') { await update($, selectedAt, () => arg); await update($, attachAt, () => ''); $.ui.invalidate('ui.render'); return { text: arg ? `Detalhe: ${arg}` : 'Detalhe fechado.' } }
     const sub = parseSub(e.args)
     if (sub === 'help') return { text: HELP }
     if (sub === 'collapse') {
@@ -204,7 +251,7 @@ export const register: Register = on => {
       return res
     } catch (err) {
       await update($, office, list =>
-        list.map(a => (a.id === entry.id ? { ...a, status: 'error', endedAt: Date.now() } : a)),
+        list.map(a => (a.id === entry.id ? { ...a, status: 'error', endedAt: Date.now(), error: String((err as Error)?.message ?? err).slice(0, 200) } : a)),
       )
       void schedule($)
       throw err
@@ -232,7 +279,7 @@ export const register: Register = on => {
     await update($, office, list =>
       list.map(a =>
         a.id === e.tool_use_id && a.status === 'working'
-          ? { ...a, status: isError ? 'error' : 'done', endedAt: endedAtFrom(a, res, now) }
+          ? { ...a, status: isError ? 'error' : 'done', endedAt: endedAtFrom(a, res, now), error: isError ? errText(res) : undefined }
           : a,
       ),
     )
@@ -286,8 +333,8 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const els = $.ui.resolve(e) as unknown as { Box: any; Text: any; Button: any; Image?: any } // Image exists on the terminal surface only
-    const { Box, Text, Button, Image } = els
+    const els = $.ui.resolve(e) as unknown as { Box: any; Text: any; Button: any; Input: any; Image?: any } // Image exists on the terminal surface only
+    const { Box, Text, Button, Image, Input } = els
     const now = Date.now()
     const { list: all, sgit, st, thumbs } = await gitView($)
     const cols = paneWidth(e.props as { bodyColumns?: number } | undefined, e.viewport)
@@ -308,12 +355,36 @@ export const register: Register = on => {
       )
     }
     const selected: string = await read($, selectedAt)
-    const detail = selected ? detailLines(all, selected, now) : undefined
+    const view: string = await read($, viewAt)
+    const caps = await capsOf($, (e as { surface?: string }).surface)
+    const attach: string = await read($, attachAt)
+    let compactFrame: typeof f.lines | undefined
+    if (view === 'compact') {
+      if (selected && attach) {
+        const text = await Promise.resolve($.fs.read(attach)).then(r => (typeof r === 'string' ? r : '[binário]')).catch(() => '[não foi possível ler o arquivo]')
+        compactFrame = [[{ t: attach, bold: true, attach: '' }], ...previewLines(text, attach, 40)]
+      } else if (selected) compactFrame = detailCompact(all, selected, now, caps)
+      else compactFrame = renderCompact(all, now, {
+        width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
+        expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId,
+      })
+    }
+    const detail = selected && view !== 'compact' ? detailLines(all, selected, now) : undefined
+    const act = async (a: string) => {
+      if (a === 'group') { const cur = (await read($, modeAt)) as Mode; await update($, modeAt, () => NEXT_MODE[cur]) }
+      else if (a === 'view') await update($, viewAt, () => 'map')
+      else if (a === 'search') await update($, queryAt, q => (q ? '' : ''))
+      else if (a.startsWith('grp:')) await update($, expandedAt, l => (l.includes(a.slice(4)) ? l.filter(x => x !== a.slice(4)) : [...l, a.slice(4)]))
+    }
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch
     const draw = (line: typeof f.lines[number]) => (
       <Box flexDirection="row">
         {line.map(s =>
-          s.node ? (
+          s.attach ? (
+            <Button plain key={`a-${s.attach}`} onPress={() => void update($, attachAt, () => s.attach!)}><Text color={s.fg}>{s.t}</Text></Button>
+          ) : s.act ? (
+            <Button plain key={`c-${s.act}-${s.t}`} onPress={() => void act(s.act!)}><Text color={s.fg} bold={s.bold} dimColor={s.dim}>{s.t}</Text></Button>
+          ) : s.node ? (
             <Button plain key={`n-${s.node}-${s.t}`} onPress={() => void update($, selectedAt, () => s.node!)}><Text color={s.fg} bold={s.bold} dimColor={s.dim}>{s.t}</Text></Button>
           ) : s.toggle ? (
             <Button plain key={`t-${s.toggle}`} onPress={() => void toggleBranch($, s.toggle!)}><Text color={s.fg}>{s.t}</Text></Button>
@@ -323,6 +394,17 @@ export const register: Register = on => {
         )}
       </Box>
     )
+    if (compactFrame) {
+      const back = () => void (attach ? update($, attachAt, () => '') : update($, selectedAt, () => ''))
+      return (
+        <Box flexDirection="column">
+          {selected ? <Button onPress={back}>{attach ? '[← Esc: fechar preview]' : '[← Esc: voltar]'}</Button> : (
+            <Input key="office-search" label="/ " placeholder="buscar agente (Enter)" value={await read($, queryAt)} onSubmit={(v: string) => void update($, queryAt, () => v.trim())} />
+          )}
+          {compactFrame.map(draw)}
+        </Box>
+      )
+    }
     if (detail) {
       return (
         <Box flexDirection="column">
