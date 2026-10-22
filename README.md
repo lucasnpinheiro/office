@@ -28,6 +28,59 @@ A marketplace with four independent plugins for Claude Code:
 
 `caveman` (terse replies) is also optional and not bundled (upstream, Apache-2.0): https://github.com/JuliusBrussee/caveman.
 
+## Monitor view (compact redesign)
+
+Real capture (vhs, live Claude Code session with 5 background agents, default cards view):
+
+![real capture: cards, 3 per row](docs/images/real-cards.png)
+![real capture: grouped](docs/images/real-grouped.png)
+![real capture: waterfall](docs/images/real-waterfall.png)
+
+The three captures are real (vhs, 6 background agents, `OFFICE_MODE=<mode> OFFICE_WIDTH=140`).
+
+The SVGs below come from the real `renderCompact` / `detailCompact` functions with sample agents
+(`scripts/render-docs.ts`, monospace SVG). They are **not** screenshots of a live Claude Code terminal:
+mods cannot be driven headlessly from here.
+
+| Compact tree | Grouped (siblings by state) |
+| --- | --- |
+| ![tree](docs/images/tree.svg) | ![grouped](docs/images/grouped.svg) |
+
+Cards (ungrouped): 34x6 cards, siblings side by side (`per_row = floor((cols - x_parent - 5 + 2) / 36)`, 3 at 120 cols, 5 at 200), dotted bus with a drop per card, heavy worktree divider. Each card carries a span on the session timeline and a progress bar.
+
+![cards](docs/images/cards.svg)
+
+Waterfall mode (`/office mode waterfall`): one span per agent on a shared time axis. Running spans have a sub-cell head and a moving shimmer cell; bars grow with an ease-out stagger when a span starts; reduced motion is static. Animated render (SVG, CSS steps, 4 fps):
+
+![waterfall](docs/images/waterfall.svg)
+![waterfall animation](docs/images/waterfall-anim.svg)
+
+| Detail (dependencies, attachments) | ASCII mode |
+| --- | --- |
+| ![detail](docs/images/detail.svg) | ![ascii](docs/images/ascii.svg) |
+
+Controls. Mods get no raw key events, but a `Button` can carry a `hotkey` (one letter or digit) that fires while the
+monitor pane holds the focus (`/office start` opens it focused, or click it / ctrl+x tab). Hotkeys: `g` mode (tree, grouped,
+cards, waterfall), `o` sort (time, state, name), `f` only failures, `b` search (field), `v` map view, `q` close;
+in the detail `b` back, `p`/`n` previous/next sibling. Filter buttons (Agrupado / Todos os cards N / Falhas N) are clickable;
+on a wide pane (desktop app, or a terminal of 150+ columns) the selected agent opens in a side panel.
+Not possible for mods: `/` as a key (hotkeys are letters/digits only), `o` open-externally and kitty/sixel images.
+
+Commands: `/office mode tree|grouped|cards|waterfall`, `/office sort time|state|name`, `/office filter failed|all`,
+`/office search <text>`, `/office open <id>`, `/office view map|compact`, `/office width <cols>`
+(a request: a docked pane is capped at 45% of the terminal). Env at start: `OFFICE_MODE`, `OFFICE_WIDTH`.
+
+Card details: a leaf shows a real percent only from its own TodoWrite progress (`done/total`), otherwise an indeterminate
+sweep; an agent that has not made its first tool call yet is pending (`aguarda 1ª ação`); each worktree divider carries
+a structure and status summary.
+
+Credits: the waterfall idea (spans on a time axis, staggered reveal, shimmer on running spans) was inspired by the
+public page of the "Trace waterfall" component at https://kobra.systems/components/trace-waterfall. That component is a paid, proprietary product
+(its public page shows no keyframes or license text), so nothing from it was copied: the effect here is re-implemented from scratch with block characters.
+
+Environment: `OFFICE_ASCII=1` (force ASCII), `NO_COLOR` (mono), `OFFICE_REDUCED_MOTION=1` (also `CI`, non-TTY: 1 fps).
+Auto: ASCII for `TERM=linux|dumb`, non-UTF-8 locale or legacy Windows conhost; colors truecolor, 256, 16, mono.
+
 ## Install
 
 ```bash

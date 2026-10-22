@@ -8,6 +8,8 @@ export type AgentLike = {
   status: Status
   startedAt: number
   endedAt?: number
+  active?: boolean // false until the agent makes its first tool call (pending); undefined = unknown, treated as running
+  error?: string // failure message (quota errors become attention items)
   seenAt?: number // last activity (tool call / spawn); drives the "attention" state
   prompt?: string
   model?: string // from the Agent call when the description prefix has none
@@ -58,8 +60,9 @@ export const hasPendingHide = (agents: AgentLike[], now: number): boolean =>
   agents.some(a => a.status !== 'working' && a.endedAt !== undefined && now - a.endedAt <= HIDE_AFTER_MS)
 
 // Next redraw delay; undefined = nothing is open, no timer needed.
-export function nextDelay(agents: AgentLike[], now: number = Date.now()): number | undefined {
-  if (isRunning(agents)) return FRAME_MS
+export const COMPACT_FRAME_MS = 250 // compact view: 4 fps, within the 2-5 fps budget
+export function nextDelay(agents: AgentLike[], now: number = Date.now(), opts?: { reducedMotion?: boolean; compact?: boolean }): number | undefined {
+  if (isRunning(agents)) return opts?.reducedMotion ? TICK_MS : opts?.compact ? COMPACT_FRAME_MS : FRAME_MS
   return hasPendingHide(agents, now) ? TICK_MS : undefined
 }
 

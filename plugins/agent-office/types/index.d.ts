@@ -9,6 +9,8 @@ export type OfficeAgent = {
   startedAt: number
   endedAt?: number
   seenAt?: number
+  active?: boolean
+  error?: string
   prompt?: string
   model?: string
   effort?: string
@@ -26,6 +28,6 @@ export type OfficeAgent = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'agent-office': { agents: OfficeAgent[]; open: boolean; collapsed: string[]; selected: string; sessionTool: { tool?: string; recent?: string[] } }
+    'agent-office': { agents: OfficeAgent[]; open: boolean; collapsed: string[]; selected: string; view: string; mode: string; searching: boolean; filter: string; sort: string; cols: number; sid: string; query: string; expanded: string[]; attach: string; sessionTool: { tool?: string; recent?: string[] } }
   }
 }
