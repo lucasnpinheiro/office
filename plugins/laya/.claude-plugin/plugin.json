@@ -1,0 +1,7 @@
+{
+  "name": "laya",
+  "version": "0.1.0",
+  "description": "Optional Laya integration: MCP server wiring, a usage skill and a docker-compose reference. Laya itself is an external project and is not bundled.",
+  "author": { "name": "lucasnpinheiro" },
+  "license": "MIT"
+}

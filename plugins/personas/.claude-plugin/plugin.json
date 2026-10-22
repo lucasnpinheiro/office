@@ -1,0 +1,7 @@
+{
+  "name": "personas",
+  "version": "0.1.0",
+  "description": "Three-tier subagent workers (rapido/padrao/profundo = Haiku/Sonnet/Opus), a 17-persona role table and an optional UserPromptSubmit tier router (uses Laya when available, keyword fallback otherwise).",
+  "author": { "name": "lucasnpinheiro" },
+  "license": "MIT"
+}

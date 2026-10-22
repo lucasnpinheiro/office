@@ -1,0 +1,477 @@
+{
+  "policy_levels": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "excluded_levels": [
+    "xhigh",
+    "max"
+  ],
+  "tiers": {
+    "haiku": {
+      "agentType": "rapido",
+      "model": null,
+      "servedModel": "claude-haiku-5-5",
+      "base": "low",
+      "allowed": [
+        "low",
+        "medium"
+      ]
+    },
+    "sonnet": {
+      "agentType": "padrao",
+      "model": "sonnet",
+      "servedModel": "claude-sonnet-5-5",
+      "base": "low",
+      "allowed": [
+        "low",
+        "medium"
+      ]
+    },
+    "opus": {
+      "agentType": "profundo",
+      "model": "opus",
+      "servedModel": "claude-opus-5-5",
+      "base": "low",
+      "allowed": [
+        "low",
+        "medium"
+      ]
+    }
+  },
+  "share": {
+    "haiku": 0.5,
+    "sonnet": 0.35,
+    "opus": 0.15
+  },
+  "laya_gate": {
+    "question_bank": "model_routing",
+    "question": "effort_level",
+    "p_low": 0.6,
+    "downgrade": [
+      "medium",
+      "low"
+    ]
+  },
+  "roles": {
+    "haiku.simple": {
+      "tier": "haiku",
+      "persona": "Estagiário",
+      "efforts": [
+        "low"
+      ],
+      "use": "very simple atomic part (lookup, listing, Laya gate call)"
+    },
+    "haiku.normal": {
+      "tier": "haiku",
+      "persona": "Junior",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "normal atomic part"
+    },
+    "haiku.summarize": {
+      "tier": "haiku",
+      "persona": "Tech Writer",
+      "efforts": [
+        "low"
+      ],
+      "use": "summarization"
+    },
+    "haiku.validate_schema": {
+      "tier": "haiku",
+      "persona": "Junior",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "schema/result validation"
+    },
+    "sonnet.light_analysis": {
+      "tier": "sonnet",
+      "persona": "Pleno",
+      "efforts": [
+        "low"
+      ],
+      "use": "light analysis of Haiku results"
+    },
+    "sonnet.adjust": {
+      "tier": "sonnet",
+      "persona": "Pleno",
+      "efforts": [
+        "low"
+      ],
+      "use": "decompose, adjust, partial synthesis"
+    },
+    "sonnet.complex": {
+      "tier": "sonnet",
+      "persona": "Senior",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "complex sub-agent work"
+    },
+    "sonnet.qa": {
+      "tier": "sonnet",
+      "persona": "QA",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "pinned": true,
+      "use": "test-runner, judge, verifier, review: pinned Sonnet, never escalates to Opus"
+    },
+    "sonnet.escalation": {
+      "tier": "sonnet",
+      "persona": "Senior",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "incomplete Haiku part, one notch up"
+    },
+    "sonnet.sql": {
+      "tier": "sonnet",
+      "persona": "DBA",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "idempotent .sql, schema/index analysis (Risk schema: profundo implementer)"
+    },
+    "sonnet.security_review": {
+      "tier": "sonnet",
+      "persona": "AppSec",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "OWASP/secrets review (auth/pii raised to profundo)"
+    },
+    "sonnet.devops": {
+      "tier": "sonnet",
+      "persona": "DevOps",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "CI, hooks, scripts, worktree env"
+    },
+    "sonnet.incident": {
+      "tier": "sonnet",
+      "persona": "SRE",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "incident RCA, prod reliability (Laya below gate: critical fallback)"
+    },
+    "sonnet.performance": {
+      "tier": "sonnet",
+      "persona": "Performance",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "performance review, N+1, SQL tuning, k6 load tests"
+    },
+    "sonnet.ux_review": {
+      "tier": "sonnet",
+      "persona": "UX/UI",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "UI/UX audit, accessibility, design-system consistency"
+    },
+    "sonnet.data_bi": {
+      "tier": "sonnet",
+      "persona": "Data/BI",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "reports, KPIs, analytics, data-quality read-only queries"
+    },
+    "opus.quick_validation": {
+      "tier": "opus",
+      "persona": "Especialista",
+      "efforts": [
+        "low"
+      ],
+      "use": "quick 'is it implemented?'"
+    },
+    "opus.critical_validation": {
+      "tier": "opus",
+      "persona": "Especialista",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "critical validation + new-round decision"
+    },
+    "opus.requirements": {
+      "tier": "opus",
+      "persona": "Product Owner",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "requirements, spec, research (RCG)"
+    },
+    "opus.architecture": {
+      "tier": "opus",
+      "persona": "Arquiteto",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "architecture, technical spec, planning, UI design mode"
+    },
+    "opus.final_synthesis": {
+      "tier": "opus",
+      "persona": "Squad Leader",
+      "efforts": [
+        "low",
+        "medium"
+      ],
+      "use": "final synthesis / architecture"
+    }
+  },
+  "persona_icons": {
+    "Product Owner": "🎯",
+    "Squad Leader": "🧭",
+    "Especialista": "🧠",
+    "Arquiteto": "📐",
+    "Senior": "🦉",
+    "Pleno": "🛠️",
+    "QA": "🧪",
+    "DBA": "🗄️",
+    "AppSec": "🛡️",
+    "DevOps": "⚙️",
+    "SRE": "🚨",
+    "Performance": "⚡",
+    "UX/UI": "🎨",
+    "Data/BI": "📊",
+    "Junior": "🌱",
+    "Tech Writer": "✍️",
+    "Estagiário": "🐣"
+  },
+  "model_display": {
+    "haiku": {
+      "icon": "🪶",
+      "label": "Haiku"
+    },
+    "sonnet": {
+      "icon": "🎼",
+      "label": "Sonnet"
+    },
+    "opus": {
+      "icon": "👑",
+      "label": "Opus"
+    }
+  },
+  "effort_display": {
+    "low": {
+      "icon": "🟢",
+      "label": "baixo"
+    },
+    "medium": {
+      "icon": "🟡",
+      "label": "médio"
+    },
+    "high": {
+      "icon": "🔴",
+      "label": "alto"
+    }
+  },
+  "persona_spawns": {
+    "Product Owner": [
+      "padrao",
+      "rapido"
+    ],
+    "Squad Leader": [
+      "padrao",
+      "rapido"
+    ],
+    "Especialista": [
+      "padrao",
+      "rapido"
+    ],
+    "Arquiteto": [
+      "padrao",
+      "rapido"
+    ],
+    "Senior": [
+      "rapido"
+    ],
+    "Pleno": [
+      "rapido"
+    ],
+    "QA": [
+      "rapido"
+    ],
+    "DBA": [
+      "rapido"
+    ],
+    "AppSec": [
+      "rapido"
+    ],
+    "DevOps": [
+      "rapido"
+    ],
+    "SRE": [
+      "rapido"
+    ],
+    "Performance": [
+      "rapido"
+    ],
+    "UX/UI": [
+      "rapido"
+    ],
+    "Data/BI": [
+      "rapido"
+    ],
+    "Junior": [
+      "rapido"
+    ],
+    "Tech Writer": [
+      "rapido"
+    ],
+    "Estagiário": [
+      "rapido"
+    ]
+  },
+  "persona_tiers": {
+    "Product Owner": "opus",
+    "Squad Leader": "opus",
+    "Especialista": "opus",
+    "Arquiteto": "opus",
+    "Senior": "sonnet",
+    "Pleno": "sonnet",
+    "QA": "sonnet",
+    "DBA": "sonnet",
+    "AppSec": "sonnet",
+    "DevOps": "sonnet",
+    "SRE": "sonnet",
+    "Performance": "sonnet",
+    "UX/UI": "sonnet",
+    "Data/BI": "sonnet",
+    "Junior": "haiku",
+    "Tech Writer": "haiku",
+    "Estagiário": "haiku"
+  },
+  "persona_models": {
+    "Product Owner": "opus",
+    "Squad Leader": "sonnet",
+    "Especialista": "sonnet",
+    "Arquiteto": "sonnet",
+    "Senior": "sonnet",
+    "Pleno": "sonnet",
+    "QA": "sonnet",
+    "DBA": "sonnet",
+    "AppSec": "haiku",
+    "DevOps": "haiku",
+    "SRE": "haiku",
+    "Performance": "haiku",
+    "UX/UI": "haiku",
+    "Data/BI": "haiku",
+    "Junior": "haiku",
+    "Tech Writer": "haiku",
+    "Estagiário": "haiku"
+  },
+  "escalation": {
+    "haiku": "sonnet.escalation"
+  },
+  "persona_office": {
+    "Product Owner": {
+      "key": "po",
+      "animal": "lion",
+      "room": "Diretoria"
+    },
+    "Squad Leader": {
+      "key": "sl",
+      "animal": "wolf",
+      "room": "Diretoria"
+    },
+    "Especialista": {
+      "key": "esp",
+      "animal": "fox",
+      "room": "Diretoria"
+    },
+    "Arquiteto": {
+      "key": "arq",
+      "animal": "eagle",
+      "room": "Diretoria"
+    },
+    "Senior": {
+      "key": "sr",
+      "animal": "owl",
+      "room": "Dev"
+    },
+    "Pleno": {
+      "key": "pl",
+      "animal": "beaver",
+      "room": "Dev"
+    },
+    "QA": {
+      "key": "qa",
+      "animal": "cat",
+      "room": "QA"
+    },
+    "DBA": {
+      "key": "dba",
+      "animal": "elephant",
+      "room": "Dados"
+    },
+    "AppSec": {
+      "key": "appsec",
+      "animal": "hedgehog",
+      "room": "Ops"
+    },
+    "DevOps": {
+      "key": "devops",
+      "animal": "raccoon",
+      "room": "Ops"
+    },
+    "SRE": {
+      "key": "sre",
+      "animal": "bear",
+      "room": "Ops"
+    },
+    "Performance": {
+      "key": "perf",
+      "animal": "cheetah",
+      "room": "Ops"
+    },
+    "UX/UI": {
+      "key": "ux",
+      "animal": "flamingo",
+      "room": "Dev"
+    },
+    "Data/BI": {
+      "key": "bi",
+      "animal": "penguin",
+      "room": "Dados"
+    },
+    "Junior": {
+      "key": "jr",
+      "animal": "rabbit",
+      "room": "Dev"
+    },
+    "Tech Writer": {
+      "key": "tw",
+      "animal": "parrot",
+      "room": "Docs"
+    },
+    "Estagiário": {
+      "key": "est",
+      "animal": "chick",
+      "room": "Estagio"
+    }
+  },
+  "_note": "Machine copy of docs/model-routing.md Effort matrix and docs/personas.md. Informational: nothing in the router reads it; the agent-office mod mirrors the persona table in its persona.ts."
+}

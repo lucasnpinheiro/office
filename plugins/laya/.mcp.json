@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "laya": {
+      "command": "uv",
+      "args": ["run", "--script", "${LAYA_HOME}/mcp/laya_mcp.py"],
+      "env": {}
+    }
+  }
+}

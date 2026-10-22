@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+*.bak
+__pycache__/
+.claude-plugin/types/
+plugins/*/.claude-plugin/types/

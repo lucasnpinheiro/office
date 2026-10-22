@@ -1,0 +1,28 @@
+# Reference copy of the compose file of https://github.com/lucasnpinheiro/laya
+# Run it from a clone of that repository (it builds the image from the repo's Dockerfile):
+#   git clone https://github.com/lucasnpinheiro/laya "$LAYA_HOME" && cd "$LAYA_HOME" && docker compose up -d
+# The upstream file is the source of truth; this copy only documents the expected service shape.
+services:
+  laya-api:
+    build: .
+    container_name: laya-api
+    ports:
+      - "8000:8000"
+    environment:
+      - OMP_NUM_THREADS=6
+      - HF_HUB_OFFLINE=0
+      - LOG_LEVEL=INFO
+    volumes:
+      - laya-hf-cache:/home/laya/.cache/huggingface
+    restart: unless-stopped
+    mem_limit: 4g
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15m
+      start_interval: 10s
+
+volumes:
+  laya-hf-cache:

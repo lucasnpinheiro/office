@@ -1,0 +1,18 @@
+{
+  "name": "@lucasnpinheiro/office",
+  "version": "0.1.0",
+  "description": "Claude Code Office: installer and marketplace for the agent-office mod, personas/router, learning loop and optional Laya integration.",
+  "license": "MIT",
+  "author": "Lucas Pinheiro",
+  "repository": { "type": "git", "url": "git+https://github.com/lucasnpinheiro/office.git" },
+  "homepage": "https://github.com/lucasnpinheiro/office#readme",
+  "keywords": ["claude-code", "claude-code-plugin", "subagents", "agent-office"],
+  "bin": { "claude-office": "bin/install.mjs" },
+  "files": ["bin", ".claude-plugin", "plugins", "docs", "README.md", "LICENSE", "CHANGELOG.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "validate": "claude plugin validate . && for p in plugins/*; do claude plugin validate \"$p\" || exit 1; done",
+    "test": "claude plugin test plugins/agent-office",
+    "sync": "bash scripts/sync-from-agents.sh"
+  }
+}

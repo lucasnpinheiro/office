@@ -1,0 +1,11 @@
+{
+  "name": "office",
+  "description": "Claude Code Office: an animated agent monitor mod plus optional personas/router, learning loop and Laya integration.",
+  "owner": { "name": "lucasnpinheiro" },
+  "plugins": [
+    { "name": "agent-office", "source": "./plugins/agent-office", "description": "Office Agent Monitor: animated mind map of agents and subagents (/office)." },
+    { "name": "personas", "source": "./plugins/personas", "description": "Three-tier subagent workers, 17 personas and an optional UserPromptSubmit tier router." },
+    { "name": "learning", "source": "./plugins/learning", "description": "task-observer skill plus observation-log template." },
+    { "name": "laya", "source": "./plugins/laya", "description": "Optional Laya MCP wiring and usage skill (Laya itself not bundled)." }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "learning",
+  "version": "0.1.0",
+  "description": "Learning loop: the task-observer skill (CC BY 4.0, Eoghan Henn) plus an empty observation-log template and a CLAUDE.md activation snippet.",
+  "author": { "name": "lucasnpinheiro" },
+  "license": "MIT"
+}
