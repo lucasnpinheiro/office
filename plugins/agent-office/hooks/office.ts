@@ -8,6 +8,7 @@ export type AgentLike = {
   status: Status
   startedAt: number
   endedAt?: number
+  active?: boolean // false until the agent makes its first tool call (pending); undefined = unknown, treated as running
   error?: string // failure message (quota errors become attention items)
   seenAt?: number // last activity (tool call / spawn); drives the "attention" state
   prompt?: string

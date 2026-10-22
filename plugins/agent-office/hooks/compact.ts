@@ -37,6 +37,11 @@ export function quantize(hex: string | undefined, level: Caps['color']): string 
   return best
 }
 
+const RANK: Record<State, number> = { failed: 0, attention: 1, running: 2, pending: 3, inactive: 4, done: 5 }
+export const sortNodes = (ns: Node[], sort: CView['sort'] = 'time'): Node[] =>
+  sort === 'state' ? [...ns].sort((a, b) => RANK[a.state] - RANK[b.state])
+    : sort === 'name' ? [...ns].sort((a, b) => a.name.localeCompare(b.name)) : ns
+
 export const layoutLevel = (w: number): 'full' | 'abbr' | 'line' => (w >= 100 ? 'full' : w >= 50 ? 'abbr' : 'line')
 
 // ---------- glyphs ----------
@@ -55,7 +60,7 @@ const LABEL: Record<State, string> = { running: 'Em execução', attention: 'Ate
 export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall'
 export const DEFAULT_MODE: Mode = 'cards'
 export const NEXT_MODE: Record<Mode, Mode> = { tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'tree' }
-export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; frame?: number; project?: string; sessionId?: string }
+export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string }
 
 const sp = (n: number): Seg[] => (n > 0 ? [{ t: ' '.repeat(n) }] : [])
 const col = (c: Caps, hex?: string) => quantize(hex, c.color)
@@ -114,11 +119,11 @@ export function statusText(agents: AgentLike[], now: number, ascii = false): str
 }
 
 const matches = (n: Node, q: string) => !q || `${n.name} ${n.persona} ${n.model}`.toLowerCase().includes(q.toLowerCase())
-function visibleSet(g: Graph, q: string, hidden: Set<string>): Set<string> {
+function visibleSet(g: Graph, q: string, hidden: Set<string>, filter: 'all' | 'failed' = 'all'): Set<string> {
   const keep = new Set<string>()
   const walk = (n: Node): boolean => {
     const kids = n.children.map(walk).some(Boolean)
-    const ok = n.kind === 'session' || (!hidden.has(n.id) && (matches(n, q) || kids))
+    const ok = n.kind === 'session' || (!hidden.has(n.id) && (matches(n, q) && (filter === 'all' || n.state === 'failed' || n.state === 'attention') || kids))
     if (ok) keep.add(n.id)
     return ok && n.kind !== 'session'
   }
@@ -151,19 +156,24 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   return [...ROUND_BOX(c, w, left, right), fit(geral, w)]
 }
 
+function filterBar(g: Graph, v: CView): Line {
+  const c = v.caps
+  const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
+  const bad = ns.filter(n => n.state === 'failed' || n.state === 'attention').length
+  const btn = (t: string, act: string, on: boolean): Seg[] => [seg(c, ` ${t} `, undefined, { act, btn: true, variant: on ? 'primary' : 'secondary', bold: on }), ...sp(1)]
+  return fit([...btn('Agrupado', 'mode:grouped', v.mode === 'grouped'), ...btn(`Todos os cards ${ns.length}`, 'mode:cards', v.mode !== 'grouped' && v.filter !== 'failed'),
+    ...btn(`Falhas ${bad}`, 'failed', v.filter === 'failed'), ...(v.query ? [seg(c, `busca: ${v.query}`, DIM)] : [])], v.width)
+}
+
 function footer(g: Graph, v: CView, hint = ''): Line[] {
   const c = v.caps
   const states: State[] = ['done', 'running', 'attention', 'pending', 'failed']
   const word: Record<State, string> = { done: 'ok', running: 'rodando', attention: 'atenção', pending: 'pendente', failed: 'falha', inactive: 'inativo' }
   const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${word[s]}`, STATE_COLOR[s])])
-  const keys: Line = [
-    seg(c, `[g modo: ${({ tree: 'árvore', grouped: 'agrupado', cards: 'cards', waterfall: 'waterfall' } as Record<Mode, string>)[v.mode]}]`, undefined, { act: 'group' }), ...sp(1),
-    seg(c, '[/ buscar]', undefined, { act: 'search' }), ...sp(1),
-    seg(c, '[v visão]', undefined, { act: 'view' }), ...sp(1),
-    seg(c, 'Enter detalhe · Esc voltar', DIM),
-  ]
+  const hk = (key: string, label: string, act: string): Seg[] => [seg(c, `${key}: ${label}`, undefined, { act, hotkey: key }), ...sp(2)]
+  const keys: Line = [...hk('g', 'modo', 'group'), ...hk('o', 'ordenar', 'sort'), ...hk('f', 'falhas', 'failed'), ...hk('b', 'buscar', 'search'), ...hk('v', 'visão', 'view'), ...hk('q', 'fechar', 'close')]
   const depth: Line = [seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)]
-  const box = ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, '/ buscar · g modo', DIM)])
+  const box = ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, 'Enter detalhe · Esc voltar', DIM)])
   return [...box, fit(legend, v.width), fit(keys, v.width), fit(depth, v.width)]
 }
 
@@ -182,7 +192,7 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     return spread([...l2, ...mid], [seg(c, right, DIM)], v.width)
   }
   const walk = (n: Node, prefix: string) => {
-    const kids = n.children.filter(k => keep.has(k.id))
+    const kids = sortNodes(n.children.filter(k => keep.has(k.id)), v.sort)
     const pinned = (k: Node) => k.state === 'failed' || k.state === 'attention'
     type Item = { n?: Node; group?: { state: State; ms: Node[]; key: string } }
     const items: Item[] = []
@@ -307,14 +317,18 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   const kids = n.children.filter(x => x.kind === 'agent').length
   const sep = c.ascii ? '<' : '‹', tri = c.ascii ? '>' : '▸'
   const trail = [n.tool, ...[...(n.recent ?? [])].reverse().filter((x, i) => !(i === 0 && x === n.tool))].filter(Boolean).join(` ${sep} `)
+  const tasks = n.children.filter(x => x.kind === 'task')
+  const tdone = tasks.filter(x => x.state === 'done').length
   const row3: Line =
+    n.state === 'pending' ? [seg(c, 'aguarda 1ª ação', DIM)] :
     n.state === 'done' ? [seg(c, 'concluído', DIM)]
       : n.state === 'failed' ? [seg(c, `${glyph(c, 'failed')} ${n.error ?? 'falha'}`, STATE_COLOR.failed)]
         : n.state === 'attention' ? [seg(c, `${glyph(c, 'attention')} ${n.error ?? 'sem atividade'}`, STATE_COLOR.attention)]
           : n.state === 'pending' ? [seg(c, 'aguarda vaga', DIM)]
-            : [seg(c, `${tri} ${kids ? `delega ${kids} filhos` : trail || 'executando'}`, DIM)]
+            : [seg(c, `${tri} ${kids ? `delega ${kids} filhos` : [tasks.length ? `${tdone}/${tasks.length}` : '', trail].filter(Boolean).join(' · ') || 'executando'}`, DIM)]
   const cells = 12, [on, off] = BAR(c)
   const leafRunning = n.state === 'running' && n.children.length === 0
+  const pctText = tasks.length ? `${Math.round((tdone / tasks.length) * 100)}%` : metric(n)
   let bar: Line
   if (leafRunning) {
     // no real percent for a leaf without tasks: indeterminate sweep, never an invented number
@@ -322,13 +336,13 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
     const sweep = Array.from({ length: cells }, (_, i) => (i <= pos && i > pos - 3 ? on : off))
     bar = sweep.map(ch => seg(c, ch, ch === on ? col_ : DIM))
   } else bar = partialBar((n.state === 'done' ? 1 : n.state === 'failed' ? 0.6 : progressOf(n) ?? 0) * k, cells, c, col_, n.state === 'running', frame)
-  const time = n.start === undefined ? '--:--' : fmtMMSS(durationOf(n, now))
+  const time = n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now))
   return [
     [seg(c, b.tl + b.h.repeat(inner) + b.tr, edge)],
     body([seg(c, glyph(c, n.state) + ' ', col_, { node: id }), seg(c, truncRunes(nm.get(id) ?? n.name, inner - 2), undefined, { bold: true, node: id })]),
     body([seg(c, truncRunes([n.persona, n.model].filter(Boolean).join(' · '), inner), DIM, { node: id })]),
     body(row3),
-    body([...bar, seg(c, ` ${metric(n)} `), seg(c, time, DIM)]),
+    body([...bar, seg(c, ` ${pctText} `), seg(c, time, DIM)]),
     [seg(c, b.bl + b.h.repeat(inner) + b.br, edge)],
   ]
 }
@@ -337,12 +351,22 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const c = v.caps, frame = v.frame ?? 0, tl = timeline(g, now)
   const V = c.ascii ? ':' : '┊', H = c.ascii ? '.' : '┄'
   const flowOf = (n: Node) => (n.git?.worktree ? n.git.branch ?? n.git.worktree : '')
-  const agentKids = (n: Node) => n.children.filter(k => k.kind === 'agent' && keep.has(k.id))
-  const sizeOf = (n: Node): number => 1 + agentKids(n).reduce((a, k) => a + sizeOf(k), 0)
+  const agentKids = (n: Node) => sortNodes(n.children.filter(k => k.kind === 'agent' && keep.has(k.id)), v.sort)
   const anyWt = [...g.nodes.values()].some(n => n.kind === 'agent' && flowOf(n))
-  const divider = (label: string, count: number): Line => {
-    const text = c.ascii ? `== worktree: ${label} · ${count} agentes ` : `━━ ⎇ worktree: ${label} · ${count} agentes `
-    return [seg(c, text + (c.ascii ? '=' : '━').repeat(Math.max(0, v.width - [...text].length)), flowOf({ git: { worktree: label } } as Node) || label === 'principal' ? (label === 'principal' ? DIM : WORKTREE_COLOR) : DIM)]
+  const all = (n: Node): Node[] => [n, ...agentKids(n).flatMap(all)]
+  const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  const divider = (label: string, roots: Node[]): Line => {
+    const nodes = roots.flatMap(all)
+    const kids = roots.some(r => agentKids(r).length) ? roots.flatMap(agentKids) : roots
+    const line = kids.filter(k => agentKids(k).length === 0).length, grand = kids.filter(k => agentKids(k).length > 0).length
+    const st = (s: State) => nodes.filter(n => n.state === s).length
+    const parts = [plural(nodes.length, 'agente', 'agentes'),
+      line || grand ? `${plural(line, 'filho', 'filhos')} em linha${grand ? `, ${grand} com neto` : ''}` : '',
+      [st('failed') ? plural(st('failed'), 'falha', 'falhas') : '', st('done') ? plural(st('done'), 'concluído', 'concluídos') : '', st('pending') ? `${st('pending')} na fila` : ''].filter(Boolean).join(', ')].filter(Boolean)
+    // "N agentes" keeps the plural form the design uses for the count
+    parts[0] = `${nodes.length} agentes`
+    const text = `${c.ascii ? '== ' : '━━ ⎇ '}worktree: ${label} · ${parts.join(' · ')} `
+    return [seg(c, text + (c.ascii ? '=' : '━').repeat(Math.max(0, v.width - [...text].length)), label === 'principal' ? DIM : WORKTREE_COLOR)]
   }
   const lines: Line[] = [], tops: number[] = []
   let idx = 0
@@ -364,8 +388,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
       const block: Line[] = []
       const ns = row.kind === 'leaves' ? row.ns : [row.n]
       if (row.kind === 'branch' && anyWt && flowOf(row.n) !== parentFlow) {
-        const sz = sizeOf(row.n)
-        block.push(divider(flowOf(row.n) || 'principal', sz))
+        block.push(divider(flowOf(row.n) || 'principal', [row.n]))
       }
       const xs = ns.map((_, i) => x + i * (CARD_W + CARD_GAP))
       if (!virtual) {
@@ -395,7 +418,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   for (const n of top) { const f = flowOf(n); groups.set(f, [...(groups.get(f) ?? []), n]) }
   const virtualRoot = g.root
   for (const [f, ns] of [...groups.entries()].sort((a, b) => Number(!!a[0]) - Number(!!b[0]))) {
-    if (anyWt) lines.push(divider(f || 'principal', ns.reduce((a, n) => a + sizeOf(n), 0)))
+    if (anyWt) lines.push(divider(f || 'principal', ns))
     // reuse layoutChildren with a synthetic parent holding only this flow's top-level agents
     const syn: Node = { ...virtualRoot, children: ns }
     const before = tops.length
@@ -433,10 +456,9 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
   if (layoutLevel(w) === 'line') return [fit([seg(v.caps, statusText(agents, now, v.caps.ascii))], w)]
   const g = buildGraph(agents, now)
   const nm = names(g)
-  const keep = visibleSet(g, v.query, hiddenIds(g, now))
+  const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
   let hint = ''
-  const out: Line[] = [...header(g, agents, now, v)]
-  if (v.query) out.push([seg(v.caps, `busca: ${v.query}`, DIM)])
+  const out: Line[] = [...header(g, agents, now, v), filterBar(g, v)]
   if (agents.length === 0) out.push([seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)])
   else {
     const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
@@ -492,8 +514,8 @@ export function detailCompact(agents: AgentLike[], id: string, now: number, caps
   out.push([seg(caps, 'Bloqueado por: ', DIM), ...(blockedBy.length ? blockedBy.slice(0, 4).flatMap((k, i) => [...sp(i ? 1 : 0), link(k)]) : [seg(caps, '—')])])
   out.push([seg(caps, 'Bloqueia: ', DIM), seg(caps, '—')])
   if (sibs.length > 1) out.push([seg(caps, `Irmãos (${idx + 1}/${sibs.length}): `, DIM),
-    ...(idx > 0 ? [seg(caps, '[ anterior ', undefined, { node: sibs[idx - 1]!.id })] : []),
-    ...(idx < sibs.length - 1 ? [seg(caps, '] próximo', undefined, { node: sibs[idx + 1]!.id })] : []),
+    ...(idx > 0 ? [seg(caps, 'p: anterior ', undefined, { node: sibs[idx - 1]!.id, hotkey: 'p' })] : []),
+    ...(idx < sibs.length - 1 ? [seg(caps, 'n: próximo', undefined, { node: sibs[idx + 1]!.id, hotkey: 'n' })] : []),
     ...sibs.filter(k => k.id !== id).slice(0, 4).flatMap(k => [...sp(1), link(k)])])
   if (a.files?.length) { out.push([], [seg(caps, 'Anexos', undefined, { bold: true })], ...a.files.map(f => [seg(caps, '  ' + f, '#60a5fa', { attach: f })] as Line)) }
   if (a.prompt) out.push([], [seg(caps, 'Prompt', undefined, { bold: true })], [seg(caps, a.prompt)])

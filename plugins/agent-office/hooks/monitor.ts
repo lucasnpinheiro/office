@@ -80,7 +80,7 @@ export function buildGraph(agents: AgentLike[], now: number, sessionGit?: GitInf
     const n: Node = {
       id: a.id, parentId: parent.id, name: label,
       persona: p.persona.name, model: model ? modelLabel(model) : '', effort: effort ? EFFORT_DISPLAY[effort]?.label : undefined, kind: 'agent', git: a.git,
-      state: a.status === 'error' ? (isQuotaError(a.error) ? 'attention' : 'failed') : a.status === 'done' ? 'done' : stale ? 'attention' : 'running',
+      state: a.status === 'error' ? (isQuotaError(a.error) ? 'attention' : 'failed') : a.status === 'done' ? 'done' : stale ? 'attention' : a.active === false ? 'pending' : 'running',
       depth: parent.depth + 1, start: a.startedAt, end: a.endedAt, children: [], dependsOn: [],
     }
     if (a.status === 'error') n.error = a.error || 'falha'
@@ -181,7 +181,7 @@ export function hiddenIds(g: Graph, now: number): Set<string> {
 export const maxDepthOf = (g: Graph): number => Math.max(0, ...[...g.nodes.values()].map(n => n.depth))
 
 // ---------- text helpers ----------
-export type Seg = { t: string; fg?: string; bold?: boolean; dim?: boolean; node?: string; toggle?: string; attach?: string; act?: string } // node: click opens that agent's detail; toggle: click expands/collapses its branch
+export type Seg = { t: string; fg?: string; bold?: boolean; dim?: boolean; node?: string; toggle?: string; attach?: string; act?: string; hotkey?: string; btn?: true; variant?: 'primary' | 'secondary' } // node: click opens that agent's detail; toggle: click expands/collapses its branch
 export type Line = Seg[]
 
 export const STATE_COLOR: Record<State, string> = {

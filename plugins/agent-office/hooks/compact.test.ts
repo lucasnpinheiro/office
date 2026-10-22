@@ -125,9 +125,9 @@ test('cards ASCII: ":" vertical, "." horizontal, ":" drop', () => {
 test('cards: heavy worktree divider with branch and agent count (unicode and ASCII)', () => {
   const ag = [mk('m'), mk('w', { git: { branch: 'feat/x', worktree: 'wt' } })]
   const u = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards' }))
-  expect(u).toMatch(/━━ ⎇ worktree: feat\/x · 1 agentes ━+/); expect(u).not.toContain('── worktree')
+  expect(u).toMatch(/━━ ⎇ worktree: feat\/x · 1 agentes · 1 filho em linha/); expect(u).not.toContain('── worktree')
   const a = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', caps: detectCaps({ OFFICE_ASCII: '1' }) }))
-  expect(a).toMatch(/== worktree: feat\/x · 1 agentes =+/)
+  expect(a).toMatch(/== worktree: feat\/x · 1 agentes · 1 filho em linha/)
 })
 test('cards: waterfall row has span on session timeline, partial blocks; ASCII uses = and #', () => {
   const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 4000 }), mk('b', { startedAt: T + 4000 })]
@@ -188,7 +188,7 @@ test('card border colors by state (blue running, red failed, gray done/pending)'
 test('footer box with +N cards hint, / buscar, g modo; legend below', () => {
   const ag = Array.from({ length: 30 }, (_, i) => mk('x' + i))
   const o = txt(cardsOut(ag, { maxCardRows: 2 }))
-  expect(o).toMatch(/│↓ \+\d+ cards .*\/ buscar · g modo\s*│/)
+  expect(o).toMatch(/│↓ \+\d+ cards .*Enter detalhe · Esc voltar\s*│/)
   expect(o).toMatch(/✓ ok\s+● rodando\s+▲ atenção\s+○ pendente\s+✗ falha/)
 })
 test('ASCII header/footer use plain ascii only', () => {
@@ -201,4 +201,48 @@ test('maxLines caps card lines so footer always fits', () => {
   const ls = renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 80, maxCardRows: 99, maxLines: 20 })
   expect(ls.length).toBeLessThanOrEqual(20 + 4 + 7)
   expect(txt(ls)).toMatch(/Níveis de profundidade/)
+})
+
+// ---- gaps round: real %, pending, worktree summary, filter/sort, hotkeys ----
+test('leaf with TodoWrite shows real percent and count; without todos no percent', () => {
+  const ag = [mk('t', { todos: [{ content: 'a', status: 'completed' }, { content: 'b', status: 'in_progress' }, { content: 'c', status: 'pending' }, { content: 'd', status: 'pending' }] })]
+  const o = txt(cardsOut(ag))
+  expect(o).toMatch(/25% 00:09/); expect(o).toContain('1/4')
+})
+test('pending: spawned agent with no tool call yet (active=false) shows aguarda, hatched bar', () => {
+  const o = txt(cardsOut([mk('q', { active: false }), mk('r', { active: true })]))
+  expect(o).toContain('aguarda 1ª ação'); expect(o).toMatch(/○ Dev: q/)
+  expect(o).toMatch(/● Dev: r/)
+  expect(txt(cardsOut([mk('legacy')]))).not.toContain('aguarda')
+})
+test('worktree divider summary: structure and status', () => {
+  const wt = { branch: 'feat/x', worktree: 'wt' }
+  const ag = [mk('p', { agentId: 'P', git: wt }), mk('a', { parentAgentId: 'P', git: wt, status: 'done', endedAt: T + 10 }), mk('b', { parentAgentId: 'P', git: wt, status: 'error', endedAt: T + 10 }),
+    mk('c', { parentAgentId: 'P', git: wt, agentId: 'C' }), mk('d', { parentAgentId: 'C', git: wt })]
+  const o = txt(cardsOut(ag))
+  expect(o).toMatch(/━━ ⎇ worktree: feat\/x · 5 agentes · 2 filhos em linha, 1 com neto · 1 falha, 1 concluído/)
+  const a = txt(cardsOut(ag, { caps: detectCaps({ OFFICE_ASCII: '1' }) }))
+  expect(a).toMatch(/== worktree: feat\/x · 5 agentes · 2 filhos em linha, 1 com neto/)
+})
+test('filter failed keeps only failures/attention; sort by state puts failures first', () => {
+  const ag = [mk('ok', { status: 'done', endedAt: T + 5 }), mk('bad', { status: 'error', endedAt: T + 5 }), mk('run')]
+  const f = txt(cardsOut(ag, { filter: 'failed' }))
+  expect(f).toContain('Dev: bad'); expect(f).not.toContain('Dev: ok'); expect(f).not.toContain('Dev: run')
+  const s = txt(cardsOut(ag, { sort: 'state' }))
+  expect(s.indexOf('Dev: bad')).toBeLessThan(s.indexOf('Dev: run')); expect(s.indexOf('Dev: run')).toBeLessThan(s.indexOf('Dev: ok'))
+})
+test('filter bar with counts and hotkey footer buttons', () => {
+  const ls = cardsOut([mk('a'), mk('b', { status: 'error', endedAt: T + 5 })])
+  const t0 = txt(ls)
+  expect(t0).toMatch(/Agrupado.*Todos os cards 2.*Falhas 1/)
+  const segs = ls.flat()
+  const hot = Object.fromEntries(segs.filter(s => s.hotkey).map(s => [s.hotkey, s.act]))
+  expect(hot).toMatchObject({ g: 'group', o: 'sort', f: 'failed', b: 'search', v: 'view', q: 'close' })
+  expect(t0).toMatch(/g: modo/)
+  expect(segs.filter(s => s.act === 'failed' && s.btn).length).toBeGreaterThan(0)
+})
+test('detail has hotkeys for back and sibling navigation', () => {
+  const ag = [mk('p', { agentId: 'P' }), mk('c1', { parentAgentId: 'P' }), mk('c2', { parentAgentId: 'P' })]
+  const hot = detailCompact(ag, 'c1', T + 1000, caps)!.flat().filter(s => s.hotkey).map(s => s.hotkey)
+  expect(hot).toEqual(expect.arrayContaining(['n']))
 })

@@ -32,7 +32,11 @@ A marketplace with four independent plugins for Claude Code:
 
 Real capture (vhs, live Claude Code session with 5 background agents, default cards view):
 
-![real capture](docs/images/real-cards.png)
+![real capture: cards, 3 per row](docs/images/real-cards.png)
+![real capture: grouped](docs/images/real-grouped.png)
+![real capture: waterfall](docs/images/real-waterfall.png)
+
+The three captures are real (vhs, 6 background agents, `OFFICE_MODE=<mode> OFFICE_WIDTH=140`).
 
 The SVGs below come from the real `renderCompact` / `detailCompact` functions with sample agents
 (`scripts/render-docs.ts`, monospace SVG). They are **not** screenshots of a live Claude Code terminal:
@@ -55,11 +59,20 @@ Waterfall mode (`/office mode waterfall`): one span per agent on a shared time a
 | --- | --- |
 | ![detail](docs/images/detail.svg) | ![ascii](docs/images/ascii.svg) |
 
-Controls. Claude Code mods receive no global key events, so shortcuts are clickable/focusable buttons
-plus `/office` subcommands: `g` mode (tree, grouped, cards), `/` search (field on top), Enter or click a
-card for detail, Esc/back button closes preview then detail, `[` `]` jump between siblings (links in the
-detail), `o` external open is not available to mods.
-Commands: `/office mode tree|grouped|cards|waterfall`, `/office search <text>`, `/office open <id>`, `/office view map|compact`.
+Controls. Mods get no raw key events, but a `Button` can carry a `hotkey` (one letter or digit) that fires while the
+monitor pane holds the focus (`/office start` opens it focused, or click it / ctrl+x tab). Hotkeys: `g` mode (tree, grouped,
+cards, waterfall), `o` sort (time, state, name), `f` only failures, `b` search (field), `v` map view, `q` close;
+in the detail `b` back, `p`/`n` previous/next sibling. Filter buttons (Agrupado / Todos os cards N / Falhas N) are clickable;
+on a wide pane (desktop app, or a terminal of 150+ columns) the selected agent opens in a side panel.
+Not possible for mods: `/` as a key (hotkeys are letters/digits only), `o` open-externally and kitty/sixel images.
+
+Commands: `/office mode tree|grouped|cards|waterfall`, `/office sort time|state|name`, `/office filter failed|all`,
+`/office search <text>`, `/office open <id>`, `/office view map|compact`, `/office width <cols>`
+(a request: a docked pane is capped at 45% of the terminal). Env at start: `OFFICE_MODE`, `OFFICE_WIDTH`.
+
+Card details: a leaf shows a real percent only from its own TodoWrite progress (`done/total`), otherwise an indeterminate
+sweep; an agent that has not made its first tool call yet is pending (`aguarda 1ª ação`); each worktree divider carries
+a structure and status summary.
 
 Credits: the waterfall idea (spans on a time axis, staggered reveal, shimmer on running spans) was inspired by the
 public page of the "Trace waterfall" component at https://kobra.systems/components/trace-waterfall. That component is a paid, proprietary product
