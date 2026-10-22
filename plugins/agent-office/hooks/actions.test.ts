@@ -1,11 +1,12 @@
 import { test, expect } from 'claude-code/testing'
-import { applyAction, initialUi, hotkeysFor, startUi } from './actions'
+import { applyAction, initialUi, hotkeysFor, startUi, footerText, footerTail } from './actions'
 
 const s0 = initialUi()
+const c0 = { ...s0, view: 'compact' as const }
 
-test('defaults: cards ungrouped, compact, not searching', async () => {
+test('defaults: map view, cards mode inside compact, not searching', async () => {
   expect(s0.mode).toBe('cards')
-  expect(s0.view).toBe('compact')
+  expect(s0.view).toBe('map')
   expect(s0.searching).toBe(false)
 })
 
@@ -17,10 +18,11 @@ test('g cycles mode, f toggles failed, o cycles sort', async () => {
   expect(applyAction(s0, 'sort').state.sort).toBe('state')
 })
 
-test('v toggles map and back (never stuck in map)', async () => {
-  const m = applyAction(s0, 'view').state
-  expect(m.view).toBe('map')
-  expect(applyAction(m, 'view').state.view).toBe('compact')
+test('v toggles map to cards and back (never stuck)', async () => {
+  const c = applyAction(s0, 'view').state
+  expect(c.view).toBe('compact')
+  expect(c.mode).toBe('cards')
+  expect(applyAction(c, 'view').state.view).toBe('map')
 })
 
 test('s toggles search, back closes search, then attach, then detail', async () => {
@@ -49,7 +51,7 @@ test('grp toggles expanded group; mode:cards resets filter', async () => {
 })
 
 test('hotkeys are unique per view and off while searching', async () => {
-  for (const st of [s0, { ...s0, selected: 'a' }, { ...s0, view: 'map' as const }, { ...s0, selected: 'a', view: 'map' as const }]) {
+  for (const st of [s0, { ...s0, selected: 'a' }, c0, { ...s0, view: 'compact' as const, selected: 'a' }]) {
     for (const side of [false, true]) {
       const keys = hotkeysFor(st, side).map(h => h.key)
       expect(new Set(keys).size).toBe(keys.length)
@@ -58,15 +60,16 @@ test('hotkeys are unique per view and off while searching', async () => {
     }
   }
   expect(hotkeysFor({ ...s0, searching: true }, false)).toEqual([])
-  expect(hotkeysFor(s0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q'])
-  expect(hotkeysFor({ ...s0, selected: 'a' }, false).map(h => h.key)).toEqual(['b', 'q'])
-  expect(hotkeysFor({ ...s0, selected: 'a' }, true).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'b', 'q'])
-  expect(hotkeysFor({ ...s0, view: 'map' }, false).map(h => h.key)).toEqual(['v', 'q'])
+  expect(hotkeysFor(c0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q'])
+  expect(hotkeysFor({ ...c0, selected: 'a' }, false).map(h => h.key)).toEqual(['b', 'q'])
+  expect(hotkeysFor({ ...c0, selected: 'a' }, true).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'b', 'q'])
+  expect(hotkeysFor(s0, false).map(h => h.key)).toEqual(['v', 'q'])
+  expect(hotkeysFor({ ...s0, selected: 'a' }, false).map(h => h.key)).toEqual(['v', 'b', 'q'])
 })
 
-test('session start always opens compact + cards, clearing persisted filters and search', async () => {
+test('session start always opens the map (cards inside compact), clearing persisted filters and search', async () => {
   const st = startUi()
-  expect(st.view).toBe('compact')
+  expect(st.view).toBe('map')
   expect(st.mode).toBe('cards')
   expect(st.searching).toBe(false)
   expect(st.query).toBe('')
@@ -74,4 +77,11 @@ test('session start always opens compact + cards, clearing persisted filters and
   expect(st.selected).toBe('')
   expect(st.attach).toBe('')
   expect(st.expanded).toEqual([])
+})
+
+test('footer: hotkeys separated by " · " and tail hint set off, never glued', async () => {
+  const line = footerText(c0, false)
+  expect(line).toBe('g: modo · o: ordenar · f: só falhas · s: buscar · v: visão · q: fechar')
+  expect(line).not.toMatch(/visão q:/)
+  expect(footerTail(c0)).toMatch(/^ · Tab entre cards/)
 })

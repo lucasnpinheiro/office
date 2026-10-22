@@ -6,6 +6,7 @@ for (const [cols, rows] of [[60, 30], [120, 60], [200, 20]] as const) {
     on('session.cwd', async () => ({ value: '/work/meuapp' }))
     on('session.id', async () => ({ value: 'abcdef123' }))
     await $.command.run({ command: 'office', args: 'start' } as any)
+    await $.command.run({ command: 'office', args: 'view compact' } as any)
     const ui = await $.ui.mount({
       plugin: 'agent-office', surface: 'terminal', component: 'Pane', requestId: 'agent-office',
       props: { bodyColumns: cols, bodyRows: rows } as any,
@@ -29,6 +30,12 @@ test('pane footer has one-letter hotkeys; s opens search and silences them; v to
     props: { bodyColumns: 120, bodyRows: 40 } as any, viewport: { columns: 120, rows: 40 } as any,
   })
   let ui = await mount()
+  // session starts in the map view: only v and q
+  expect(await ui.find({ key: 'h-g' })).toBeUndefined()
+  expect(await ui.find({ key: 'h-v' })).toBeDefined()
+  expect(await ui.find({ key: 'h-q' })).toBeDefined()
+  await ui.press({ key: 'h-v' })
+  await ui.unmount(); ui = await mount()
   for (const k of ['g', 'o', 'f', 's', 'v', 'q']) expect([k, !!(await ui.find({ key: `h-${k}` }))]).toEqual([k, true])
   await ui.press({ key: 'h-s' })
   await ui.unmount(); ui = await mount()

@@ -4,7 +4,7 @@ import type { OfficeAgent } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig } from './office'
 import { renderMonitor, inlineSize, detailLines } from './monitor'
 import { renderCompact, detailCompact, previewLines, detectCaps, statusText, DEFAULT_MODE } from './compact'
-import { applyAction, hotkeysFor, startUi } from './actions'
+import { applyAction, FOOTER_SEP, footerTail, hotkeysFor, startUi } from './actions'
 import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
@@ -19,7 +19,7 @@ const isOpen = atom({ plugin: 'agent-office', key: 'open' } as const, false)
 const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as const, {})
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
-const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'compact')
+const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'map')
 const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, DEFAULT_MODE as string)
 const filterAt = atom({ plugin: 'agent-office', key: 'filter' } as const, 'all')
 const sortAt = atom({ plugin: 'agent-office', key: 'sort' } as const, 'time')
@@ -218,6 +218,8 @@ export const register: Register = on => {
     await update($, expandedAt, () => start.expanded)
     const m = ((await $.env.get('OFFICE_MODE').catch(() => undefined)) ?? '').trim().toLowerCase()
     if (['tree', 'grouped', 'cards', 'waterfall'].includes(m)) await update($, modeAt, () => m)
+    const vw = ((await $.env.get('OFFICE_VIEW').catch(() => undefined)) ?? '').trim().toLowerCase()
+    if (vw === 'map' || vw === 'compact') await update($, viewAt, () => vw)
     const w = parseInt((await $.env.get('OFFICE_WIDTH').catch(() => undefined)) ?? '', 10)
     if (w > 0) await update($, colsAt, () => w)
     await openOffice($)
@@ -462,8 +464,8 @@ export const register: Register = on => {
     const side = view === 'compact' && !!selected && !attach && cols >= ((e as { surface?: string }).surface === 'desktop' ? 110 : 150)
     // footer hotkeys for the current view (actions.ts): one letter each, none while the search Input has the keys
     const keysRow = draw([
-      ...hotkeysFor(ui, side).flatMap(h => [{ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }, { t: '  ' }]),
-      { t: ui.searching ? 'Enter aplica a busca (vazio limpa)' : 'Tab entre cards · Enter detalhe · ctrl+x tab foca o painel', fg: '#9ca3af' },
+      ...hotkeysFor(ui, side).flatMap((h, i) => [...(i ? [{ t: FOOTER_SEP }] : []), { t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }]),
+      { t: footerTail(ui), fg: '#9ca3af' },
     ])
     if (compactFrame) {
       const searching = await read($, searchingAt)
