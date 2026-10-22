@@ -4,7 +4,7 @@ import type { OfficeAgent } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig } from './office'
 import { renderMonitor, inlineSize, detailLines } from './monitor'
 import { renderCompact, detailCompact, previewLines, detectCaps, statusText, DEFAULT_MODE } from './compact'
-import { applyAction, hotkeysFor } from './actions'
+import { applyAction, hotkeysFor, startUi } from './actions'
 import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
@@ -207,11 +207,15 @@ export const register: Register = on => {
     })
     // always open at session start: the persisted isOpen is not consulted (a close on session exit
     // left it false). /office stop still closes for the current session only.
-    await update($, modeAt, () => DEFAULT_MODE as string)
-    await update($, viewAt, () => 'compact')
-    await update($, searchingAt, () => false)
-    await update($, selectedAt, () => '')
-    await update($, attachAt, () => '')
+    const start = startUi()
+    await update($, modeAt, () => start.mode as string)
+    await update($, viewAt, () => start.view)
+    await update($, filterAt, () => start.filter)
+    await update($, searchingAt, () => start.searching)
+    await update($, queryAt, () => start.query)
+    await update($, selectedAt, () => start.selected)
+    await update($, attachAt, () => start.attach)
+    await update($, expandedAt, () => start.expanded)
     const m = ((await $.env.get('OFFICE_MODE').catch(() => undefined)) ?? '').trim().toLowerCase()
     if (['tree', 'grouped', 'cards', 'waterfall'].includes(m)) await update($, modeAt, () => m)
     const w = parseInt((await $.env.get('OFFICE_WIDTH').catch(() => undefined)) ?? '', 10)

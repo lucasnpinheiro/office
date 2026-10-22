@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { applyAction, initialUi, hotkeysFor } from './actions'
+import { applyAction, initialUi, hotkeysFor, startUi } from './actions'
 
 const s0 = initialUi()
 
@@ -62,4 +62,16 @@ test('hotkeys are unique per view and off while searching', async () => {
   expect(hotkeysFor({ ...s0, selected: 'a' }, false).map(h => h.key)).toEqual(['b', 'q'])
   expect(hotkeysFor({ ...s0, selected: 'a' }, true).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'b', 'q'])
   expect(hotkeysFor({ ...s0, view: 'map' }, false).map(h => h.key)).toEqual(['v', 'q'])
+})
+
+test('session start always opens compact + cards, clearing persisted filters and search', async () => {
+  const st = startUi()
+  expect(st.view).toBe('compact')
+  expect(st.mode).toBe('cards')
+  expect(st.searching).toBe(false)
+  expect(st.query).toBe('')
+  expect(st.filter).toBe('all')
+  expect(st.selected).toBe('')
+  expect(st.attach).toBe('')
+  expect(st.expanded).toEqual([])
 })

@@ -188,7 +188,7 @@ test('card border colors by state (blue running, red failed, gray done/pending)'
 test('footer box with +N cards hint, / buscar, g modo; legend below', () => {
   const ag = Array.from({ length: 30 }, (_, i) => mk('x' + i))
   const o = txt(cardsOut(ag, { maxCardRows: 2 }))
-  expect(o).toMatch(/│↓ \+\d+ cards · a grade rola.*s buscar · o ordenar│/)
+  expect(o).toMatch(/│↓ \+\d+ cards ocultos.*s buscar · o ordenar│/)
   expect(o).toMatch(/✓ ok\s+● rodando\s+▲ atenção\s+○ pendente\s+✗ falha/)
 })
 test('ASCII header/footer use plain ascii only', () => {

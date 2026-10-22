@@ -477,7 +477,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
         const cut = tops.filter(t => t + CARD_H <= cap)
         const keepN = Math.max(1, cut.length), at = cut.length ? cut[cut.length - 1]! + CARD_H : cap
         out.push(...lines.slice(0, at))
-        hint = `${v.caps.ascii ? '+' : '↓ +'}${tops.length - keepN} cards · a grade rola (PgDn ou roda do mouse), nada fica cortado`
+        hint = `${v.caps.ascii ? '+' : '↓ +'}${tops.length - keepN} cards ocultos (painel sem altura para mostrar todos)`
       } else out.push(...lines)
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else out.push(...treeLines(g, nm, keep, now, v))

@@ -7,6 +7,9 @@ export type Ui = {
   searching: boolean; selected: string; attach: string; query: string; expanded: string[]
 }
 export const initialUi = (): Ui => ({ view: 'compact', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [] })
+// Session start: every persisted view/filter/search field goes back to the default (compact cards), so a
+// previous session's map view, filter or query never leaks into the new one.
+export const startUi = (): Ui => ({ ...initialUi() })
 
 export function applyAction(s: Ui, a: string): { state: Ui; close?: true } {
   if (a === 'close') return { state: s, close: true }
