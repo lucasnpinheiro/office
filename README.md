@@ -1,17 +1,17 @@
 # Claude Code Office
 
-Mod `agent-office` (mapa animado de agentes e subagentes) e partes opcionais: personas/router, aprendizagem, Laya.
+Mod `agent-office` (animated map of agents and subagents) and optional parts: personas/router, learning, Laya.
 
-## Início rápido (pt-BR)
+## Quick start
 
 ```bash
-npx @lucasnpinheiro/office --scope global      # instala só o agent-office
-npx @lucasnpinheiro/office --all --scope local # tudo, só no projeto atual
-claude plugin marketplace add lucasnpinheiro/office && claude plugin install agent-office@office   # sem Node
+npx @lucasnpinheiro/office --scope global      # installs only agent-office
+npx @lucasnpinheiro/office --all --scope local # everything, current project only
+claude plugin marketplace add lucasnpinheiro/office && claude plugin install agent-office@office   # without Node
 ```
 
-Reinicie o Claude Code (ou `/reload-plugins`) e use `/office start`. Cada parte opcional é um plugin separado;
-`--dry-run` mostra os comandos sem executar; `--uninstall` remove tudo. Documentação em inglês abaixo e em `docs/`.
+Restart Claude Code (or run `/reload-plugins`) and use `/office start`. Each optional part is a separate plugin;
+`--dry-run` shows the commands without running them; `--uninstall` removes everything. Portuguese docs are in `docs/`.
 
 ---
 
@@ -62,23 +62,23 @@ Waterfall mode (`/office mode waterfall`): one span per agent on a shared time a
 Controls. Mods get no raw key events, but a `Button` can carry a `hotkey` (one letter or digit) that fires only while the
 monitor pane holds the focus: `/office start` opens it focused; at session start it opens unfocused, so press ctrl+x tab
 (or click it) first. Every key below is drawn in the footer of the view it works in, unique per view, and all hotkeys are
-off while the search field is open (Enter applies the search, empty clears it). Since 0.15.0 the session always starts in
-the ungrouped cards view (a stale mode or open search left by an older version is reset).
+off while the search field is open (Enter applies the search, empty clears it). Since 0.15.1 the session always starts in
+the map view. `v` toggles between the map and the compact view (cards by default, or the `OFFICE_MODE` mode); override with `OFFICE_VIEW=map|compact`. A stale mode, filter or open search is reset.
 
 | View | Keys |
 | --- | --- |
-| Cards / tree / grouped / waterfall | `g` mode, `o` sort, `f` only failures, `s` search, `v` map view, `q` close |
+| Cards / tree / grouped / waterfall | `g` mode, `o` sort, `f` only failures, `s` search, `v` map view (start view is the map), `q` close |
 | Detail (narrow pane) | `b` back, `p`/`n` previous/next sibling, `q` close |
 | Detail in the side panel (150+ cols) | list keys above plus `b` back |
 | Attachment preview | `b` close preview, `q` close |
-| Map view | `v` back to cards, `b` back (detail open), `q` close |
+| Map view | `v` to cards (default start view is the map), `b` back (detail open), `q` close |
 | Search field open | none (typing goes to the field) |
 
 Not possible for mods: `/` as a key (hotkeys are letters/digits only; Esc never reaches a mod), `o` open-externally and kitty/sixel images.
 
 Commands: `/office mode tree|grouped|cards|waterfall`, `/office sort time|state|name`, `/office filter failed|all`,
 `/office search <text>`, `/office open <id>`, `/office view map|compact`, `/office width <cols>`
-(a request: a docked pane is capped at 45% of the terminal). Env at start: `OFFICE_MODE`, `OFFICE_WIDTH`.
+(a request: a docked pane is capped at 45% of the terminal). Env at start: `OFFICE_VIEW` (map|compact, default map), `OFFICE_MODE`, `OFFICE_WIDTH`.
 
 Card details: a leaf shows a real percent only from its own TodoWrite progress (`done/total`), otherwise an indeterminate
 sweep; an agent that has not made its first tool call yet is pending (`aguarda 1ª ação`); each worktree divider carries

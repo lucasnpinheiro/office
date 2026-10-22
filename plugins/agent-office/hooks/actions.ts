@@ -6,8 +6,8 @@ export type Ui = {
   view: 'compact' | 'map'; mode: Mode; filter: 'all' | 'failed'; sort: 'time' | 'state' | 'name'
   searching: boolean; selected: string; attach: string; query: string; expanded: string[]
 }
-export const initialUi = (): Ui => ({ view: 'compact', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [] })
-// Session start: every persisted view/filter/search field goes back to the default (compact cards), so a
+export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [] })
+// Session start: every persisted view/filter/search field goes back to the default (map view; cards inside compact), so a
 // previous session's map view, filter or query never leaks into the new one.
 export const startUi = (): Ui => ({ ...initialUi() })
 
@@ -46,4 +46,14 @@ export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
   if (s.view === 'map') return s.selected ? [{ key: 'v', label: 'visão', act: 'view' }, back, close] : [{ key: 'v', label: 'visão', act: 'view' }, close]
   if (s.selected && !side) return [back, close]
   return s.selected ? [...list, back, close] : [...list, close]
+}
+
+// Footer text: hotkeys joined by " · ", tail hint set off by " · " (never glued like "visão q:").
+export const FOOTER_SEP = ' · '
+export function footerText(s: Ui, side: boolean): string {
+  return hotkeysFor(s, side).map(h => `${h.key}: ${h.label}`).join(FOOTER_SEP)
+}
+export function footerTail(s: Ui): string {
+  if (s.searching) return 'Enter aplica a busca (vazio limpa)'
+  return `${FOOTER_SEP}Tab entre cards · Enter detalhe · ctrl+x tab foca o painel`
 }
