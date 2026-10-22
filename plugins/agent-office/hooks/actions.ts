@@ -54,5 +54,6 @@ export function footerText(s: Ui, side: boolean): string {
   return hotkeysFor(s, side).map(h => `${h.key}: ${h.label}`).join(FOOTER_SEP)
 }
 export function footerTail(s: Ui): string {
-  return `${FOOTER_SEP}${s.searching ? 'Enter aplica a busca (vazio limpa)' : 'Tab entre cards · Enter detalhe · ctrl+x tab foca o painel'}`
+  if (s.searching) return 'Enter aplica a busca (vazio limpa)'
+  return `${FOOTER_SEP}Tab entre cards · Enter detalhe · ctrl+x tab foca o painel`
 }

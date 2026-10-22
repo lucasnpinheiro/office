@@ -84,4 +84,7 @@ test('footer: hotkeys separated by " · " and tail hint set off, never glued', a
   expect(line).toBe('g: modo · o: ordenar · f: só falhas · s: buscar · v: visão · q: fechar')
   expect(line).not.toMatch(/visão q:/)
   expect(footerTail(c0)).toMatch(/^ · Tab entre cards/)
+  const searching = { ...c0, searching: true }
+  expect(hotkeysFor(searching, false)).toEqual([])
+  expect(footerTail(searching)).toBe('Enter aplica a busca (vazio limpa)')
 })

@@ -63,7 +63,7 @@ Controls. Mods get no raw key events, but a `Button` can carry a `hotkey` (one l
 monitor pane holds the focus: `/office start` opens it focused; at session start it opens unfocused, so press ctrl+x tab
 (or click it) first. Every key below is drawn in the footer of the view it works in, unique per view, and all hotkeys are
 off while the search field is open (Enter applies the search, empty clears it). Since 0.15.1 the session always starts in
-the map view (`v` switches to the ungrouped cards view; override with `OFFICE_VIEW=map|compact`). A stale mode, filter or open search is reset.
+the map view (`v` alterna entre o mapa e a visão compacta (cards por padrão, ou o modo de `OFFICE_MODE`); override com `OFFICE_VIEW=map|compact`). A stale mode, filter or open search is reset.
 
 | View | Keys |
 | --- | --- |
