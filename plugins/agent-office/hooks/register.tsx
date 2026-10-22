@@ -3,7 +3,7 @@ import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig } from './office'
 import { renderMonitor, inlineSize, detailLines } from './monitor'
-import { renderCompact, detailCompact, previewLines, detectCaps, statusText, NEXT_MODE } from './compact'
+import { renderCompact, detailCompact, previewLines, detectCaps, statusText, NEXT_MODE, DEFAULT_MODE } from './compact'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf } from './stats'
@@ -18,7 +18,8 @@ const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as con
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
 const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'compact')
-const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, 'tree')
+const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, DEFAULT_MODE as string)
+const searchingAt = atom({ plugin: 'agent-office', key: 'searching' } as const, false)
 const queryAt = atom({ plugin: 'agent-office', key: 'query' } as const, '')
 const expandedAt = atom({ plugin: 'agent-office', key: 'expanded' } as const, [])
 const attachAt = atom({ plugin: 'agent-office', key: 'attach' } as const, '')
@@ -130,11 +131,18 @@ async function gitView($: EngineInterface) {
 // The pane asks for its size: `rows` (inline above the prompt, capped at MAX_INLINE_ROWS so the
 // chat is not pushed away) and `columns` (docked beside the transcript). The surface picks the
 // seat by itself (no flag forces inline); a request only, and the person's own drag wins.
+// compact view: size by its own rendered lines (not the old mind map), 80 columns, capped like the inline pane
+async function wantSize($: EngineInterface, list: OfficeAgent[], collapsed: string[], sgit: GitInfo | undefined, st: { tool?: string; recent?: string[] }, thumbs: boolean) {
+  if ((await read($, viewAt)) !== 'compact') return inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
+  const caps = await capsOf($)
+  const lines = renderCompact(list, Date.now(), { width: 80, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt), expanded: new Set(), maxCardRows: 6 })
+  return { rows: Math.min(40, Math.max(8, lines.length + 1)), columns: 80 }
+}
 let lastSize = ''
 async function openSized($: EngineInterface) {
   const { list, sgit, st, thumbs } = await gitView($)
   const collapsed: string[] = await read($, collapsedAt)
-  const s = inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
+  const s = await wantSize($, list, collapsed, sgit, st, thumbs)
   lastSize = `${s.rows}x${s.columns}`
   return $.ui.open({ id: PANE, title: 'Office Agent Monitor', rows: s.rows, columns: s.columns })
 }
@@ -144,7 +152,7 @@ async function resizeIfNeeded($: EngineInterface) {
   if (!(await read($, isOpen))) return
   const { list, sgit, st, thumbs } = await gitView($)
   const collapsed: string[] = await read($, collapsedAt)
-  const s = inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
+  const s = await wantSize($, list, collapsed, sgit, st, thumbs)
   if (`${s.rows}x${s.columns}` !== lastSize) await openSized($)
 }
 
@@ -366,14 +374,14 @@ export const register: Register = on => {
       } else if (selected) compactFrame = detailCompact(all, selected, now, caps)
       else compactFrame = renderCompact(all, now, {
         width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
-        expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId,
+        expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 11, frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId,
       })
     }
     const detail = selected && view !== 'compact' ? detailLines(all, selected, now) : undefined
     const act = async (a: string) => {
       if (a === 'group') { const cur = (await read($, modeAt)) as Mode; await update($, modeAt, () => NEXT_MODE[cur]) }
       else if (a === 'view') await update($, viewAt, () => 'map')
-      else if (a === 'search') await update($, queryAt, q => (q ? '' : ''))
+      else if (a === 'search') await update($, searchingAt, x => !x)
       else if (a.startsWith('grp:')) await update($, expandedAt, l => (l.includes(a.slice(4)) ? l.filter(x => x !== a.slice(4)) : [...l, a.slice(4)]))
     }
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch
@@ -398,8 +406,8 @@ export const register: Register = on => {
       const back = () => void (attach ? update($, attachAt, () => '') : update($, selectedAt, () => ''))
       return (
         <Box flexDirection="column">
-          {selected ? <Button onPress={back}>{attach ? '[← Esc: fechar preview]' : '[← Esc: voltar]'}</Button> : (
-            <Input key="office-search" label="/ " placeholder="buscar agente (Enter)" value={await read($, queryAt)} onSubmit={(v: string) => void update($, queryAt, () => v.trim())} />
+          {selected ? <Button onPress={back}>{attach ? '[← Esc: fechar preview]' : '[← Esc: voltar]'}</Button> : !(await read($, searchingAt)) ? null : (
+            <Input key="office-search" label="/ " placeholder="buscar agente (Enter)" value={await read($, queryAt)} onSubmit={(v: string) => { void update($, queryAt, () => v.trim()); void update($, searchingAt, () => false) }} />
           )}
           {compactFrame.map(draw)}
         </Box>

@@ -11,7 +11,7 @@ for (const [cols, rows] of [[60, 30], [120, 60], [200, 20]] as const) {
       props: { bodyColumns: cols, bodyRows: rows } as any,
       viewport: { columns: cols, rows } as any,
     })
-    expect(await ui.find({ type: 'Text', text: /Office Agent Monitor/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Office/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Níveis de profundidade: 0\/10/ })).toBeDefined()
     await ui.unmount()
   })

@@ -48,13 +48,14 @@ export const boxChars = (c: Caps): Box =>
   c.numbered ? { tl: '+', tr: '+', bl: '+', br: '+', v: '|', h: '-' }
     : c.ascii ? { tl: '.', tr: '.', bl: "'", br: "'", v: '|', h: '-' }
       : { tl: '╭', tr: '╮', bl: '╰', br: '╯', v: '│', h: '─' }
-const BAR = (c: Caps) => (c.ascii ? ['#', '.'] : ['▰', '▱']) as [string, string]
+const BAR = (c: Caps) => (c.ascii ? ['#', '.'] : ['█', '▒']) as [string, string]
 const DIM = '#9ca3af'
 const LABEL: Record<State, string> = { running: 'Em execução', attention: 'Atenção', failed: 'Falhas', pending: 'Pendentes', done: 'Concluídos', inactive: 'Inativos' }
 
 export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall'
+export const DEFAULT_MODE: Mode = 'cards'
 export const NEXT_MODE: Record<Mode, Mode> = { tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'tree' }
-export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; frame?: number; project?: string; sessionId?: string }
+export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; frame?: number; project?: string; sessionId?: string }
 
 const sp = (n: number): Seg[] => (n > 0 ? [{ t: ' '.repeat(n) }] : [])
 const col = (c: Caps, hex?: string) => quantize(hex, c.color)
@@ -69,15 +70,16 @@ const spread = (l: Line, r: Line, w: number): Line => {
   return gap >= 1 ? [...l, ...sp(gap), ...r] : fit(l, Math.max(0, w - lineWidth(r) - 1)).concat(sp(1), r)
 }
 
-// Segmented single bar: done / running / rest.
+// Segmented single bar: done (green), running (blue), failed (red), rest hatched.
 function segBar(g: Graph, c: Caps, cells: number): Line {
-  const ns = [...g.nodes.values()].filter(n => n.kind !== 'session')
+  const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const tot = ns.length || 1
   const cnt = (f: (n: Node) => boolean) => Math.round((ns.filter(f).length / tot) * cells)
   const d = Math.min(cells, cnt(n => n.state === 'done'))
   const r = Math.min(cells - d, cnt(n => n.state === 'running' || n.state === 'attention'))
+  const x = Math.min(cells - d - r, cnt(n => n.state === 'failed'))
   const [on, off] = BAR(c)
-  return [seg(c, on.repeat(d), STATE_COLOR.done), seg(c, on.repeat(r), STATE_COLOR.running), seg(c, off.repeat(cells - d - r), DIM)]
+  return [seg(c, on.repeat(d), STATE_COLOR.done), seg(c, on.repeat(r), STATE_COLOR.running), seg(c, on.repeat(x), STATE_COLOR.failed), seg(c, off.repeat(cells - d - r - x), DIM)]
 }
 
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)]! : 0 }
@@ -107,7 +109,7 @@ export function statusText(agents: AgentLike[], now: number, ascii = false): str
   const g = buildGraph(agents, now)
   const active = [...g.nodes.values()].filter(n => n.kind === 'agent' && (n.state === 'running' || n.state === 'attention'))
   const p = overallProgress(g)
-  const chip = active.length ? ` · ${ascii ? '<>' : '⇄'} ${truncRunes(active[active.length - 1]!.name, 20)}` : ''
+  const chip = active.length ? ` · @ ${truncRunes(active[active.length - 1]!.name, 20)}` : ''
   return `${ascii ? '*' : '●'} ${active.length} ativos · ${p === undefined ? '—' : Math.round(p * 100) + '%'}${chip}`
 }
 
@@ -124,21 +126,36 @@ function visibleSet(g: Graph, q: string, hidden: Set<string>): Set<string> {
   return keep
 }
 
+const ROUND_BOX = (c: Caps, w: number, left: Line, right: Line, color = '#6b7280'): Line[] => {
+  const b = boxChars(c), inner = w - 2
+  return [[seg(c, b.tl + b.h.repeat(inner) + b.tr, color)],
+    [seg(c, b.v, color), ...fit(spread(left, right, inner), inner), seg(c, b.v, color)],
+    [seg(c, b.bl + b.h.repeat(inner) + b.br, color)]]
+}
+
+// Header per design (Rodada 4): rounded box "Office · project · #sid" + colored counts, then the Geral bar row.
 function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const { caps: c, width: w } = v
   const prog = overallProgress(g)
   const eta = etaOf(g)
-  const lvl = layoutLevel(w)
-  const top: Line = spread([seg(c, 'Office Agent Monitor', undefined, { bold: true }), seg(c, `  ${statusText(agents, now, c.ascii)}`, DIM)],
-    [...segBar(g, c, lvl === 'full' ? 20 : 8), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'}`)], w)
-  const sub: Line = [seg(c, `${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} decorrido · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}`, DIM)]
-  return [fit(top, w), fit(sub, w)]
+  const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
+  const n_ = (f: (n: Node) => boolean) => ns.filter(f).length
+  const act = n_(n => n.state === 'running' || n.state === 'attention'), ok = n_(n => n.state === 'done'), bad = n_(n => n.state === 'failed')
+  const sid = String(v.sessionId ?? '').replace(/[^\w-]/g, '').slice(0, 6)
+  const left: Line = [seg(c, 'Office', undefined, { bold: true }), seg(c, ` · ${v.project || '-'}${sid ? ' · #' + sid : ''}`, DIM)]
+  const right: Line = [seg(c, `${glyph(c, 'running')} ${act} ativos`, STATE_COLOR.running), seg(c, ` ${glyph(c, 'done')} ${ok}`, STATE_COLOR.done),
+    seg(c, ` ${glyph(c, 'failed')} ${bad}`, STATE_COLOR.failed),
+    seg(c, ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}`, DIM)]
+  const geral: Line = [seg(c, 'Geral '), ...segBar(g, c, layoutLevel(w) === 'full' ? 20 : 10), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'} · `),
+    seg(c, 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna agrupado', DIM)]
+  return [...ROUND_BOX(c, w, left, right), fit(geral, w)]
 }
 
-function footer(g: Graph, v: CView): Line[] {
+function footer(g: Graph, v: CView, hint = ''): Line[] {
   const c = v.caps
-  const states: State[] = ['running', 'attention', 'failed', 'pending', 'done']
-  const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${LABEL[s]}`, STATE_COLOR[s])])
+  const states: State[] = ['done', 'running', 'attention', 'pending', 'failed']
+  const word: Record<State, string> = { done: 'ok', running: 'rodando', attention: 'atenção', pending: 'pendente', failed: 'falha', inactive: 'inativo' }
+  const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${word[s]}`, STATE_COLOR[s])])
   const keys: Line = [
     seg(c, `[g modo: ${({ tree: 'árvore', grouped: 'agrupado', cards: 'cards', waterfall: 'waterfall' } as Record<Mode, string>)[v.mode]}]`, undefined, { act: 'group' }), ...sp(1),
     seg(c, '[/ buscar]', undefined, { act: 'search' }), ...sp(1),
@@ -146,7 +163,8 @@ function footer(g: Graph, v: CView): Line[] {
     seg(c, 'Enter detalhe · Esc voltar', DIM),
   ]
   const depth: Line = [seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)]
-  return [fit(legend, v.width), fit(keys, v.width), fit(depth, v.width)]
+  const box = ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, '/ buscar · g modo', DIM)])
+  return [...box, fit(legend, v.width), fit(keys, v.width), fit(depth, v.width)]
 }
 
 function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
@@ -247,7 +265,7 @@ function partialBar(frac: number, cells: number, c: Caps, color: string, running
   const segs: Seg[] = []
   for (let i = 0; i < full; i++) segs.push(seg(c, '█', i === sh ? lighten(color) : color))
   if (rem) segs.push(seg(c, PART[rem]!, color))
-  segs.push(seg(c, '░'.repeat(Math.max(0, cells - full - (rem ? 1 : 0))), DIM))
+  segs.push(seg(c, '▒'.repeat(Math.max(0, cells - full - (rem ? 1 : 0))), DIM))
   return segs
 }
 
@@ -279,22 +297,39 @@ const timeline = (g: Graph, now: number) => {
   return { t0, tot: Math.max(1, t1 - t0) }
 }
 
-function card(n: Node, nm: Map<string, string>, c: Caps, tl: { t0: number; tot: number }, now: number, frame: number, idx: number): Line[] {
-  const b = boxChars(c), inner = CARD_W - 2, col_ = STATE_COLOR[n.state]
+// Card anatomy (design): name, persona · model, tool/status row, bar + metric + time. Border by state.
+const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: STATE_COLOR.failed, attention: STATE_COLOR.attention, done: '#4b5563', pending: '#4b5563', inactive: '#4b5563' }
+function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number): Line[] {
+  const b = boxChars(c), inner = CARD_W - 2, col_ = STATE_COLOR[n.state], edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
-  const p = (n.state === 'done' ? 1 : progressOf(n) ?? 0) * k
   const id = n.id
-  const body = (l: Line): Line => [seg(c, b.v, col_), ...fit([...l, ...sp(inner)], inner), seg(c, b.v, col_)]
-  const wf = spanBar(n, tl.t0, tl.tot, now, inner - 12, c, frame, k)
-  const [ob, cb] = c.ascii ? ['|', '|'] : ['▕', '▏']
-  const cells = Math.max(4, inner - 14)
+  const body = (l: Line): Line => [seg(c, b.v, edge), ...fit([...l, ...sp(inner)], inner), seg(c, b.v, edge)]
+  const kids = n.children.filter(x => x.kind === 'agent').length
+  const sep = c.ascii ? '<' : '‹', tri = c.ascii ? '>' : '▸'
+  const trail = [n.tool, ...[...(n.recent ?? [])].reverse().filter((x, i) => !(i === 0 && x === n.tool))].filter(Boolean).join(` ${sep} `)
+  const row3: Line =
+    n.state === 'done' ? [seg(c, 'concluído', DIM)]
+      : n.state === 'failed' ? [seg(c, `${glyph(c, 'failed')} ${n.error ?? 'falha'}`, STATE_COLOR.failed)]
+        : n.state === 'attention' ? [seg(c, `${glyph(c, 'attention')} ${n.error ?? 'sem atividade'}`, STATE_COLOR.attention)]
+          : n.state === 'pending' ? [seg(c, 'aguarda vaga', DIM)]
+            : [seg(c, `${tri} ${kids ? `delega ${kids} filhos` : trail || 'executando'}`, DIM)]
+  const cells = 12, [on, off] = BAR(c)
+  const leafRunning = n.state === 'running' && n.children.length === 0
+  let bar: Line
+  if (leafRunning) {
+    // no real percent for a leaf without tasks: indeterminate sweep, never an invented number
+    const pos = c.reducedMotion ? 0 : frame % (cells + 3)
+    const sweep = Array.from({ length: cells }, (_, i) => (i <= pos && i > pos - 3 ? on : off))
+    bar = sweep.map(ch => seg(c, ch, ch === on ? col_ : DIM))
+  } else bar = partialBar((n.state === 'done' ? 1 : n.state === 'failed' ? 0.6 : progressOf(n) ?? 0) * k, cells, c, col_, n.state === 'running', frame)
+  const time = n.start === undefined ? '--:--' : fmtMMSS(durationOf(n, now))
   return [
-    [seg(c, b.tl + b.h.repeat(inner) + b.tr, col_)],
+    [seg(c, b.tl + b.h.repeat(inner) + b.tr, edge)],
     body([seg(c, glyph(c, n.state) + ' ', col_, { node: id }), seg(c, truncRunes(nm.get(id) ?? n.name, inner - 2), undefined, { bold: true, node: id })]),
-    body([seg(c, truncRunes([n.persona, n.model, n.effort].filter(Boolean).join(' · '), inner), DIM, { node: id })]),
-    body([seg(c, ob, DIM), ...wf, seg(c, cb, DIM), seg(c, ` ${fmtMMSS(durationOf(n, now))}`, DIM)]),
-    body([...partialBar(p, cells, c, col_, n.state === 'running', frame), seg(c, ` ${metric(n)}`)]),
-    [seg(c, b.bl + b.h.repeat(inner) + b.br, col_)],
+    body([seg(c, truncRunes([n.persona, n.model].filter(Boolean).join(' · '), inner), DIM, { node: id })]),
+    body(row3),
+    body([...bar, seg(c, ` ${metric(n)} `), seg(c, time, DIM)]),
+    [seg(c, b.bl + b.h.repeat(inner) + b.br, edge)],
   ]
 }
 
@@ -311,7 +346,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   }
   const lines: Line[] = [], tops: number[] = []
   let idx = 0
-  const emitCards = (nodes: Node[], x: number): Line[][] => nodes.map(n => card(n, nm, c, tl, now, frame, idx++))
+  const emitCards = (nodes: Node[], x: number): Line[][] => nodes.map(n => card(n, nm, c, now, frame, idx++))
   // lays out children of `parent` at parentX; returns lines (relative), parent bottom border already emitted by caller
   const layoutChildren = (parent: Node, px: number, virtual: boolean, parentFlow: string): Line[] => {
     const kids = agentKids(parent)
@@ -399,6 +434,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
   const g = buildGraph(agents, now)
   const nm = names(g)
   const keep = visibleSet(g, v.query, hiddenIds(g, now))
+  let hint = ''
   const out: Line[] = [...header(g, agents, now, v)]
   if (v.query) out.push([seg(v.caps, `busca: ${v.query}`, DIM)])
   if (agents.length === 0) out.push([seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)])
@@ -411,16 +447,17 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
     }
     if (v.mode === 'cards') {
       const { lines, tops } = cardLines(g, nm, keep, now, v)
-      const cap = Math.max(CARD_H + 2, v.maxCardRows * (CARD_H + 2))
+      const cap = Math.max(CARD_H + 1, v.maxLines ?? v.maxCardRows * (CARD_H + 2))
       if (lines.length > cap) {
         const cut = tops.filter(t => t + CARD_H <= cap)
         const keepN = Math.max(1, cut.length), at = cut.length ? cut[cut.length - 1]! + CARD_H : cap
-        out.push(...lines.slice(0, at), [seg(v.caps, `${v.caps.ascii ? 'v' : '↓'} +${tops.length - keepN} cards`, DIM)])
+        out.push(...lines.slice(0, at))
+        hint = `${v.caps.ascii ? 'v' : '↓'} +${tops.length - keepN} cards`
       } else out.push(...lines)
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else out.push(...treeLines(g, nm, keep, now, v))
   }
-  out.push(...footer(g, v))
+  out.push(...footer(g, v, hint))
   return out.map(l => fit(l, w))
 }
 

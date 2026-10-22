@@ -30,7 +30,11 @@ A marketplace with four independent plugins for Claude Code:
 
 ## Monitor view (compact redesign)
 
-Renders below come from the real `renderCompact` / `detailCompact` functions with sample agents
+Real capture (vhs, live Claude Code session with 5 background agents, default cards view):
+
+![real capture](docs/images/real-cards.png)
+
+The SVGs below come from the real `renderCompact` / `detailCompact` functions with sample agents
 (`scripts/render-docs.ts`, monospace SVG). They are **not** screenshots of a live Claude Code terminal:
 mods cannot be driven headlessly from here.
 
