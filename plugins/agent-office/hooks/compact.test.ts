@@ -188,7 +188,7 @@ test('card border colors by state (blue running, red failed, gray done/pending)'
 test('footer box with +N cards hint, / buscar, g modo; legend below', () => {
   const ag = Array.from({ length: 30 }, (_, i) => mk('x' + i))
   const o = txt(cardsOut(ag, { maxCardRows: 2 }))
-  expect(o).toMatch(/│↓ \+\d+ cards .*Enter detalhe · Esc voltar\s*│/)
+  expect(o).toMatch(/│↓ \+\d+ cards · a grade rola.*s buscar · o ordenar│/)
   expect(o).toMatch(/✓ ok\s+● rodando\s+▲ atenção\s+○ pendente\s+✗ falha/)
 })
 test('ASCII header/footer use plain ascii only', () => {
@@ -200,7 +200,7 @@ test('maxLines caps card lines so footer always fits', () => {
   const ag = Array.from({ length: 12 }, (_, i) => mk('m' + i))
   const ls = renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 80, maxCardRows: 99, maxLines: 20 })
   expect(ls.length).toBeLessThanOrEqual(20 + 4 + 7)
-  expect(txt(ls)).toMatch(/Níveis de profundidade/)
+  expect(txt(ls)).toMatch(/✓ ok\s+● rodando/)
 })
 
 // ---- gaps round: real %, pending, worktree summary, filter/sort, hotkeys ----
@@ -231,15 +231,12 @@ test('filter failed keeps only failures/attention; sort by state puts failures f
   const s = txt(cardsOut(ag, { sort: 'state' }))
   expect(s.indexOf('Dev: bad')).toBeLessThan(s.indexOf('Dev: run')); expect(s.indexOf('Dev: run')).toBeLessThan(s.indexOf('Dev: ok'))
 })
-test('filter bar with counts and hotkey footer buttons', () => {
-  const ls = cardsOut([mk('a'), mk('b', { status: 'error', endedAt: T + 5 })])
-  const t0 = txt(ls)
-  expect(t0).toMatch(/Agrupado.*Todos os cards 2.*Falhas 1/)
-  const segs = ls.flat()
-  const hot = Object.fromEntries(segs.filter(s => s.hotkey).map(s => [s.hotkey, s.act]))
-  expect(hot).toMatchObject({ g: 'group', o: 'sort', f: 'failed', b: 'search', v: 'view', q: 'close' })
-  expect(t0).toMatch(/g: modo/)
-  expect(segs.filter(s => s.act === 'failed' && s.btn).length).toBeGreaterThan(0)
+test('filter bar only in grouped mode; cards mode has no hotkey segs (pane draws them per view)', () => {
+  const ag = [mk('a'), mk('b', { status: 'error', endedAt: T + 5 })]
+  expect(txt(renderCompact(ag, T + 9000, { ...v, mode: 'grouped' }))).toMatch(/Agrupado.*Todos os cards 2.*Falhas 1/)
+  const ls = cardsOut(ag)
+  expect(txt(ls)).not.toMatch(/Agrupado.*Todos os cards/)
+  expect(ls.flat().filter(s => s.hotkey).length).toBe(0)
 })
 test('detail has hotkeys for back and sibling navigation', () => {
   const ag = [mk('p', { agentId: 'P' }), mk('c1', { parentAgentId: 'P' }), mk('c2', { parentAgentId: 'P' })]

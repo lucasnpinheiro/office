@@ -59,12 +59,22 @@ Waterfall mode (`/office mode waterfall`): one span per agent on a shared time a
 | --- | --- |
 | ![detail](docs/images/detail.svg) | ![ascii](docs/images/ascii.svg) |
 
-Controls. Mods get no raw key events, but a `Button` can carry a `hotkey` (one letter or digit) that fires while the
-monitor pane holds the focus (`/office start` opens it focused, or click it / ctrl+x tab). Hotkeys: `g` mode (tree, grouped,
-cards, waterfall), `o` sort (time, state, name), `f` only failures, `b` search (field), `v` map view, `q` close;
-in the detail `b` back, `p`/`n` previous/next sibling. Filter buttons (Agrupado / Todos os cards N / Falhas N) are clickable;
-on a wide pane (desktop app, or a terminal of 150+ columns) the selected agent opens in a side panel.
-Not possible for mods: `/` as a key (hotkeys are letters/digits only), `o` open-externally and kitty/sixel images.
+Controls. Mods get no raw key events, but a `Button` can carry a `hotkey` (one letter or digit) that fires only while the
+monitor pane holds the focus: `/office start` opens it focused; at session start it opens unfocused, so press ctrl+x tab
+(or click it) first. Every key below is drawn in the footer of the view it works in, unique per view, and all hotkeys are
+off while the search field is open (Enter applies the search, empty clears it). Since 0.15.0 the session always starts in
+the ungrouped cards view (a stale mode or open search left by an older version is reset).
+
+| View | Keys |
+| --- | --- |
+| Cards / tree / grouped / waterfall | `g` mode, `o` sort, `f` only failures, `s` search, `v` map view, `q` close |
+| Detail (narrow pane) | `b` back, `p`/`n` previous/next sibling, `q` close |
+| Detail in the side panel (150+ cols) | list keys above plus `b` back |
+| Attachment preview | `b` close preview, `q` close |
+| Map view | `v` back to cards, `b` back (detail open), `q` close |
+| Search field open | none (typing goes to the field) |
+
+Not possible for mods: `/` as a key (hotkeys are letters/digits only; Esc never reaches a mod), `o` open-externally and kitty/sixel images.
 
 Commands: `/office mode tree|grouped|cards|waterfall`, `/office sort time|state|name`, `/office filter failed|all`,
 `/office search <text>`, `/office open <id>`, `/office view map|compact`, `/office width <cols>`

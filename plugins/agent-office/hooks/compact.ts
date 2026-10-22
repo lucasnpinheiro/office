@@ -165,16 +165,19 @@ function filterBar(g: Graph, v: CView): Line {
     ...btn(`Falhas ${bad}`, 'failed', v.filter === 'failed'), ...(v.query ? [seg(c, `busca: ${v.query}`, DIM)] : [])], v.width)
 }
 
+// Footer per design (Rodada 4): scroll-hint box, legend, bus legend. The hotkey row is drawn by the pane
+// from the view state (actions.ts hotkeysFor), so keys stay unique and go quiet while searching.
 function footer(g: Graph, v: CView, hint = ''): Line[] {
   const c = v.caps
   const states: State[] = ['done', 'running', 'attention', 'pending', 'failed']
   const word: Record<State, string> = { done: 'ok', running: 'rodando', attention: 'atenção', pending: 'pendente', failed: 'falha', inactive: 'inativo' }
   const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${word[s]}`, STATE_COLOR[s])])
-  const hk = (key: string, label: string, act: string): Seg[] => [seg(c, `${key}: ${label}`, undefined, { act, hotkey: key }), ...sp(2)]
-  const keys: Line = [...hk('g', 'modo', 'group'), ...hk('o', 'ordenar', 'sort'), ...hk('f', 'falhas', 'failed'), ...hk('b', 'buscar', 'search'), ...hk('v', 'visão', 'view'), ...hk('q', 'fechar', 'close')]
-  const depth: Line = [seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)]
-  const box = ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, 'Enter detalhe · Esc voltar', DIM)])
-  return [...box, fit(legend, v.width), fit(keys, v.width), fit(depth, v.width)]
+  const out: Line[] = []
+  if (hint) out.push(...ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, 's buscar · o ordenar', DIM)]))
+  out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], fit(legend, v.width))
+  if (v.mode === 'cards') out.push(fit([seg(c, c.ascii ? ": |-:-: ' barramento pai-irmãos · == worktree ==" : '┊ ├┬┬ ╰ barramento pai→irmãos · ━━ worktree: nome ━━ divisor', DIM)], v.width))
+  if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
+  return out
 }
 
 function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
@@ -458,7 +461,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
   const nm = names(g)
   const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
   let hint = ''
-  const out: Line[] = [...header(g, agents, now, v), filterBar(g, v)]
+  const out: Line[] = [...header(g, agents, now, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
   if (agents.length === 0) out.push([seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)])
   else {
     const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
@@ -474,7 +477,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
         const cut = tops.filter(t => t + CARD_H <= cap)
         const keepN = Math.max(1, cut.length), at = cut.length ? cut[cut.length - 1]! + CARD_H : cap
         out.push(...lines.slice(0, at))
-        hint = `${v.caps.ascii ? 'v' : '↓'} +${tops.length - keepN} cards`
+        hint = `${v.caps.ascii ? '+' : '↓ +'}${tops.length - keepN} cards · a grade rola (PgDn ou roda do mouse), nada fica cortado`
       } else out.push(...lines)
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else out.push(...treeLines(g, nm, keep, now, v))
