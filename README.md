@@ -1,17 +1,17 @@
 # Claude Code Office
 
-Mod `agent-office` (mapa animado de agentes e subagentes) e partes opcionais: personas/router, aprendizagem, Laya.
+Mod `agent-office` (animated map of agents and subagents) and optional parts: personas/router, learning, Laya.
 
-## Início rápido (pt-BR)
+## Quick start
 
 ```bash
-npx @lucasnpinheiro/office --scope global      # instala só o agent-office
-npx @lucasnpinheiro/office --all --scope local # tudo, só no projeto atual
-claude plugin marketplace add lucasnpinheiro/office && claude plugin install agent-office@office   # sem Node
+npx @lucasnpinheiro/office --scope global      # installs only agent-office
+npx @lucasnpinheiro/office --all --scope local # everything, current project only
+claude plugin marketplace add lucasnpinheiro/office && claude plugin install agent-office@office   # without Node
 ```
 
-Reinicie o Claude Code (ou `/reload-plugins`) e use `/office start`. Cada parte opcional é um plugin separado;
-`--dry-run` mostra os comandos sem executar; `--uninstall` remove tudo. Documentação em inglês abaixo e em `docs/`.
+Restart Claude Code (or run `/reload-plugins`) and use `/office start`. Each optional part is a separate plugin;
+`--dry-run` shows the commands without running them; `--uninstall` removes everything. Portuguese docs are in `docs/`.
 
 ---
 
@@ -63,7 +63,7 @@ Controls. Mods get no raw key events, but a `Button` can carry a `hotkey` (one l
 monitor pane holds the focus: `/office start` opens it focused; at session start it opens unfocused, so press ctrl+x tab
 (or click it) first. Every key below is drawn in the footer of the view it works in, unique per view, and all hotkeys are
 off while the search field is open (Enter applies the search, empty clears it). Since 0.15.1 the session always starts in
-the map view (`v` alterna entre o mapa e a visão compacta (cards por padrão, ou o modo de `OFFICE_MODE`); override com `OFFICE_VIEW=map|compact`). A stale mode, filter or open search is reset.
+the map view. `v` toggles between the map and the compact view (cards by default, or the `OFFICE_MODE` mode); override with `OFFICE_VIEW=map|compact`. A stale mode, filter or open search is reset.
 
 | View | Keys |
 | --- | --- |
