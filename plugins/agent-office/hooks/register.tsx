@@ -3,7 +3,9 @@ import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig } from './office'
 import { renderMonitor, inlineSize, detailLines } from './monitor'
-import { renderCompact, detailCompact, previewLines, detectCaps, statusText, NEXT_MODE, DEFAULT_MODE } from './compact'
+import { renderCompact, detailCompact, previewLines, detectCaps, statusText, DEFAULT_MODE } from './compact'
+import { applyAction, hotkeysFor, startUi } from './actions'
+import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf } from './stats'
@@ -175,6 +177,28 @@ async function closeOffice($: EngineInterface) {
   await $.ui.close({ id: PANE })
 }
 
+async function readUi($: EngineInterface): Promise<Ui> {
+  return {
+    view: (await read($, viewAt)) === 'map' ? 'map' : 'compact', mode: (await read($, modeAt)) as Mode,
+    filter: (await read($, filterAt)) === 'failed' ? 'failed' : 'all', sort: (await read($, sortAt)) as Ui['sort'],
+    searching: await read($, searchingAt), selected: await read($, selectedAt), attach: await read($, attachAt),
+    query: await read($, queryAt), expanded: await read($, expandedAt),
+  }
+}
+async function writeUi($: EngineInterface, n: Ui) {
+  await update($, viewAt, () => n.view); await update($, modeAt, () => n.mode); await update($, filterAt, () => n.filter)
+  await update($, sortAt, () => n.sort); await update($, searchingAt, () => n.searching); await update($, selectedAt, () => n.selected)
+  await update($, attachAt, () => n.attach); await update($, queryAt, () => n.query); await update($, expandedAt, () => n.expanded)
+}
+// one entry for every button and hotkey: pure reducer, then persist, redraw, keep the keys on the pane
+async function dispatch($: EngineInterface, a: string) {
+  const r = applyAction(await readUi($), a)
+  if (r.close) return closeOffice($)
+  await writeUi($, r.state)
+  $.ui.invalidate('ui.render')
+  if (!r.state.searching) void $.ui.focus({ requestId: PANE, key: 'hk-first' }).catch(() => undefined)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -183,6 +207,15 @@ export const register: Register = on => {
     })
     // always open at session start: the persisted isOpen is not consulted (a close on session exit
     // left it false). /office stop still closes for the current session only.
+    const start = startUi()
+    await update($, modeAt, () => start.mode as string)
+    await update($, viewAt, () => start.view)
+    await update($, filterAt, () => start.filter)
+    await update($, searchingAt, () => start.searching)
+    await update($, queryAt, () => start.query)
+    await update($, selectedAt, () => start.selected)
+    await update($, attachAt, () => start.attach)
+    await update($, expandedAt, () => start.expanded)
     const m = ((await $.env.get('OFFICE_MODE').catch(() => undefined)) ?? '').trim().toLowerCase()
     if (['tree', 'grouped', 'cards', 'waterfall'].includes(m)) await update($, modeAt, () => m)
     const w = parseInt((await $.env.get('OFFICE_WIDTH').catch(() => undefined)) ?? '', 10)
@@ -197,7 +230,7 @@ export const register: Register = on => {
     if (w0 === 'view') { const v = arg === 'map' ? 'map' : 'compact'; await update($, viewAt, () => v); return { text: `Visão: ${v}.` } }
     if (w0 === 'mode' || w0 === 'g') {
       const cur = (await read($, modeAt)) as Mode
-      const m = (['tree', 'grouped', 'cards', 'waterfall'] as Mode[]).includes(arg as Mode) ? (arg as Mode) : NEXT_MODE[cur]
+      const m = (['tree', 'grouped', 'cards', 'waterfall'] as Mode[]).includes(arg as Mode) ? (arg as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group').state.mode
       await update($, modeAt, () => m); $.ui.invalidate('ui.render'); return { text: `Modo: ${m}.` }
     }
     if (w0 === 'search' || w0 === 'buscar') { await update($, queryAt, () => arg); $.ui.invalidate('ui.render'); return { text: arg ? `Busca: ${arg}` : 'Busca limpa.' } }
@@ -400,32 +433,24 @@ export const register: Register = on => {
       else compactFrame = renderCompact(all, now, compactView)
     }
     const detail = selected && view !== 'compact' ? detailLines(all, selected, now) : undefined
-    const act = async (a: string) => {
-      if (a === 'group') { const cur = (await read($, modeAt)) as Mode; await update($, modeAt, () => NEXT_MODE[cur]) }
-      else if (a === 'mode:grouped' || a === 'mode:cards') { await update($, modeAt, () => a.slice(5)); await update($, filterAt, () => 'all') }
-      else if (a === 'failed') await update($, filterAt, x => (x === 'failed' ? 'all' : 'failed'))
-      else if (a === 'sort') await update($, sortAt, x => (x === 'time' ? 'state' : x === 'state' ? 'name' : 'time'))
-      else if (a === 'close') await closeOffice($)
-      else if (a === 'view') await update($, viewAt, () => 'map')
-      else if (a === 'search') await update($, searchingAt, x => !x)
-      else if (a.startsWith('grp:')) await update($, expandedAt, l => (l.includes(a.slice(4)) ? l.filter(x => x !== a.slice(4)) : [...l, a.slice(4)]))
-    }
+    const act = (a: string) => dispatch($, a)
+    const ui = await readUi($)
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch
     const draw = (line: typeof f.lines[number]) => (
       <Box flexDirection="row">
         {line.map(s =>
           s.attach ? (
-            <Button plain key={`a-${s.attach}`} onPress={() => void update($, attachAt, () => s.attach!)}><Text color={s.fg}>{s.t}</Text></Button>
+            <Button plain key={`a-${s.attach}`} onPress={() => void (async () => { await update($, attachAt, () => s.attach!); $.ui.invalidate('ui.render') })()}><Text color={s.fg}>{s.t}</Text></Button>
           ) : s.act && s.hotkey ? (
-            <Button plain hotkey={s.hotkey} key={`h-${s.hotkey}`} label={s.t.slice(3)} onPress={() => void act(s.act!)}>{s.t.slice(3)}</Button>
+            <Button plain hotkey={ui.searching ? undefined : s.hotkey} key={`h-${s.hotkey}`} label={s.t.slice(3)} onPress={() => void act(s.act!)}>{s.t.slice(3)}</Button>
           ) : s.act && s.btn ? (
             <Button variant={s.variant} key={`b-${s.act}`} label={s.t.trim()} onPress={() => void act(s.act!)}>{s.t.trim()}</Button>
           ) : s.act ? (
             <Button plain key={`c-${s.act}-${s.t}`} onPress={() => void act(s.act!)}><Text color={s.fg} bold={s.bold} dimColor={s.dim}>{s.t}</Text></Button>
           ) : s.node && s.hotkey ? (
-            <Button plain hotkey={s.hotkey} key={`nh-${s.hotkey}`} label={s.t.slice(3)} onPress={() => void update($, selectedAt, () => s.node!)}>{s.t.slice(3)}</Button>
+            <Button plain hotkey={ui.searching ? undefined : s.hotkey} key={`nh-${s.hotkey}`} label={s.t.slice(3)} onPress={() => void act(`open:${s.node!}`)}>{s.t.slice(3)}</Button>
           ) : s.node ? (
-            <Button plain key={`n-${s.node}-${s.t}`} onPress={() => void update($, selectedAt, () => s.node!)}><Text color={s.fg} bold={s.bold} dimColor={s.dim}>{s.t}</Text></Button>
+            <Button plain key={`n-${s.node}-${s.t}`} onPress={() => void act(`open:${s.node!}`)}><Text color={s.fg} bold={s.bold} dimColor={s.dim}>{s.t}</Text></Button>
           ) : s.toggle ? (
             <Button plain key={`t-${s.toggle}`} onPress={() => void toggleBranch($, s.toggle!)}><Text color={s.fg}>{s.t}</Text></Button>
           ) : (
@@ -434,20 +459,24 @@ export const register: Register = on => {
         )}
       </Box>
     )
+    const side = view === 'compact' && !!selected && !attach && cols >= ((e as { surface?: string }).surface === 'desktop' ? 110 : 150)
+    // footer hotkeys for the current view (actions.ts): one letter each, none while the search Input has the keys
+    const keysRow = draw([
+      ...hotkeysFor(ui, side).flatMap(h => [{ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }, { t: '  ' }]),
+      { t: ui.searching ? 'Enter aplica a busca (vazio limpa)' : 'Tab entre cards · Enter detalhe · ctrl+x tab foca o painel', fg: '#9ca3af' },
+    ])
     if (compactFrame) {
-      const back = () => void (attach ? update($, attachAt, () => '') : update($, selectedAt, () => ''))
       const searching = await read($, searchingAt)
       const field = searching ? (
-        <Input key="office-search" label="/ " placeholder="buscar agente (Enter)" value={await read($, queryAt)} onSubmit={(v: string) => { void update($, queryAt, () => v.trim()); void update($, searchingAt, () => false) }} />
+        <Input key="office-search" autoFocus label="s " placeholder="buscar agente (Enter)" value={await read($, queryAt)} onSubmit={(v: string) => void (async () => { await update($, queryAt, () => v.trim()); await dispatch($, 'back') })()} />
       ) : null
-      const backBtn = <Button key="office-back" hotkey="b" onPress={back}>{attach ? '[← b: fechar preview]' : '[← b: voltar]'}</Button>
+      const backBtn = <Button key="office-back" onPress={() => void act('back')}>{attach ? '[← fechar preview]' : '[← voltar]'}</Button>
       // wide pane (desktop app, or a very wide terminal): cards on the left, the detail of the selected agent on the right
-      const side = !!selected && !attach && cols >= ((e as { surface?: string }).surface === 'desktop' ? 110 : 150)
       if (side) {
         const left = renderCompact(all, now, { ...compactView, width: cols - 50 })
         return (
           <Box flexDirection="row">
-            <Box flexDirection="column" width={cols - 49}>{field}{left.map(draw)}</Box>
+            <Box flexDirection="column" width={cols - 49}>{field}{left.map(draw)}{keysRow}</Box>
             <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{backBtn}{(detailCompact(all, selected, now, caps) ?? []).map(draw)}</Box>
           </Box>
         )
@@ -456,14 +485,16 @@ export const register: Register = on => {
         <Box flexDirection="column">
           {selected ? backBtn : field}
           {compactFrame.map(draw)}
+          {keysRow}
         </Box>
       )
     }
     if (detail) {
       return (
         <Box flexDirection="column">
-          <Button onPress={() => void update($, selectedAt, () => '')}>{'[← Voltar ao mapa]'}</Button>
+          <Button onPress={() => void act('back')}>{'[← Voltar ao mapa]'}</Button>
           {detail.map(draw)}
+          {keysRow}
         </Box>
       )
     }
@@ -485,6 +516,7 @@ export const register: Register = on => {
           </Box>
         ) : null}
         {f.footer.map(draw)}
+        {keysRow}
       </Box>
     )
   })
