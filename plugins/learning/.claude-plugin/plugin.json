@@ -1,7 +1,11 @@
 {
   "name": "learning",
-  "version": "0.1.0",
-  "description": "Learning loop: the task-observer skill (CC BY 4.0, Eoghan Henn) plus an empty observation-log template and a CLAUDE.md activation snippet.",
+  "version": "0.1.1",
+  "description": "Learning loop: the task-observer skill plus an empty observation-log template and a CLAUDE.md activation snippet. Plugin files MIT; the bundled task-observer skill is CC BY 4.0 by Eoghan Henn (rebelytics.com), see NOTICE in the README.",
   "author": { "name": "lucasnpinheiro" },
-  "license": "MIT"
+  "homepage": "https://github.com/lucasnpinheiro/office/tree/main/plugins/learning#readme",
+  "repository": "https://github.com/lucasnpinheiro/office",
+  "license": "MIT",
+  "keywords": ["skills", "task-observer", "learning", "observations", "cc-by-4.0"],
+  "icon": "./.claude-plugin/icon.png"
 }

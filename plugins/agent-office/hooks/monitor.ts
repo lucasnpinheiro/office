@@ -9,7 +9,10 @@ import { HIDE_AFTER_MS } from './office'
 
 export const MAX_DEPTH = 10
 // Quota / rate-limit failures are not agent bugs: they surface as attention items, not failures.
-export const isQuotaError = (t?: string): boolean => !!t && /quota|rate.?limit|usage limit|\b429\b|overloaded|credit/i.test(t)
+// "429" only as an HTTP status (start of text, after error/status/http), "credit" only as a balance: a stray line
+// number or a form field named "credit card" is not a quota failure.
+export const isQuotaError = (t?: string): boolean =>
+  !!t && /quota|rate.?limit|usage limit|too many requests|overloaded|(?:^|\b(?:error|status|http|code)\W{0,3})429\b|credit balance|out of credits|insufficient credit/i.test(t)
 export const ATTENTION_AFTER_MS = 10 * 60 * 1000
 
 export type State = 'pending' | 'running' | 'done' | 'attention' | 'inactive' | 'failed'
@@ -43,6 +46,8 @@ const firstWords = (s?: string): string => (s ?? '').trim().split('\n')[0]!.slic
 
 export type ToolNote = { tool?: string; recent?: string[] }
 const isFinal = (s: State) => s === 'done' || s === 'failed' || s === 'inactive'
+// Still in progress: running, or attention without an end (stale). An ended quota error is attention but over.
+export const isOpenNode = (n: { state: State; end?: number }): boolean => n.state === 'running' || (n.state === 'attention' && n.end === undefined)
 // Any descendant (agent or task) still running: a done ancestor of it is 'awaiting children'.
 const hasRunningDescendant = (n: Node): boolean => n.children.some(c => c.state === 'running' || hasRunningDescendant(c))
 
@@ -143,7 +148,7 @@ export function elapsedOf(g: Graph, now: number): number {
   const ns = [...g.nodes.values()].filter(n => n.kind !== 'session')
   const first = Math.min(...ns.filter(n => n.start !== undefined).map(n => n.start!))
   if (!Number.isFinite(first)) return 0
-  const allFinal = ns.length > 0 && ns.every(n => isFinal(n.state))
+  const allFinal = ns.length > 0 && ns.every(n => isFinal(n.state) || (n.state === 'attention' && n.end !== undefined))
   const last = Math.max(0, ...ns.map(n => n.end ?? 0))
   const end = allFinal && last > 0 ? last : now
   return Math.max(0, end - first)
@@ -203,16 +208,43 @@ export function mixHex(a: string, b: string, t: number): string {
 // Smooth breath (cosine) instead of on/off: 0 at frame 0, 1 at half period.
 export const breath = (frame: number): number => (1 - Math.cos((2 * Math.PI * frame) / PULSE_FRAMES)) / 2
 
-const len = (s: string) => [...s].length
+// ---------- display width (terminal cells) ----------
+// Code points are not cells: CJK and emoji take two, combining marks, ZWJ and variation selectors none. A label
+// measured by code points overflowed card borders by one cell per wide glyph.
+const WIDE: [number, number][] = [
+  [0x1100, 0x115f], [0x231a, 0x231b], [0x2329, 0x232a], [0x23e9, 0x23ec], [0x23f0, 0x23f0], [0x23f3, 0x23f3], [0x25fd, 0x25fe],
+  [0x2614, 0x2615], [0x2648, 0x2653], [0x267f, 0x267f], [0x2693, 0x2693], [0x26a1, 0x26a1], [0x26aa, 0x26ab], [0x26bd, 0x26be],
+  [0x26c4, 0x26c5], [0x26ce, 0x26ce], [0x26d4, 0x26d4], [0x26ea, 0x26ea], [0x26f2, 0x26f3], [0x26f5, 0x26f5], [0x26fa, 0x26fa],
+  [0x26fd, 0x26fd], [0x2705, 0x2705], [0x270a, 0x270b], [0x2728, 0x2728], [0x274c, 0x274c], [0x274e, 0x274e], [0x2753, 0x2755],
+  [0x2757, 0x2757], [0x2795, 0x2797], [0x27b0, 0x27b0], [0x27bf, 0x27bf], [0x2b1b, 0x2b1c], [0x2b50, 0x2b50], [0x2b55, 0x2b55],
+  [0x2e80, 0x303e], [0x3041, 0x33ff], [0x3400, 0x4dbf], [0x4e00, 0x9fff], [0xa000, 0xa4cf], [0xa960, 0xa97f], [0xac00, 0xd7a3],
+  [0xf900, 0xfaff], [0xfe10, 0xfe19], [0xfe30, 0xfe6f], [0xff00, 0xff60], [0xffe0, 0xffe6], [0x1f004, 0x1f004], [0x1f0cf, 0x1f0cf],
+  [0x1f18e, 0x1f18e], [0x1f191, 0x1f19a], [0x1f200, 0x1f251], [0x1f300, 0x1f64f], [0x1f680, 0x1f6ff], [0x1f7e0, 0x1f7eb],
+  [0x1f900, 0x1f9ff], [0x1fa70, 0x1faff], [0x20000, 0x3fffd],
+]
+export function charWidth(cp: number): number {
+  if (cp === 0x200d || (cp >= 0x300 && cp <= 0x36f) || (cp >= 0xfe00 && cp <= 0xfe0f) || (cp >= 0x1f3fb && cp <= 0x1f3ff) || (cp >= 0xe0000 && cp <= 0xe01ef)) return 0
+  if (cp < 0x1100) return cp < 0x20 ? 0 : 1
+  for (const [a, b] of WIDE) { if (cp < a) return 1; if (cp <= b) return 2 }
+  return 1
+}
+export const strWidth = (s: string): number => { let n = 0; for (const ch of s) n += charWidth(ch.codePointAt(0)!); return n }
+// Longest prefix of `s` that fits in `w` cells (a wide glyph that would straddle the edge is left out).
+export function takeWidth(s: string, w: number): string {
+  let out = '', used = 0
+  for (const ch of s) { const cw = charWidth(ch.codePointAt(0)!); if (used + cw > w) break; out += ch; used += cw }
+  return out
+}
+export const padWidth = (s: string, w: number): string => s + ' '.repeat(Math.max(0, w - strWidth(s)))
+const len = strWidth
 export const lineWidth = (l: Line) => l.reduce((n, s) => n + len(s.t), 0)
 export const lineText = (l: Line) => l.map(s => s.t).join('')
 const sp = (n: number): Line => (n > 0 ? [{ t: ' '.repeat(n) }] : [])
 
 export function truncRunes(s: string, max: number): string {
   if (max <= 0) return ''
-  const r = [...s]
-  if (r.length <= max) return s
-  return max === 1 ? '…' : r.slice(0, max - 1).join('') + '…'
+  if (strWidth(s) <= max) return s
+  return max === 1 ? '…' : takeWidth(s, max - 1) + '…'
 }
 
 export function truncLine(l: Line, w: number): Line {
@@ -220,9 +252,11 @@ export function truncLine(l: Line, w: number): Line {
   let used = 0
   for (const s of l) {
     if (used >= w) break
-    const r = [...s.t]
-    out.push(used + r.length <= w ? s : { ...s, t: r.slice(0, w - used).join('') })
-    used += r.length
+    const sw = strWidth(s.t)
+    const piece = used + sw <= w ? s : { ...s, t: takeWidth(s.t, w - used) }
+    out.push(piece)
+    used += used + sw <= w ? sw : strWidth(piece.t)
+    if (piece !== s) break
   }
   return out
 }

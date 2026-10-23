@@ -118,8 +118,12 @@ def top(answer):
 
 def main():
     try:
-        data = json.load(sys.stdin)
+        # bytes -> UTF-8 explicitly: on Windows sys.stdin defaults to the ANSI code page and a prompt with
+        # accents raised UnicodeDecodeError, so the router silently never answered there
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8", errors="replace"))
     except Exception:
+        return
+    if not isinstance(data, dict):
         return
     msg = (data.get("prompt") or "").strip()
     if not msg or msg[0] in "!/" or msg.startswith(ENVELOPES):

@@ -1,7 +1,11 @@
 {
   "name": "personas",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Three-tier subagent workers (rapido/padrao/profundo = Haiku/Sonnet/Opus), a 17-persona role table and an optional UserPromptSubmit tier router (uses Laya when available, keyword fallback otherwise).",
   "author": { "name": "lucasnpinheiro" },
-  "license": "MIT"
+  "homepage": "https://github.com/lucasnpinheiro/office/tree/main/plugins/personas#readme",
+  "repository": "https://github.com/lucasnpinheiro/office",
+  "license": "MIT",
+  "keywords": ["subagents", "agents", "personas", "model-routing", "hooks"],
+  "icon": "./.claude-plugin/icon.png"
 }

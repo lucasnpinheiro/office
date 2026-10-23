@@ -3,13 +3,14 @@
 import { renderCompact, detailCompact, detectCaps } from '../plugins/agent-office/hooks/compact'
 import type { Mode } from '../plugins/agent-office/hooks/compact'
 import type { Line } from '../plugins/agent-office/hooks/monitor'
+import { strWidth } from '../plugins/agent-office/hooks/monitor'
 import { writeFileSync } from 'node:fs'
 
 const now = Date.now()
 const mk = (id: string, description: string, o: Record<string, unknown> = {}) => ({ id, description, status: 'working' as const, startedAt: now - 120000, seenAt: now, ...o })
 const agents = [
   mk('a', '🦉 Senior · 👑 Opus · 🟢 baixo: Planejar migração', { agentId: 'A', status: 'done', endedAt: now - 60000, startedAt: now - 300000 }),
-  mk('b', '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo: Implementar API', { agentId: 'B', parentAgentId: 'A', todos: [{ content: 'rotas', status: 'completed' }, { content: 'testes', status: 'in_progress' }, { content: 'docs', status: 'pending' }] }),
+  mk('b', '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo: Implementar API', { agentId: 'B', parentAgentId: 'A', todos: [{ content: 'rotas', status: 'completed' }, { content: 'testes', status: 'in_progress' }, { content: 'docs', status: 'pending' }], files: ['src/api/routes.ts', 'tests/api.test.ts'] }),
   mk('c', '🧪 QA · 🎼 Sonnet · 🟢 baixo: Rodar suíte', { agentId: 'C', parentAgentId: 'A' }),
   mk('d', '🌱 Junior · 🪶 Haiku · 🟢 baixo: Ajustar docs', { parentAgentId: 'A' }),
   mk('e', '🌱 Junior · 🪶 Haiku · 🟢 baixo: Ajustar docs', { parentAgentId: 'A' }),
@@ -20,10 +21,10 @@ const agents = [
 const BG = '#0f172a', FG = '#e5e7eb'
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 function svgBody(lines: Line[]) {
-  const cw = 8.4, lh = 18, w = Math.ceil(Math.max(...lines.map(l => l.reduce((n, s) => n + [...s.t].length, 0))) * cw) + 24
+  const cw = 8.4, lh = 18, w = Math.ceil(Math.max(...lines.map(l => l.reduce((n, s) => n + strWidth(s.t), 0))) * cw) + 24
   const rows = lines.map((l, i) => {
     let x = 0
-    const spans = l.map(s => { const t = `<tspan x="${(12 + x * cw).toFixed(1)}" fill="${s.fg ?? FG}"${s.bold ? ' font-weight="bold"' : ''} xml:space="preserve">${esc(s.t)}</tspan>`; x += [...s.t].length; return t }).join('')
+    const spans = l.map(s => { const t = `<tspan x="${(12 + x * cw).toFixed(1)}" fill="${s.fg ?? FG}"${s.bold ? ' font-weight="bold"' : ''} xml:space="preserve">${esc(s.t)}</tspan>`; x += strWidth(s.t); return t }).join('')
     return `<text y="${14 + i * lh + 8}">${spans}</text>`
   }).join('\n')
   return { w, h: lines.length * lh + 28, rows }

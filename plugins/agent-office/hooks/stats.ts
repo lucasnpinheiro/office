@@ -7,6 +7,8 @@ import { worktreeFromPath } from './git'
 
 export type Todo = { id?: string; content: string; status: 'pending' | 'in_progress' | 'completed' }
 export type Counts = Record<string, number>
+const TODO_STATUS = new Set<Todo['status']>(['pending', 'in_progress', 'completed'])
+const todoStatus = (v: unknown): Todo['status'] | undefined => (TODO_STATUS.has(v as Todo['status']) ? (v as Todo['status']) : undefined)
 
 export type ToolKind = { kind: 'mcp'; name: string } | { kind: 'web'; name: string } | { kind: 'local'; name: string }
 
@@ -93,8 +95,12 @@ export function applyTool(a: AgentLike, tool: string, input: Record<string, unkn
   if (path && (tool === 'Edit' || tool === 'Write' || tool === 'NotebookEdit' || tool === 'MultiEdit') && !(a.files ?? []).includes(path))
     out.files = [...(a.files ?? []), path].slice(-50)
   if (!a.cwd && path) { const wt = worktreeFromPath(path); if (wt) out.cwd = wt }
+  // the model writes these arguments: skip non-objects, coerce content, and map an unknown status to pending
+  // (an unexpected value used to fall through as-is and render as neither done nor running)
   if (tool === 'TodoWrite' && Array.isArray(input.todos))
-    out.todos = (input.todos as { content?: string; status?: Todo['status'] }[]).map(t => ({ content: String(t.content ?? ''), status: t.status ?? 'pending' }))
+    out.todos = (input.todos as unknown[])
+      .filter((t): t is { content?: unknown; status?: unknown } => !!t && typeof t === 'object')
+      .map(t => ({ content: String(t.content ?? ''), status: todoStatus(t.status) ?? 'pending' }))
   if (tool === 'TaskCreate' && typeof input.subject === 'string') {
     const id = (result as { task?: { id?: string } } | undefined)?.task?.id
     out.todos = [...(a.todos ?? []), { id, content: input.subject, status: 'pending' }]
@@ -103,7 +109,7 @@ export function applyTool(a: AgentLike, tool: string, input: Record<string, unkn
     const list = a.todos ?? []
     out.todos = list
       .filter(t => !(t.id === input.taskId && input.status === 'deleted'))
-      .map(t => (t.id === input.taskId ? { ...t, content: typeof input.subject === 'string' ? input.subject : t.content, status: (input.status as Todo['status'] | undefined) && input.status !== 'deleted' ? (input.status as Todo['status']) : t.status } : t))
+      .map(t => (t.id === input.taskId ? { ...t, content: typeof input.subject === 'string' ? input.subject : t.content, status: todoStatus(input.status) ?? t.status } : t))
   }
   return out
 }

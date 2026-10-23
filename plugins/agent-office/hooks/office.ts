@@ -59,6 +59,14 @@ export const HIDE_AFTER_MS = 30_000 // finished agents leave the map this long a
 export const hasPendingHide = (agents: AgentLike[], now: number): boolean =>
   agents.some(a => a.status !== 'working' && a.endedAt !== undefined && now - a.endedAt <= HIDE_AFTER_MS)
 
+// Generation counter for the redraw timer: schedule() awaits state before it arms a timer, so two overlapping
+// calls could both arm one and the first was never cancelled (timers multiplied while agents ran). Only the
+// newest generation may arm the timer.
+export function ticker(): { next: () => number; current: (g: number) => boolean } {
+  let gen = 0
+  return { next: () => ++gen, current: g => g === gen }
+}
+
 // Next redraw delay; undefined = nothing is open, no timer needed.
 export const COMPACT_FRAME_MS = 250 // compact view: 4 fps, within the 2-5 fps budget
 export function nextDelay(agents: AgentLike[], now: number = Date.now(), opts?: { reducedMotion?: boolean; compact?: boolean }): number | undefined {

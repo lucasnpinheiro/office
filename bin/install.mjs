@@ -18,8 +18,8 @@ const PLUGINS = ['agent-office', 'personas', 'learning', 'laya']
 
 const HELP = `claude-office - install the Office mod and optional parts into Claude Code
 
-Usage: npx @lucasnpinheiro/office [flags]
-       node bin/install.mjs [flags]
+Usage: npx github:lucasnpinheiro/office [flags]   (straight from GitHub; no npm release needed)
+       node bin/install.mjs [flags]                (from a clone)
 
   (no flag)          marketplace + agent-office only
   --with-personas    also install personas (subagent tiers + optional tier-router hook)
@@ -29,15 +29,27 @@ Usage: npx @lucasnpinheiro/office [flags]
   --with-caveman     print where to get the optional caveman skill (nothing is copied)
   --all              personas + learning + laya (caveman stays a pointer: --with-caveman)
   --scope <s>        global (user settings, default non-interactive) | local (this project, .claude/settings.json)
-                     (the raw CLI values user | project | local are accepted too)
+                     (also accepted: user = global, project = local, local-private = the CLI's own
+                     --scope local, i.e. .claude/settings.local.json)
+  --local-source     add the marketplace from this checkout instead of GitHub (development)
   --dry-run          print the commands, run nothing, write nothing
-  --uninstall        remove all four plugins and the marketplace
+  --uninstall        remove all four plugins and the marketplace (from the chosen scope)
   -h, --help
 `
 
 const args = process.argv.slice(2)
 const has = (f) => args.includes(f)
 if (has('-h') || has('--help')) { process.stdout.write(HELP); process.exit(0) }
+
+const FLAGS = ['--with-personas', '--with-learning', '--with-laya', '--with-caveman', '--all', '--scope', '--local-source', '--dry-run', '--uninstall']
+// a typo (e.g. --with-persona) must not silently install less than asked
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--scope') { i++; continue }
+  if (!FLAGS.includes(args[i])) {
+    process.stderr.write(`error: unknown argument "${args[i]}" (see --help)\n`)
+    process.exit(1)
+  }
+}
 
 const dry = has('--dry-run')
 const all = has('--all')
@@ -49,6 +61,10 @@ const want = {
 }
 const si = args.indexOf('--scope')
 let scope = si >= 0 ? args[si + 1] : undefined
+if (si >= 0 && (scope === undefined || scope.startsWith('-'))) {
+  process.stderr.write('error: --scope needs a value (global | local)\n')
+  process.exit(1)
+}
 
 const say = (m = '') => process.stdout.write(m + '\n')
 const fail = (m) => { process.stderr.write(`error: ${m}\n`); process.exit(1) }
@@ -73,17 +89,19 @@ async function pickScope() {
   return a.startsWith('l') ? 'project' : 'user'
 }
 
+// Windows: an npm-installed `claude` is a .cmd shim that spawnSync cannot start without a shell
+const WIN = process.platform === 'win32'
 function run(cmd, cmdArgs, { allowFail = false } = {}) {
   say(`$ ${cmd} ${cmdArgs.join(' ')}`)
   if (dry) return true
-  const r = spawnSync(cmd, cmdArgs, { stdio: 'inherit' })
+  const r = spawnSync(cmd, cmdArgs, { stdio: 'inherit', shell: WIN })
   if (r.status !== 0 && !allowFail) fail(`command failed (exit ${r.status}): ${cmd} ${cmdArgs.join(' ')}`)
   return r.status === 0
 }
 
 function checkClaude() {
   let out = ''
-  try { out = execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim() }
+  try { out = execFileSync('claude', ['--version'], { encoding: 'utf8', shell: WIN }).trim() }
   catch { if (dry) { say('(dry-run) `claude` not found in PATH; continuing'); return } fail('`claude` not found in PATH. Install Claude Code first: https://code.claude.com/docs') }
   const m = out.match(/(\d+)\.(\d+)\.(\d+)/)
   if (m) {
@@ -126,14 +144,19 @@ async function main() {
     checkClaude()
     const sc = await pickScope()
     for (const p of PLUGINS) run('claude', ['plugin', 'uninstall', `${p}@${MARKET}`, '--scope', sc], { allowFail: true })
-    run('claude', ['plugin', 'marketplace', 'remove', MARKET], { allowFail: true })
+    // same scope as the plugins: without --scope the CLI drops the marketplace from every scope
+    run('claude', ['plugin', 'marketplace', 'remove', MARKET, '--scope', sc], { allowFail: true })
     say('\nUninstalled. ~/.claude/skill-observations and ~/.claude/model-router are left in place (your data).')
     return
   }
   checkClaude()
   const sc = await pickScope()
   const source = has('--local-source') ? ROOT : REPO // development: install from this checkout
-  run('claude', ['plugin', 'marketplace', 'add', source, '--scope', sc])
+  // re-running the installer (e.g. to add --with-personas later) must not abort on an already-added marketplace:
+  // tolerate the add, then refresh the catalog so the newest plugin versions are seen
+  if (!run('claude', ['plugin', 'marketplace', 'add', source, '--scope', sc], { allowFail: true }))
+    say('(marketplace already added or add failed; refreshing it)')
+  run('claude', ['plugin', 'marketplace', 'update', MARKET])
   const toInstall = ['agent-office', ...['personas', 'learning', 'laya'].filter((p) => want[p])]
   for (const p of toInstall) run('claude', ['plugin', 'install', `${p}@${MARKET}`, '--scope', sc])
   if (want.learning) setupLearning()

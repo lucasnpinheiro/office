@@ -1,9 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { Register, EngineInterface } from 'claude-code'
-import type { OfficeAgent } from '../types'
-import { frameFor, nextDelay, parseSub, paneWidth, drawSig } from './office'
+import type { OfficeAgent, Status } from '../types'
+import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
 import { renderMonitor, inlineSize, detailLines } from './monitor'
-import { renderCompact, detailCompact, previewLines, detectCaps, statusText, DEFAULT_MODE } from './compact'
+import { renderCompact, detailCompact, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE } from './compact'
 import { applyAction, FOOTER_SEP, footerTail, hotkeysFor, startUi } from './actions'
 import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
@@ -32,7 +32,7 @@ const attachAt = atom({ plugin: 'agent-office', key: 'attach' } as const, '')
 
 // Terminal capabilities from the environment (ASCII, color depth, reduced motion). Cached for the session.
 let capsCache: Caps | undefined
-async function capsOf($: EngineInterface, surface?: string): Promise<Caps> {
+async function capsOf($: EngineInterface): Promise<Caps> {
   if (capsCache) return capsCache
   const g = (v: Promise<string | undefined>) => v.catch(() => undefined)
   const env: Record<string, string | undefined> = {
@@ -49,12 +49,17 @@ async function capsOf($: EngineInterface, surface?: string): Promise<Caps> {
     WT_SESSION: await g($.env.get('WT_SESSION')),
     TERM_PROGRAM: await g($.env.get('TERM_PROGRAM')),
   }
-  capsCache = detectCaps(env, { isTTY: surface === 'terminal' || surface === undefined ? true : true })
+  capsCache = detectCaps(env, { isTTY: true }) // the engine draws the pane; there is no raw stdout to probe
   return capsCache
 }
 
 const HELP =
-  'Uso: /office start | stop | (alterna). /office view map|compact; /office mode tree|grouped|cards|waterfall (ou g); /office search <texto> (vazio limpa); /office sort time|state|name; /office filter failed|all; /office width <colunas>; /office open <id> (detalhe). Teclas/botoes: g modo, / buscar, Enter detalhe, Esc/voltar, [ ] irmaos. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
+  'Uso: /office start | stop | (alterna). /office view [map|compact] (sem valor alterna); /office mode tree|grouped|cards|waterfall (ou g); /office search <texto> (vazio limpa); /office sort time|state|name; /office filter failed|all; /office width <colunas>; /office open <id> (detalhe). Teclas (com o painel focado: ctrl+x tab ou clique): v mapa/cards, g modo, o ordenar, f só falhas, s buscar, Enter detalhe, b voltar, p/n irmaos no detalhe, q fechar. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
+
+// Fire-and-forget engine calls (status line, redraw timer, resize, focus) never surface as unhandled rejections.
+const bg = (p: unknown): void => { void Promise.resolve(p).catch(() => undefined) }
+// Observer hooks: a failure inside one must not change what the rest of the chain sees (`next` is replay-safe here).
+const passOn = (_$: unknown, e: any, next: (e: any) => any) => next(e)
 
 async function toggleBranch($: EngineInterface, id: string) {
   await update($, collapsedAt, list => (list.includes(id) ? list.filter(x => x !== id) : [...list, id]))
@@ -97,30 +102,36 @@ const errText = (res: unknown): string => {
 }
 let timer: { cancel: () => void } | undefined
 let lastSig = ''
+const tick = ticker()
 
-function stopTicking() {
+// cancels the armed timer and retires every schedule() still awaiting; returns the new generation
+function stopTicking(): number {
   if (timer) timer.cancel()
   timer = undefined
+  return tick.next()
 }
 
 // one redraw timer at most; self-rescheduling so the rate follows activity
 async function schedule($: EngineInterface) {
-  stopTicking()
+  const gen = stopTicking()
   if (!(await read($, isOpen))) return
   const list: OfficeAgent[] = await read($, office)
-  void resizeIfNeeded($)
+  bg(resizeIfNeeded($))
   const caps = await capsOf($)
-  void $.ui.status(statusText(list, Date.now(), caps.ascii))
   const delay = nextDelay(list, Date.now(), { reducedMotion: caps.reducedMotion, compact: (await read($, viewAt)) === 'compact' })
+  if (!tick.current(gen)) return // a newer schedule() or a close took over while this one awaited
+  bg($.ui.status(statusText(list, Date.now(), caps.ascii)))
   if (delay === undefined) return // nothing running: no animation, no timer
-  timer = $.clock.after(delay, () => {
-    timer = undefined
-    void (async () => {
+  const t = $.clock.after(delay, () => {
+    if (timer === t) timer = undefined
+    if (!tick.current(gen)) return
+    bg((async () => {
       const sig = drawSig(await read($, office), Date.now())
       if (sig !== lastSig) { lastSig = sig; $.ui.invalidate('ui.render') } // same frame + data: nothing to redraw
-      void schedule($)
-    })()
+      await schedule($)
+    })())
   })
+  timer = t
 }
 
 async function gitView($: EngineInterface) {
@@ -172,7 +183,7 @@ async function openOffice($: EngineInterface, focus = false) {
 async function closeOffice($: EngineInterface) {
   stopTicking()
   shots.clear()
-  void $.ui.status(undefined)
+  bg($.ui.status(undefined))
   await update($, isOpen, () => false)
   await $.ui.close({ id: PANE })
 }
@@ -196,7 +207,8 @@ async function dispatch($: EngineInterface, a: string) {
   if (r.close) return closeOffice($)
   await writeUi($, r.state)
   $.ui.invalidate('ui.render')
-  if (!r.state.searching) void $.ui.focus({ requestId: PANE, key: 'hk-first' }).catch(() => undefined)
+  if (a === 'view') bg(resizeIfNeeded($)) // map and compact want different pane sizes
+  if (!r.state.searching) bg($.ui.focus({ requestId: PANE, key: 'hk-first' }))
 }
 
 export const register: Register = on => {
@@ -209,6 +221,11 @@ export const register: Register = on => {
     // left it false). /office stop still closes for the current session only.
     const start = startUi()
     await update($, modeAt, () => start.mode as string)
+    await update($, sortAt, () => start.sort)
+    await update($, colsAt, () => 0) // a previous /office width does not outlive its session; OFFICE_WIDTH below wins
+    // sid fallback: this session's id when the engine gives one, never a previous session's
+    const sid = await $.session.id().catch(() => '')
+    await update($, sidAt, () => sid || '')
     await update($, viewAt, () => start.view)
     await update($, filterAt, () => start.filter)
     await update($, searchingAt, () => start.searching)
@@ -227,9 +244,19 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'office' }, async ($, e) => {
-    const [w0 = '', ...restW] = (e.args || '').trim().split(/\s+/)
+    const [w0raw = '', ...restW] = (e.args || '').trim().split(/\s+/)
+    const w0 = w0raw.toLowerCase() // like parseSub: /office VIEW map works as /office STOP does
     const arg = restW.join(' ')
-    if (w0 === 'view') { const v = arg === 'map' ? 'map' : 'compact'; await update($, viewAt, () => v); return { text: `Visão: ${v}.` } }
+    if (w0 === 'view') {
+      const want = arg.toLowerCase()
+      if (want && !['map', 'compact', 'cards'].includes(want)) return { text: 'Uso: /office view [map|compact] (sem valor alterna).' }
+      const cur = await read($, viewAt)
+      const v = want === 'map' ? 'map' : want ? 'compact' : cur === 'map' ? 'compact' : 'map'
+      await update($, viewAt, () => v)
+      $.ui.invalidate('ui.render')
+      bg(resizeIfNeeded($))
+      return { text: `Visão: ${v}.` }
+    }
     if (w0 === 'mode' || w0 === 'g') {
       const cur = (await read($, modeAt)) as Mode
       const m = (['tree', 'grouped', 'cards', 'waterfall'] as Mode[]).includes(arg as Mode) ? (arg as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group').state.mode
@@ -237,8 +264,12 @@ export const register: Register = on => {
     }
     if (w0 === 'search' || w0 === 'buscar') { await update($, queryAt, () => arg); $.ui.invalidate('ui.render'); return { text: arg ? `Busca: ${arg}` : 'Busca limpa.' } }
     if (w0 === 'open' || w0 === 'detalhe') { await update($, selectedAt, () => arg); await update($, attachAt, () => ''); $.ui.invalidate('ui.render'); return { text: arg ? `Detalhe: ${arg}` : 'Detalhe fechado.' } }
-    if (w0 === 'sort' || w0 === 'ordenar') { const m = ['time', 'state', 'name'].includes(arg) ? arg : 'state'; await update($, sortAt, () => m); return { text: `Ordem: ${m}.` } }
-    if (w0 === 'filter' || w0 === 'filtro') { const m = arg === 'failed' || arg === 'falhas' ? 'failed' : 'all'; await update($, filterAt, () => m); return { text: `Filtro: ${m}.` } }
+    if (w0 === 'sort' || w0 === 'ordenar') {
+      // no or unknown value cycles, like the o hotkey
+      const m = ['time', 'state', 'name'].includes(arg) ? arg : applyAction(await readUi($), 'sort').state.sort
+      await update($, sortAt, () => m); $.ui.invalidate('ui.render'); return { text: `Ordem: ${m}.` }
+    }
+    if (w0 === 'filter' || w0 === 'filtro') { const m = arg === 'failed' || arg === 'falhas' ? 'failed' : 'all'; await update($, filterAt, () => m); $.ui.invalidate('ui.render'); return { text: `Filtro: ${m}.` } }
     if (w0 === 'width' || w0 === 'largura') { const n = Math.max(0, Math.min(300, parseInt(arg, 10) || 0)); await update($, colsAt, () => n); if (await read($, isOpen)) await openSized($); return { text: n ? `Largura pedida: ${n} colunas (o terminal limita a 45%).` : 'Largura automatica (80).' } }
     const sub = parseSub(e.args)
     if (sub === 'help') return { text: HELP }
@@ -274,10 +305,12 @@ export const register: Register = on => {
   on('ui.close', async ($, e, next) => {
     if (e.id === PANE) {
       stopTicking()
+      shots.clear()
+      bg($.ui.status(undefined))
       await update($, isOpen, () => false)
     }
     return next(e)
-  })
+  }).catch(passOn)
 
   on('agent.spawn', async ($, e, next) => {
     const spawnCwd = (e as { cwd?: string }).cwd
@@ -297,7 +330,7 @@ export const register: Register = on => {
       seenAt: Date.now(),
     }
     await update($, office, list => [...list, entry].slice(-60))
-    void schedule($) // wake to fast rate
+    bg(schedule($)) // wake to fast rate
     try {
       const res = await next(e)
       const agentId = (res as { agentId?: string }).agentId
@@ -307,12 +340,12 @@ export const register: Register = on => {
       return res
     } catch (err) {
       await update($, office, list =>
-        list.map(a => (a.id === entry.id ? { ...a, status: 'error', endedAt: Date.now(), error: String((err as Error)?.message ?? err).slice(0, 200) } : a)),
+        list.map(a => (a.id === entry.id ? { ...a, status: 'error' as Status, endedAt: Date.now(), error: String((err as Error)?.message ?? err).slice(0, 200) } : a)),
       )
-      void schedule($)
+      bg(schedule($))
       throw err
     }
-  })
+  }).catch(passOn)
 
   // The Agent tool answers `async_launched` at once for a background subagent: that is a launch ack,
   // not the end (SubagentStop is). Only a foreground result finishes the agent, with its real duration.
@@ -327,7 +360,7 @@ export const register: Register = on => {
       // background: stays "working" until SubagentStop; make sure it carries the id SubagentStop reports
       const aid = launchedAgentId(res)
       if (aid) await update($, office, list => list.map(a => (a.id === e.tool_use_id && !a.agentId ? { ...a, agentId: aid } : a)))
-      void schedule($)
+      bg(schedule($))
       return res
     }
     const isError = (res as { isError?: boolean }).isError === true
@@ -335,13 +368,13 @@ export const register: Register = on => {
     await update($, office, list =>
       list.map(a =>
         a.id === e.tool_use_id && a.status === 'working'
-          ? { ...a, status: isError ? 'error' : 'done', endedAt: endedAtFrom(a, res, now), error: isError ? errText(res) : undefined }
+          ? { ...a, status: (isError ? 'error' : 'done') as Status, endedAt: endedAtFrom(a, res, now), error: isError ? errText(res) : undefined }
           : a,
       ),
     )
-    void schedule($)
+    bg(schedule($))
     return res
-  })
+  }).catch(passOn)
 
   // every tool call feeds its own card: a subagent's record (files, todos, counts, current tool) or the session's
   on('tool.call', async ($, e, next) => {
@@ -368,7 +401,7 @@ export const register: Register = on => {
       )
     }
     return res
-  })
+  }).catch(passOn)
 
   // main session finished its turn: no tool in use any more
   on('classic.Stop', async ($, e, next) => {
@@ -376,7 +409,7 @@ export const register: Register = on => {
     if (sid) await update($, sidAt, () => sid)
     await update($, sessionToolAt, () => ({}))
     return next(e)
-  })
+  }).catch(passOn)
 
   on('classic.SubagentStop', async ($, e, next) => {
     const sid = (e as { session_id?: string }).session_id
@@ -384,13 +417,13 @@ export const register: Register = on => {
     await update($, office, list =>
       list.map(a =>
         a.agentId === e.agent_id && a.status === 'working'
-          ? { ...a, status: 'done', endedAt: Date.now() }
+          ? { ...a, status: 'done' as Status, endedAt: Date.now() }
           : a,
       ),
     )
-    void schedule($)
+    bg(schedule($))
     return next(e)
-  })
+  }).catch(passOn)
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const els = $.ui.resolve(e) as unknown as { Box: any; Text: any; Button: any; Input: any; Image?: any } // Image exists on the terminal surface only
@@ -414,9 +447,12 @@ export const register: Register = on => {
         </Box>
       )
     }
-    const selected: string = await read($, selectedAt)
+    // a selected id that is not on the map (typo in /office open, agent dropped by the 60-entry cap) means no detail:
+    // otherwise the compact view fell through to the map layout with no way back
+    const selRaw: string = await read($, selectedAt)
+    const selected = selRaw && all.some(a => a.id === selRaw) ? selRaw : ''
     const view: string = await read($, viewAt)
-    const caps = await capsOf($, (e as { surface?: string }).surface)
+    const caps = await capsOf($)
     const attach: string = await read($, attachAt)
     const sidFallback: string = await read($, sidAt)
     const compactView = {
@@ -436,9 +472,10 @@ export const register: Register = on => {
     }
     const detail = selected && view !== 'compact' ? detailLines(all, selected, now) : undefined
     const act = (a: string) => dispatch($, a)
-    const ui = await readUi($)
+    const ui = { ...(await readUi($)), selected }
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch
-    const draw = (line: typeof f.lines[number]) => (
+    // (ASCII mode maps every segment, footer and map included, so no non-ASCII glyph reaches the terminal)
+    const draw = (line0: typeof f.lines[number]) => { const line = caps.ascii ? asciiLine(line0) : line0; return (
       <Box flexDirection="row">
         {line.map(s =>
           s.attach ? (
@@ -460,7 +497,7 @@ export const register: Register = on => {
           ),
         )}
       </Box>
-    )
+    ) }
     const side = view === 'compact' && !!selected && !attach && cols >= ((e as { surface?: string }).surface === 'desktop' ? 110 : 150)
     // footer hotkeys for the current view (actions.ts): one letter each, none while the search Input has the keys
     const keysRow = draw([
