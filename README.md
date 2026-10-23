@@ -146,7 +146,7 @@ at about 45% of the terminal), `/office collapse | expand`, `/office status`, `/
 | `OFFICE_VIEW` | `map` (default) or `compact`: the view at session start |
 | `OFFICE_MODE` | `cards` (default), `tree`, `grouped`, `waterfall` |
 | `OFFICE_WIDTH` | requested pane width in columns |
-| `OFFICE_ASCII=1` | ASCII glyphs (also automatic for `TERM=linux|dumb`, non-UTF-8 locales, legacy Windows conhost) |
+| `OFFICE_ASCII=1` | ASCII glyphs (also automatic for `TERM=linux\|dumb`, non-UTF-8 locales, legacy Windows conhost) |
 | `NO_COLOR` | monochrome (otherwise truecolor, 256 or 16 colors, detected) |
 | `OFFICE_REDUCED_MOTION=1` | no animation, 1 fps clocks (also under `CI`) |
 | `AGENT_OFFICE_THUMBS=1` | opt-in browser-MCP thumbnails, kept in memory only |

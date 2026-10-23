@@ -94,7 +94,10 @@ const WIN = process.platform === 'win32'
 function run(cmd, cmdArgs, { allowFail = false } = {}) {
   say(`$ ${cmd} ${cmdArgs.join(' ')}`)
   if (dry) return true
-  const r = spawnSync(cmd, cmdArgs, { stdio: 'inherit', shell: WIN })
+  // shell mode on Windows does not quote: wrap any argument with spaces or cmd metacharacters (a checkout path
+  // with spaces, LAYA_HOME) so it reaches the program as one argument
+  const q = (a) => (/[\s"&|<>^()%!]/.test(a) ? `"${a.replace(/"/g, '""')}"` : a)
+  const r = spawnSync(WIN ? q(cmd) : cmd, WIN ? cmdArgs.map(q) : cmdArgs, { stdio: 'inherit', shell: WIN })
   if (r.status !== 0 && !allowFail) fail(`command failed (exit ${r.status}): ${cmd} ${cmdArgs.join(' ')}`)
   return r.status === 0
 }
@@ -158,7 +161,11 @@ async function main() {
     say('(marketplace already added or add failed; refreshing it)')
   run('claude', ['plugin', 'marketplace', 'update', MARKET])
   const toInstall = ['agent-office', ...['personas', 'learning', 'laya'].filter((p) => want[p])]
-  for (const p of toInstall) run('claude', ['plugin', 'install', `${p}@${MARKET}`, '--scope', sc])
+  // install is a no-op for a plugin already installed: follow it with update so a re-run lands the new version
+  for (const p of toInstall) {
+    run('claude', ['plugin', 'install', `${p}@${MARKET}`, '--scope', sc])
+    run('claude', ['plugin', 'update', `${p}@${MARKET}`, '--scope', sc], { allowFail: true })
+  }
   if (want.learning) setupLearning()
   if (want.laya) setupLaya()
   if (want.caveman) {

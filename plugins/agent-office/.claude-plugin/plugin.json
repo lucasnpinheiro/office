@@ -7,6 +7,5 @@
   "repository": "https://github.com/lucasnpinheiro/office",
   "license": "MIT",
   "keywords": ["subagents", "monitor", "dashboard", "mod", "pane", "agents"],
-  "icon": "./.claude-plugin/icon.png",
   "types": "./types/index.d.ts"
 }

@@ -6,6 +6,5 @@
   "homepage": "https://github.com/lucasnpinheiro/office/tree/main/plugins/laya#readme",
   "repository": "https://github.com/lucasnpinheiro/office",
   "license": "MIT",
-  "keywords": ["mcp", "laya", "classification", "triage"],
-  "icon": "./.claude-plugin/icon.png"
+  "keywords": ["mcp", "laya", "classification", "triage"]
 }

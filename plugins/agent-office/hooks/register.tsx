@@ -58,8 +58,10 @@ const HELP =
 
 // Fire-and-forget engine calls (status line, redraw timer, resize, focus) never surface as unhandled rejections.
 const bg = (p: unknown): void => { void Promise.resolve(p).catch(() => undefined) }
-// Observer hooks: a failure inside one must not change what the rest of the chain sees (`next` is replay-safe here).
-const passOn = (_$: unknown, e: any, next: (e: any) => any) => next(e)
+// Observer hooks: a failure inside one must not change what the rest of the chain sees. In a `.catch` handler `next`
+// is replay-safe (Caught): when the hook had called it, `next(e)` returns what that call settled to and nothing
+// beneath runs again; when it had not, the chain runs once. Spelled out so a reader need not look it up.
+const passOn = (_$: unknown, e: any, next: ((e: any) => any) & { called?: boolean }) => (next.called ? next(e) : next(e))
 
 async function toggleBranch($: EngineInterface, id: string) {
   await update($, collapsedAt, list => (list.includes(id) ? list.filter(x => x !== id) : [...list, id]))
@@ -126,7 +128,9 @@ async function schedule($: EngineInterface) {
     if (timer === t) timer = undefined
     if (!tick.current(gen)) return
     bg((async () => {
-      const sig = drawSig(await read($, office), Date.now())
+      const latest = await read($, office)
+      if (!tick.current(gen)) return // a newer schedule() or a close happened while reading
+      const sig = drawSig(latest, Date.now())
       if (sig !== lastSig) { lastSig = sig; $.ui.invalidate('ui.render') } // same frame + data: nothing to redraw
       await schedule($)
     })())

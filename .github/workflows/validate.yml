@@ -14,8 +14,9 @@ jobs:
           node-version: 20
       - name: Install Claude Code CLI
         run: npm i -g @anthropic-ai/claude-code
-      - name: Validate marketplace (strict)
-        run: claude plugin validate --strict .
+      - name: Validate marketplace
+        # not --strict: the published CLI flags agent-office's mod-only "types" field as unknown
+        run: claude plugin validate .
       - name: Validate hook/skill plugins (strict)
         run: |
           for p in plugins/personas plugins/learning plugins/laya; do claude plugin validate --strict "$p" || exit 1; done

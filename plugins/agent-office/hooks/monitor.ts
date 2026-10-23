@@ -12,7 +12,7 @@ export const MAX_DEPTH = 10
 // "429" only as an HTTP status (start of text, after error/status/http), "credit" only as a balance: a stray line
 // number or a form field named "credit card" is not a quota failure.
 export const isQuotaError = (t?: string): boolean =>
-  !!t && /quota|rate.?limit|usage limit|too many requests|overloaded|(?:^|\b(?:error|status|http|code)\W{0,3})429\b|credit balance|out of credits|insufficient credit/i.test(t)
+  !!t && /quota|rate.?limit|usage limit|too many requests|overloaded|(?:^|\b(?:error|status|http|code)\W{0,3})429\b|\bhttp\/\d(?:\.\d)?\s+429\b|credit balance|out of credits|insufficient credit/i.test(t)
 export const ATTENTION_AFTER_MS = 10 * 60 * 1000
 
 export type State = 'pending' | 'running' | 'done' | 'attention' | 'inactive' | 'failed'
@@ -228,11 +228,21 @@ export function charWidth(cp: number): number {
   for (const [a, b] of WIDE) { if (cp < a) return 1; if (cp <= b) return 2 }
   return 1
 }
-export const strWidth = (s: string): number => { let n = 0; for (const ch of s) n += charWidth(ch.codePointAt(0)!); return n }
+// Grapheme clusters (Intl.Segmenter where the runtime has it, code points otherwise): an emoji sequence joined by
+// ZWJ, a flag pair or a base + VS16 (U+FE0F, emoji presentation) is one glyph two cells wide.
+const SEG: { segment: (s: string) => Iterable<{ segment: string }> } | undefined =
+  typeof Intl !== 'undefined' && (Intl as any).Segmenter ? new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' }) : undefined
+const graphemes = (s: string): string[] => (SEG ? [...SEG.segment(s)].map(x => x.segment) : [...s])
+function clusterWidth(g: string): number {
+  const cps = [...g].map(c => c.codePointAt(0)!)
+  if (cps.length > 1 && (cps.includes(0x200d) || cps.includes(0xfe0f) || cps.every(c => c >= 0x1f1e6 && c <= 0x1f1ff))) return 2
+  return cps.reduce((n, c) => n + charWidth(c), 0)
+}
+export const strWidth = (s: string): number => graphemes(s).reduce((n, g) => n + clusterWidth(g), 0)
 // Longest prefix of `s` that fits in `w` cells (a wide glyph that would straddle the edge is left out).
 export function takeWidth(s: string, w: number): string {
   let out = '', used = 0
-  for (const ch of s) { const cw = charWidth(ch.codePointAt(0)!); if (used + cw > w) break; out += ch; used += cw }
+  for (const g of graphemes(s)) { const cw = clusterWidth(g); if (used + cw > w) break; out += g; used += cw }
   return out
 }
 export const padWidth = (s: string, w: number): string => s + ' '.repeat(Math.max(0, w - strWidth(s)))

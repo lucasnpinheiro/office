@@ -43,6 +43,11 @@ claude plugin validate --strict plugins/laya
 
 `sh` (macOS/Linux, Git Bash on Windows), `uv`, Docker for the Laya service, and `LAYA_HOME` pointing at a Laya checkout.
 
+Windows: the MCP command is a bare `sh`, so Git Bash's `usr\bin` folder (for example
+`C:\Program Files\Git\usr\bin`) must be on the `PATH` that Claude Code starts with. Setting only
+`CLAUDE_CODE_GIT_BASH_PATH` is not enough here. Check with `where sh` in a new terminal. Without `sh`, the server shows
+as failed in `/mcp` and the rest of the session is unaffected.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). Laya is licensed separately by its own repository.

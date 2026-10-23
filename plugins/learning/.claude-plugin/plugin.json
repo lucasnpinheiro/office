@@ -6,6 +6,5 @@
   "homepage": "https://github.com/lucasnpinheiro/office/tree/main/plugins/learning#readme",
   "repository": "https://github.com/lucasnpinheiro/office",
   "license": "MIT",
-  "keywords": ["skills", "task-observer", "learning", "observations", "cc-by-4.0"],
-  "icon": "./.claude-plugin/icon.png"
+  "keywords": ["skills", "task-observer", "learning", "observations", "cc-by-4.0"]
 }

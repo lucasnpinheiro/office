@@ -29,6 +29,18 @@ test('quota detection: real limits yes, look-alikes no', () => {
     expect([t, isQuotaError(t)]).toEqual([t, false])
 })
 
+test('quota: versioned HTTP status lines count', () => {
+  expect(isQuotaError('HTTP/1.1 429')).toBe(true)
+  expect(isQuotaError('HTTP/2 429')).toBe(true)
+})
+
+test('display width: emoji sequences are one two-cell glyph', () => {
+  expect(strWidth('❤️')).toBe(2)
+  expect(strWidth('👩‍💻')).toBe(2)
+  expect(strWidth('🇧🇷')).toBe(2)
+  expect(strWidth(truncRunes('👩‍💻👩‍💻👩‍💻', 5))).toBeLessThanOrEqual(5)
+})
+
 test('display width: wide glyphs (CJK, emoji) take two cells, combining marks none', () => {
   expect(strWidth('abc')).toBe(3)
   expect(strWidth('日本')).toBe(4)

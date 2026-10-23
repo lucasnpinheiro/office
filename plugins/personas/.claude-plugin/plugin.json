@@ -6,6 +6,5 @@
   "homepage": "https://github.com/lucasnpinheiro/office/tree/main/plugins/personas#readme",
   "repository": "https://github.com/lucasnpinheiro/office",
   "license": "MIT",
-  "keywords": ["subagents", "agents", "personas", "model-routing", "hooks"],
-  "icon": "./.claude-plugin/icon.png"
+  "keywords": ["subagents", "agents", "personas", "model-routing", "hooks"]
 }

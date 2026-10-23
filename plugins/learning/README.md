@@ -16,7 +16,8 @@ Part of the [`office`](https://github.com/lucasnpinheiro/office) marketplace.
 ```bash
 claude plugin marketplace add lucasnpinheiro/office
 claude plugin install learning@office
-mkdir -p ~/.claude/skill-observations && cp plugins/learning/templates/log.md ~/.claude/skill-observations/log.md  # from a clone, if missing
+mkdir -p ~/.claude/skill-observations
+[ -e ~/.claude/skill-observations/log.md ] || cp plugins/learning/templates/log.md ~/.claude/skill-observations/log.md  # from a clone; never overwrites
 claude plugin marketplace update office && claude plugin update learning@office   # update, then restart
 claude plugin uninstall learning@office    # your log under ~/.claude/skill-observations is kept
 ```
