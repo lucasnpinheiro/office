@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "laya": {
-      "command": "uv",
-      "args": ["run", "--script", "${LAYA_HOME}/mcp/laya_mcp.py"],
+      "command": "sh",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/laya-mcp.sh"],
       "env": {}
     }
   }

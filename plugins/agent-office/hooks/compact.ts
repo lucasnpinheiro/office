@@ -2,7 +2,7 @@
 // attachment preview and terminal capability detection. Pure (no engine APIs): the caller passes `now`.
 // Terminal and app share this state model; only the drawing of the Lines differs.
 import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, hiddenIds, maxDepthOf, fmtMMSS, fmtHMS,
-  truncRunes, lineWidth, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError } from './monitor'
+  truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
 
@@ -67,7 +67,12 @@ const col = (c: Caps, hex?: string) => quantize(hex, c.color)
 const seg = (c: Caps, t: string, fg?: string, extra: Partial<Seg> = {}): Seg => ({ t, fg: col(c, fg), ...extra })
 const fit = (l: Line, w: number): Line => {
   const out: Line = []; let used = 0
-  for (const s of l) { if (used >= w) break; const r = [...s.t]; out.push(used + r.length <= w ? s : { ...s, t: r.slice(0, w - used).join('') }); used += r.length }
+  for (const s of l) {
+    if (used >= w) break
+    const sw = strWidth(s.t)
+    if (used + sw <= w) { out.push(s); used += sw; continue }
+    out.push({ ...s, t: takeWidth(s.t, w - used) }); break
+  }
   return out
 }
 const spread = (l: Line, r: Line, w: number): Line => {
@@ -112,11 +117,37 @@ function metric(n: Node): string {
 
 export function statusText(agents: AgentLike[], now: number, ascii = false): string {
   const g = buildGraph(agents, now)
-  const active = [...g.nodes.values()].filter(n => n.kind === 'agent' && (n.state === 'running' || n.state === 'attention'))
+  const active = [...g.nodes.values()].filter(n => n.kind === 'agent' && isOpenNode(n))
   const p = overallProgress(g)
   const chip = active.length ? ` · @ ${truncRunes(active[active.length - 1]!.name, 20)}` : ''
-  return `${ascii ? '*' : '●'} ${active.length} ativos · ${p === undefined ? '—' : Math.round(p * 100) + '%'}${chip}`
+  const t = `${ascii ? '*' : '●'} ${active.length} ativos · ${p === undefined ? '—' : Math.round(p * 100) + '%'}${chip}`
+  return ascii ? asciiText(t) : t
 }
+
+// ---------- ASCII fallback ----------
+// OFFICE_ASCII / non-UTF-8 locales get plain ASCII everywhere: punctuation mapped, accents stripped, anything else
+// replaced by '?' cell for cell (a wide glyph by '??'), so the layout measured before the mapping still holds.
+const ASCII_MAP: Record<string, string> = {
+  '·': '-', '—': '-', '–': '-', '…': '.', '“': '"', '”': '"', '‘': "'", '’': "'", '‹': '<', '›': '>', '▸': '>', '←': '<',
+  '→': '>', '↓': 'v', '↑': '^', '×': 'x', '⎇': 'Y', '━': '=', '─': '-', '│': '|', '┊': ':', '┄': '.', '├': '|', '┬': '+',
+  '╰': "'", '╭': '.', '╮': '.', '╯': "'", '█': '#', '▒': '.', '░': '.', '▰': '#', '▱': '.', '●': '*', '○': 'o', '✓': 'v',
+  '✗': 'x', '▲': '!', '◌': '-', 'ª': 'a', 'º': 'o',
+}
+export function asciiText(t: string): string {
+  let out = ''
+  for (const ch of t) {
+    const cp = ch.codePointAt(0)!
+    if (cp < 128) { out += ch; continue }
+    const m = ASCII_MAP[ch]
+    if (m !== undefined) { out += m; continue }
+    const base = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    if (base.length === 1 && base.charCodeAt(0) < 128) { out += base; continue }
+    const w = charWidth(cp)
+    out += w === 2 ? '??' : w === 0 ? '' : '?'
+  }
+  return out
+}
+export const asciiLine = (l: Line): Line => l.map(s => ({ ...s, t: asciiText(s.t) }))
 
 const matches = (n: Node, q: string) => !q || `${n.name} ${n.persona} ${n.model}`.toLowerCase().includes(q.toLowerCase())
 function visibleSet(g: Graph, q: string, hidden: Set<string>, filter: 'all' | 'failed' = 'all'): Set<string> {
@@ -145,12 +176,14 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const eta = etaOf(g)
   const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const n_ = (f: (n: Node) => boolean) => ns.filter(f).length
-  const act = n_(n => n.state === 'running' || n.state === 'attention'), ok = n_(n => n.state === 'done'), bad = n_(n => n.state === 'failed')
+  const act = n_(isOpenNode), ok = n_(n => n.state === 'done'), bad = n_(n => n.state === 'failed')
   const sid = String(v.sessionId ?? '').replace(/[^\w-]/g, '').slice(0, 6)
   const left: Line = [seg(c, 'Office', undefined, { bold: true }), seg(c, ` · ${v.project || '-'}${sid ? ' · #' + sid : ''}`, DIM)]
-  const right: Line = [seg(c, `${glyph(c, 'running')} ${act} ativos`, STATE_COLOR.running), seg(c, ` ${glyph(c, 'done')} ${ok}`, STATE_COLOR.done),
+  // below the full layout the right side drops the words and the ETA, so the "Office" title keeps its room
+  const full = layoutLevel(w) === 'full'
+  const right: Line = [seg(c, `${glyph(c, 'running')} ${act}${full ? ' ativos' : ''}`, STATE_COLOR.running), seg(c, ` ${glyph(c, 'done')} ${ok}`, STATE_COLOR.done),
     seg(c, ` ${glyph(c, 'failed')} ${bad}`, STATE_COLOR.failed),
-    seg(c, ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}`, DIM)]
+    seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}`, DIM)]
   const geral: Line = [seg(c, 'Geral '), ...segBar(g, c, layoutLevel(w) === 'full' ? 20 : 10), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'} · `),
     seg(c, 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna agrupado', DIM)]
   return [...ROUND_BOX(c, w, left, right), fit(geral, w)]
@@ -189,9 +222,9 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     const left: Line = [seg(c, prefix, DIM), seg(c, glyph(c, n.state) + ' ', STATE_COLOR[n.state], { node: n.kind === 'agent' ? n.id : undefined }),
       seg(c, name, undefined, { bold: n.kind === 'agent', node: n.kind === 'agent' ? n.id : undefined })]
     const meta = lvl === 'full' && n.kind === 'agent' ? [n.persona, n.model, n.effort].filter(Boolean).join('·') : ''
-    const room = v.width - right.length - 2
+    const room = v.width - strWidth(right) - 2
     const l2 = fit(left, Math.max(8, room))
-    const mid = meta && lineWidth(l2) + meta.length + 2 < room ? [...sp(1), seg(c, meta, DIM)] : []
+    const mid = meta && lineWidth(l2) + strWidth(meta) + 2 < room ? [...sp(1), seg(c, meta, DIM)] : []
     return spread([...l2, ...mid], [seg(c, right, DIM)], v.width)
   }
   const walk = (n: Node, prefix: string) => {
@@ -327,7 +360,6 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
     n.state === 'done' ? [seg(c, 'concluído', DIM)]
       : n.state === 'failed' ? [seg(c, `${glyph(c, 'failed')} ${n.error ?? 'falha'}`, STATE_COLOR.failed)]
         : n.state === 'attention' ? [seg(c, `${glyph(c, 'attention')} ${n.error ?? 'sem atividade'}`, STATE_COLOR.attention)]
-          : n.state === 'pending' ? [seg(c, 'aguarda vaga', DIM)]
             : [seg(c, `${tri} ${kids ? `delega ${kids} filhos` : [tasks.length ? `${tdone}/${tasks.length}` : '', trail].filter(Boolean).join(' · ') || 'executando'}`, DIM)]
   const cells = 12, [on, off] = BAR(c)
   const leafRunning = n.state === 'running' && n.children.length === 0
@@ -350,7 +382,8 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   ]
 }
 
-function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): { lines: Line[]; tops: number[] } {
+// tops: absolute line of each card row's top border + how many cards that row holds (for the hidden-cards hint)
+function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): { lines: Line[]; tops: { at: number; n: number }[] } {
   const c = v.caps, frame = v.frame ?? 0, tl = timeline(g, now)
   const V = c.ascii ? ':' : '┊', H = c.ascii ? '.' : '┄'
   const flowOf = (n: Node) => (n.git?.worktree ? n.git.branch ?? n.git.worktree : '')
@@ -369,13 +402,14 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     // "N agentes" keeps the plural form the design uses for the count
     parts[0] = `${nodes.length} agentes`
     const text = `${c.ascii ? '== ' : '━━ ⎇ '}worktree: ${label} · ${parts.join(' · ')} `
-    return [seg(c, text + (c.ascii ? '=' : '━').repeat(Math.max(0, v.width - [...text].length)), label === 'principal' ? DIM : WORKTREE_COLOR)]
+    return [seg(c, text + (c.ascii ? '=' : '━').repeat(Math.max(0, v.width - strWidth(text))), label === 'principal' ? DIM : WORKTREE_COLOR)]
   }
-  const lines: Line[] = [], tops: number[] = []
+  const lines: Line[] = [], tops: { at: number; n: number }[] = []
   let idx = 0
   const emitCards = (nodes: Node[], x: number): Line[][] => nodes.map(n => card(n, nm, c, now, frame, idx++))
-  // lays out children of `parent` at parentX; returns lines (relative), parent bottom border already emitted by caller
-  const layoutChildren = (parent: Node, px: number, virtual: boolean, parentFlow: string): Line[] => {
+  // lays out children of `parent` at parentX; returns lines (relative), parent bottom border already emitted by caller.
+  // `base` = absolute line where the returned lines will land, so nested rows record their real top.
+  const layoutChildren = (parent: Node, px: number, virtual: boolean, parentFlow: string, base: number): Line[] => {
     const kids = agentKids(parent)
     const x = px + CARD_INDENT
     const per = perRowOf(v.width, px)
@@ -409,8 +443,8 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
         cards.forEach((cd, i) => { if (i) parts.push(...sp(CARD_GAP)); parts.push(...cd[r]!) })
         block.push(parts)
       }
-      tops.push(lines.length + out.length + (block.length - CARD_H))
-      if (row.kind === 'branch') block.push(...layoutChildren(row.n, x, false, flowOf(row.n)))
+      tops.push({ at: base + out.length + (block.length - CARD_H), n: ns.length })
+      if (row.kind === 'branch') block.push(...layoutChildren(row.n, x, false, flowOf(row.n), base + out.length + block.length))
       // dotted vertical in the parent's column while more rows follow
       out.push(...block.map(l => (!virtual && more ? putCol(l, px + 1, V, DIM) : l)))
     })
@@ -425,7 +459,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     // reuse layoutChildren with a synthetic parent holding only this flow's top-level agents
     const syn: Node = { ...virtualRoot, children: ns }
     const before = tops.length
-    const body = layoutChildren(syn, -CARD_INDENT, true, f)
+    const body = layoutChildren(syn, -CARD_INDENT, true, f, lines.length)
     lines.push(...body)
     void before
   }
@@ -445,7 +479,7 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
       const grow = growth(c, k, idx++, now)
       const [ob, cb] = c.ascii ? ['|', '|'] : ['▕', '▏']
       out.push(fit([seg(c, glyph(c, k.state) + ' ', STATE_COLOR[k.state], { node: k.id }),
-        seg(c, truncRunes('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW).padEnd(nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
+        seg(c, padWidth(truncRunes('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
         ...spanBar(k, tl.t0, tl.tot, now, cells, c, frame, grow), seg(c, cb + ' ' + fmtMMSS(durationOf(k, now)), DIM)], v.width))
       walk(k, d + 1)
     }
@@ -474,16 +508,18 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
       const { lines, tops } = cardLines(g, nm, keep, now, v)
       const cap = Math.max(CARD_H + 1, v.maxLines ?? v.maxCardRows * (CARD_H + 2))
       if (lines.length > cap) {
-        const cut = tops.filter(t => t + CARD_H <= cap)
-        const keepN = Math.max(1, cut.length), at = cut.length ? cut[cut.length - 1]! + CARD_H : cap
+        const cut = tops.filter(t => t.at + CARD_H <= cap)
+        const at = cut.length ? cut[cut.length - 1]!.at + CARD_H : cap
+        const sum = (ts: { n: number }[]) => ts.reduce((k, t) => k + t.n, 0)
+        const shown = cut.length ? sum(cut) : (tops[0]?.n ?? 0)
         out.push(...lines.slice(0, at))
-        hint = `${v.caps.ascii ? '+' : '↓ +'}${tops.length - keepN} cards ocultos (painel sem altura para mostrar todos)`
+        hint = `${v.caps.ascii ? '+' : '↓ +'}${sum(tops) - shown} cards ocultos (painel sem altura para mostrar todos)`
       } else out.push(...lines)
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else out.push(...treeLines(g, nm, keep, now, v))
   }
   out.push(...footer(g, v, hint))
-  return out.map(l => fit(l, w))
+  return out.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
 }
 
 // ---------- detail ----------
@@ -522,13 +558,13 @@ export function detailCompact(agents: AgentLike[], id: string, now: number, caps
     ...sibs.filter(k => k.id !== id).slice(0, 4).flatMap(k => [...sp(1), link(k)])])
   if (a.files?.length) { out.push([], [seg(caps, 'Anexos', undefined, { bold: true })], ...a.files.map(f => [seg(caps, '  ' + f, '#60a5fa', { attach: f })] as Line)) }
   if (a.prompt) out.push([], [seg(caps, 'Prompt', undefined, { bold: true })], [seg(caps, a.prompt)])
-  return out
+  return caps.ascii ? out.map(asciiLine) : out
 }
 
 const IMG = /\.(png|jpe?g|gif|webp|bmp|svg)$/i
 // Inline preview of an attachment: colored diff, plain text/log, or a fallback for images.
 export function previewLines(text: string, path: string, max: number): Line[] {
-  if (IMG.test(path)) return [[{ t: 'imagem: pré-visualização inline indisponível neste mod; abra o arquivo externamente.', fg: DIM }]]
+  if (IMG.test(path)) return [[{ t: 'imagem: pré-visualização inline indisponível neste modo; abra o arquivo externamente.', fg: DIM }]]
   const lines = text.split('\n')
   const diff = /\.(diff|patch)$/i.test(path) || lines.some(l => l.startsWith('@@'))
   const colorOf = (l: string) => !diff ? undefined : l.startsWith('+') && !l.startsWith('+++') ? '#22c55e' : l.startsWith('-') && !l.startsWith('---') ? '#ef4444' : l.startsWith('@@') ? '#06b6d4' : undefined

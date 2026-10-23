@@ -1,6 +1,6 @@
 {
   "name": "@lucasnpinheiro/office",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Claude Code Office: installer and marketplace for the agent-office mod, personas/router, learning loop and optional Laya integration.",
   "license": "MIT",
   "author": "Lucas Pinheiro",
@@ -33,7 +33,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "validate": "claude plugin validate . && for p in plugins/*; do claude plugin validate \"$p\" || exit 1; done",
+    "validate": "claude plugin validate --strict . && for p in plugins/*; do claude plugin validate --strict \"$p\" || exit 1; done",
     "test": "claude plugin test plugins/agent-office",
     "sync": "bash scripts/sync-from-agents.sh"
   },

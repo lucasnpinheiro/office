@@ -21,7 +21,7 @@ for (const [cols, rows] of [[60, 30], [120, 60], [200, 20]] as const) {
 
 test('pane footer has one-letter hotkeys; s opens search and silences them; v toggles map and back', async ($, on) => {
   on('ui.open', async () => ({ value: { isPlaced: true } }))
-  on('ui.focus', async () => ({ value: {} }))
+  on('ui.focus', async () => ({ value: {} }) as any)
   on('session.cwd', async () => ({ value: '/work/meuapp' }))
   on('session.id', async () => ({ value: 'abcdef123' }))
   await $.command.run({ command: 'office', args: 'start' } as any)

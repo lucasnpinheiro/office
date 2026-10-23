@@ -33,7 +33,7 @@ test('layout level by width', () => {
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
 const v = { width: 110, caps, mode: 'tree' as const, query: '', expanded: new Set<string>(), maxCardRows: 3 }
 test('tree: one line per agent, glyphs, unique names, ETA calculando, legend', () => {
-  const ag = [mk('a', { agentId: 'A', status: 'done', endedAt: T + 5000 }), mk('b'), mk('c', { status: 'running' })]
+  const ag = [mk('a', { agentId: 'A', status: 'done', endedAt: T + 5000 }), mk('b'), mk('c', { status: 'working' })]
   ag.push(mk('d', { status: 'error' }))
   const out = txt(renderCompact(ag, T + 9000, v))
   expect(out).toMatch(/✓ .*Dev|✓ a/); expect(out).toContain('✗'); expect(out).toContain('●')
@@ -127,7 +127,7 @@ test('cards: heavy worktree divider with branch and agent count (unicode and ASC
   const u = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards' }))
   expect(u).toMatch(/━━ ⎇ worktree: feat\/x · 1 agentes · 1 filho em linha/); expect(u).not.toContain('── worktree')
   const a = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', caps: detectCaps({ OFFICE_ASCII: '1' }) }))
-  expect(a).toMatch(/== worktree: feat\/x · 1 agentes · 1 filho em linha/)
+  expect(a).toMatch(/== worktree: feat\/x - 1 agentes - 1 filho em linha/)
 })
 test('cards: waterfall row has span on session timeline, partial blocks; ASCII uses = and #', () => {
   const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 4000 }), mk('b', { startedAt: T + 4000 })]
@@ -222,7 +222,7 @@ test('worktree divider summary: structure and status', () => {
   const o = txt(cardsOut(ag))
   expect(o).toMatch(/━━ ⎇ worktree: feat\/x · 5 agentes · 2 filhos em linha, 1 com neto · 1 falha, 1 concluído/)
   const a = txt(cardsOut(ag, { caps: detectCaps({ OFFICE_ASCII: '1' }) }))
-  expect(a).toMatch(/== worktree: feat\/x · 5 agentes · 2 filhos em linha, 1 com neto/)
+  expect(a).toMatch(/== worktree: feat\/x - 5 agentes - 2 filhos em linha, 1 com neto/)
 })
 test('filter failed keeps only failures/attention; sort by state puts failures first', () => {
   const ag = [mk('ok', { status: 'done', endedAt: T + 5 }), mk('bad', { status: 'error', endedAt: T + 5 }), mk('run')]
@@ -242,4 +242,17 @@ test('detail has hotkeys for back and sibling navigation', () => {
   const ag = [mk('p', { agentId: 'P' }), mk('c1', { parentAgentId: 'P' }), mk('c2', { parentAgentId: 'P' })]
   const hot = detailCompact(ag, 'c1', T + 1000, caps)!.flat().filter(s => s.hotkey).map(s => s.hotkey)
   expect(hot).toEqual(expect.arrayContaining(['n']))
+})
+
+// ---- review round: hidden-cards hint counts cards (not rows) and nested rows are cut at their real line ----
+test('cards hint counts hidden cards, not hidden rows', () => {
+  const ag = Array.from({ length: 6 }, (_, i) => mk('h' + i))
+  const o = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 7 }))
+  expect(o).toContain('+3 cards ocultos')
+})
+test('cards cut: nested child rows use their absolute line, never a dangling bus or +0 hint', () => {
+  const ag = [mk('p', { agentId: 'P' }), ...Array.from({ length: 4 }, (_, i) => mk('c' + i, { parentAgentId: 'P' }))]
+  const o = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 14 }))
+  expect(o).not.toContain('+0 cards')
+  expect(o).toContain('+1 cards ocultos')
 })

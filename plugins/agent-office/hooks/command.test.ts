@@ -33,7 +33,7 @@ test('session.start opens the pane on its own, even when isOpen was left false',
   seen.length = 0
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   expect(seen).toContain('open')
-  await new Promise(r => setTimeout(r, 50)) // let background resize/schedule settle before teardown
+  await new Promise(r => (globalThis as any).setTimeout(r, 50)) // let background resize/schedule settle before teardown
 })
 
 test('/office status reports state; /office reset refuses while open', async ($, on) => {
@@ -45,4 +45,20 @@ test('/office status reports state; /office reset refuses while open', async ($,
   expect((await run($, 'reset')).text).toContain('feche')
   await run($, 'stop')
   expect((await run($, 'reset')).text).toContain('resetado')
+})
+
+test('help lists the real hotkeys (s buscar, b voltar, p/n irmaos), never / or Esc', async ($, on) => {
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  const t = (await run($, 'banana')).text
+  expect(t).toContain('s buscar')
+  expect(t).toContain('b voltar')
+  expect(t).toContain('p/n')
+  expect(t).not.toContain('/ buscar')
+  expect(t).not.toContain('Esc')
+})
+
+test('subcommand word is case-insensitive for every subcommand (VIEW like STOP)', async ($, on) => {
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  expect((await run($, 'VIEW map')).text).toBe('Visão: map.')
+  expect((await run($, 'Mode tree')).text).toBe('Modo: tree.')
 })

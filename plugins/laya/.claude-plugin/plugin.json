@@ -1,7 +1,10 @@
 {
   "name": "laya",
-  "version": "0.1.0",
-  "description": "Optional Laya integration: MCP server wiring, a usage skill and a docker-compose reference. Laya itself is an external project and is not bundled.",
+  "version": "0.1.1",
+  "description": "Optional Laya integration: MCP server wiring, a usage skill and a docker-compose reference. Laya itself is an external project and is not bundled; the MCP fails fast with a clear message when LAYA_HOME or uv is missing.",
   "author": { "name": "lucasnpinheiro" },
-  "license": "MIT"
+  "homepage": "https://github.com/lucasnpinheiro/office/tree/main/plugins/laya#readme",
+  "repository": "https://github.com/lucasnpinheiro/office",
+  "license": "MIT",
+  "keywords": ["mcp", "laya", "classification", "triage"]
 }
