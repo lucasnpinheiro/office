@@ -1,6 +1,6 @@
 {
   "name": "agent-office",
-  "version": "0.15.2",
+  "version": "0.15.3",
   "description": "Office Agent Monitor: animated map of agents and subagents (state, progress, ETA, dependencies) in a pane beside the chat. Commands: /office start | stop | view | mode | status.",
   "author": { "name": "lucasnpinheiro" },
   "homepage": "https://github.com/lucasnpinheiro/office/tree/main/plugins/agent-office#readme",

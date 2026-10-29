@@ -8,7 +8,7 @@ import { applyAction, FOOTER_SEP, footerTail, hotkeysFor, startUi } from './acti
 import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
-import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf } from './stats'
+import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf, isolatedCall } from './stats'
 import { resolveGit } from './git'
 import { statusLines } from './status'
 import type { GitInfo } from './git'
@@ -102,6 +102,8 @@ const errText = (res: unknown): string => {
   const t = (res as { text?: string; content?: unknown })?.text ?? JSON.stringify((res as { content?: unknown })?.content ?? '')
   return String(t).slice(0, 200)
 }
+// Agent calls with isolation: "worktree", by tool_use_id, from tool.call until the call answers
+const isolatedCalls = new Set<string>()
 let timer: { cancel: () => void } | undefined
 let lastSig = ''
 const tick = ticker()
@@ -318,7 +320,7 @@ export const register: Register = on => {
 
   on('agent.spawn', async ($, e, next) => {
     const spawnCwd = (e as { cwd?: string }).cwd
-    const isolated = (e as { isolation?: string }).isolation === 'worktree'
+    const isolated = isolatedCalls.has(e.tool_use_id)
     const parentCwd = e.parentAgentId ? (await read($, office) as OfficeAgent[]).find(a => a.agentId === e.parentAgentId)?.cwd : undefined
     const entry: OfficeAgent = {
       cwd: spawnCwd ?? (isolated ? undefined : parentCwd ?? (await $.session.cwd().catch(() => ''))) ?? undefined,
@@ -354,7 +356,9 @@ export const register: Register = on => {
   // The Agent tool answers `async_launched` at once for a background subagent: that is a launch ack,
   // not the end (SubagentStop is). Only a foreground result finishes the agent, with its real duration.
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
-    const res = await next(e)
+    // the spawn that this call starts runs inside next(e): mark the worktree request before it
+    if (isolatedCall(e as { isolation?: string })) isolatedCalls.add(e.tool_use_id)
+    const res = await next(e).finally(() => isolatedCalls.delete(e.tool_use_id))
     const call = e as { model?: string; effort?: string }
     if (call.model || call.effort)
       await update($, office, list => list.map(a => (a.id === e.tool_use_id ? { ...a, model: a.model ?? call.model, effort: a.effort ?? call.effort } : a)))
