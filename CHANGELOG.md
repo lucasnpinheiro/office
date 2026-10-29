@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 (agent-office 0.15.3)
+
+- `agent-office`: agents spawned with `isolation: "worktree"` were never marked as worktree agents. `agent.spawn`'s input
+  carries no `isolation` (only the Agent call does), so the spawn was pinned to the session's cwd and the `⧉ worktree`
+  group never showed. The Agent call's input is now read at `tool.call` and the spawn takes it from there; the agent's
+  cwd comes from its first file inside `.claude/worktrees/`.
+
 ## 0.1.1 (agent-office 0.15.2, personas 0.1.1, learning 0.1.1, laya 0.1.1)
 
 - `agent-office`: redraw timer could be armed twice by overlapping `schedule()` calls (timers multiplied); a

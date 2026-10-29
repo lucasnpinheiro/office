@@ -189,3 +189,7 @@ export function pruneShots(m: Map<string, string>, agents: AgentLike[]): void {
   const live = new Set(agents.filter(a => a.status === 'working').map(a => a.id))
   for (const k of [...m.keys()]) if (!live.has(k)) m.delete(k)
 }
+
+// Agent call asked for its own git worktree. Read from the Agent tool's input (tool.call): agent.spawn's input
+// carries no isolation, so an isolated spawn was taken for a plain one and pinned to the session's cwd.
+export const isolatedCall = (input: unknown): boolean => (input as { isolation?: unknown } | undefined)?.isolation === 'worktree'

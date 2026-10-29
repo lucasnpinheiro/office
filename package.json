@@ -1,6 +1,6 @@
 {
   "name": "@lucasnpinheiro/office",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Claude Code Office: installer and marketplace for the agent-office mod, personas/router, learning loop and optional Laya integration.",
   "license": "MIT",
   "author": "Lucas Pinheiro",
