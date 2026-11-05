@@ -1,4 +1,5 @@
 // Pure helpers of the monitor: command parsing and redraw timing. No engine APIs here, so it is unit-testable.
+import type { ToolStep, Usage } from './run-model'
 export type Status = 'working' | 'done' | 'error'
 // Tipo único (T-002): une o antigo OfficeAgent (types/index.d.ts) e o AgentLike.
 export type AgentRecord = {
@@ -27,6 +28,9 @@ export type AgentRecord = {
   isolated?: boolean // spawned with isolation: worktree; cwd unknown until a result/file path reveals it
   git?: { branch?: string; worktree?: string; repo?: string } // resolved from cwd, never stored
   todos?: { id?: string; content: string; status: 'pending' | 'in_progress' | 'completed' }[]
+  steps?: ToolStep[] // finished tool calls in start order, memory only (T-003), capped by capture.MAX_STEPS
+  droppedSteps?: number // steps dropped past the cap
+  usage?: Usage // tokens from turn.step; undefined = unknown, never zero
 }
 export type AgentLike = AgentRecord // alias provisório até as telas migrarem
 

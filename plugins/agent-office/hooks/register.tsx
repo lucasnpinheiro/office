@@ -9,6 +9,7 @@ import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf, isolatedCall } from './stats'
+import { addUsage, recordSafely, toolStep, usageOf } from './capture'
 import { resolveGit } from './git'
 import { statusLines } from './status'
 import type { GitInfo } from './git'
@@ -394,7 +395,9 @@ export const register: Register = on => {
       const n = noteTool({ id: 's', description: '', status: 'working', startedAt: 0, ...cur }, e.tool, input)
       return { tool: n.tool, recent: n.recent }
     }).then(() => { $.ui.invalidate('ui.render') })
+    const startedAt = Date.now()
     const res = await next(e)
+    const durationMs = Date.now() - startedAt
     if (aid && (await thumbsOn($))) {
       const shot = shotFrom(e.tool, input, res)
       const owner = shot ? ((await read($, office)) as OfficeAgent[]).find(a => a.agentId === aid && a.status === 'working') : undefined
@@ -405,11 +408,31 @@ export const register: Register = on => {
     }
     if (aid) {
       await update($, office, list =>
-        list.map(a => (a.agentId === aid ? { ...(applyTool(a, e.tool, input, res) as OfficeAgent), seenAt: Date.now() } : a)),
+        list.map(a =>
+          a.agentId === aid
+            ? (recordSafely({ ...(applyTool(a, e.tool, input, res) as OfficeAgent), seenAt: Date.now() }, () =>
+                toolStep((e as { tool_use_id?: string }).tool_use_id ?? `${e.tool}@${startedAt}`, e.tool, input, startedAt, durationMs, res),
+              ) as OfficeAgent)
+            : a,
+        ),
       )
     }
     return res
   }).catch(passOn)
+
+  // tokens per agent: each model response of a subagent's loop (turn.step carries its agentId); memory only
+  // turn.step streams: chunks pass through (yield*), the response comes back as the stream's result
+  on('turn.step', async function* ($, e, next) {
+    const res = yield* next(e)
+    const aid = (e as { agentId?: string }).agentId
+    try {
+      const add = aid ? usageOf(res) : undefined
+      if (aid && add) await update($, office, list => list.map(a => (a.agentId === aid ? (addUsage(a, add) as OfficeAgent) : a)))
+    } catch {
+      // capture failed: the response is already final and goes on unchanged
+    }
+    return res
+  })
 
   // main session finished its turn: no tool in use any more
   on('classic.Stop', async ($, e, next) => {
