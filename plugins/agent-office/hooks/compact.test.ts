@@ -71,9 +71,9 @@ test('status line and quota error', () => {
   const out = txt(renderCompact([mk('q', { status: 'error', endedAt: T + 1, error: 'usage limit reached' })], T + 5, v))
   expect(out).toContain('▲')
 })
-test('narrow width shows only status line', () => {
+test('narrow width (< 60) shows only the list: no header, no footer (T-013, AC-042)', () => {
   const ls = renderCompact([mk('a')], T + 1, { ...v, width: 40 })
-  expect(ls.length).toBe(1); expect(txt(ls)).toContain('ativos')
+  expect(txt(ls)).toContain('Dev: a'); expect(txt(ls)).not.toContain('Office'); expect(txt(ls)).not.toContain('Concluído')
 })
 test('detail: deps navigable, siblings, attachments', () => {
   const ag = [mk('p', { agentId: 'P' }), mk('c1', { parentAgentId: 'P', files: ['/x/a.diff'] }), mk('c2', { parentAgentId: 'P' })]
