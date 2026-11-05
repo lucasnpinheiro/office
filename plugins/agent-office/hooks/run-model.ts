@@ -153,17 +153,24 @@ export function elapsedOf(g: Graph, now: number): number {
   return Math.max(0, end - first)
 }
 
-// Mean duration of finished agents/tasks x count of pending+running ones. undefined: <2 samples.
+// Mean duration of finished agents of ONE model x count of pending+running ones. undefined unless some model has
+// at least 3 finished samples (AC-030): fewer, or samples from mixed models, give no promise.
+export const ETA_MIN_SAMPLES = 3
 export function etaOf(g: Graph): number | undefined {
-  let sum = 0, samples = 0, remaining = 0
+  const byModel = new Map<string, number[]>()
+  let remaining = 0
   for (const n of g.nodes.values()) {
     if (n.kind === 'session') continue
-    if ((n.state === 'done' || n.state === 'failed') && n.start !== undefined && n.end !== undefined && n.end > n.start) {
-      sum += n.end - n.start
-      samples++
+    if (n.kind === 'agent' && n.state === 'done' && n.start !== undefined && n.end !== undefined && n.end > n.start) {
+      const xs = byModel.get(n.model) ?? []
+      xs.push(n.end - n.start)
+      byModel.set(n.model, xs)
     } else if (n.state === 'pending' || n.state === 'running') remaining++
   }
-  return samples < 2 || remaining === 0 ? undefined : (sum / samples) * remaining
+  const ok = [...byModel.values()].filter(xs => xs.length >= ETA_MIN_SAMPLES)
+  if (ok.length !== 1 || remaining === 0) return undefined
+  const xs = ok[0]!
+  return (xs.reduce((s, x) => s + x, 0) / xs.length) * remaining
 }
 
 // Finished agents leave the map HIDE_AFTER_MS after they end (tasks go with them), unless a child agent is still visible.

@@ -2,7 +2,7 @@
 id: T-009
 title: Tela de detalhe e fluxo de progresso honesto
 type: frontend
-status: TODO
+status: IN_PROGRESS
 progress: 0/4
 updated: 2026-11-05
 depends_on: [T-003, T-004, T-005]
