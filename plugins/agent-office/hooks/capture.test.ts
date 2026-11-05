@@ -1,4 +1,5 @@
 import { test, expect } from 'claude-code/testing'
+import { MASK_FAILED, MASK } from './mask'
 import { pushStep, toolStep, usageOf, addUsage, addSessionTokens, recordSafely, MAX_STEPS } from './capture'
 import { buildRunModel } from './run-model'
 import type { AgentRecord } from './office'
@@ -49,13 +50,13 @@ test('AC-008: sem fonte de tokens, tokens e custo ficam undefined, nunca zero', 
 
 test('AC-008: tokens de turn.step somam por agente (entrada + saída + cache)', () => {
   const u1 = usageOf({ usage: { model: 'm', input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 2, cache_creation_input_tokens: 1 } })
-  expect(u1).toEqual({ tokens: 18 })
+  expect(u1).toEqual({ tokens: 16 }) // 10 + 5 + 1 creation; cache_read (2) is not counted
   let a = addUsage(mk(), u1)
   a = addUsage(a, usageOf({ usage: { model: 'm', input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }))
-  expect(a.usage).toEqual({ tokens: 20 })
+  expect(a.usage).toEqual({ tokens: 18 })
   const model = buildRunModel([a], T0 + 1000, caps)
-  expect(model.totals.tokens).toBe(20)
-  expect(model.nodes[0]?.usage).toEqual({ tokens: 20 })
+  expect(model.totals.tokens).toBe(18)
+  expect(model.nodes[0]?.usage).toEqual({ tokens: 18 })
 })
 
 // AC-009 / S-009 / I-009: a capture error returns the agent untouched and writes nothing
@@ -116,4 +117,43 @@ test('AC-008: sem tokens do turno principal o total é parcial, nunca completo',
   expect(m2.totals.partial).toBe(true)
   // nothing known: unknown, not zero
   expect(buildRunModel([mk()], T0 + 1000, caps).totals.tokens).toBeUndefined()
+})
+
+// AC-008 fix: total counts NEW tokens (input + output + cache_creation); cache_read re-reads the same context every step
+test('AC-008: tokens novos não somam cache_read (evita inflar contra /cost)', () => {
+  const u = usageOf({ usage: { model: 'm', input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 8252, cache_creation_input_tokens: 100 } })
+  expect(u).toEqual({ tokens: 115 })
+  expect(usageOf({ usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 'x', cache_creation_input_tokens: 0 } })).toBeUndefined()
+})
+
+const GH = 'ghp_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'
+test('AC-011: sem opt-in o passo não tem campo io (nem a chave)', () => {
+  const s = toolStep('t1', 'Bash', { command: `curl -H "Authorization: Bearer ${GH}" x` }, T0, 5, { content: 'ok' })
+  expect('io' in s).toBe(false)
+  expect(JSON.stringify(s)).not.toContain(GH)
+  expect('io' in toolStep('t1', 'Bash', {}, T0, 5, {}, false)).toBe(false)
+})
+
+test('AC-013: com opt-in, io entra mascarado e limitado a 2000 por campo', () => {
+  const input = { command: `deploy --token=${GH}`, body: JSON.stringify({ password: 'p4ss w0rd' }) }
+  const s = toolStep('t1', 'Bash', input, T0, 5, { content: [{ type: 'text', text: `saida password=hunter2hunter2 ${'z'.repeat(5000)}` }] }, true)
+  expect(s.io?.input).toContain(MASK)
+  expect(s.io?.input).not.toContain(GH)
+  expect(s.io?.input).not.toContain('p4ss w0rd')
+  expect(s.io?.output).not.toContain('hunter2hunter2')
+  expect(s.io?.input.length).toBeLessThanOrEqual(2000)
+  expect(s.io?.output?.length).toBeLessThanOrEqual(2000)
+})
+
+test('AC-012: io que não serializa falha fechado, sem o original', () => {
+  const cyc: Record<string, unknown> = { command: `x ${GH}` }
+  cyc.self = cyc
+  const s = toolStep('t1', 'Bash', cyc, T0, 5, {}, true)
+  expect(s.io?.input).toBe(MASK_FAILED)
+  expect(JSON.stringify(s)).not.toContain(GH)
+})
+
+test('AC-010: rótulo do passo passa pela máscara', () => {
+  const s = toolStep('t1', 'mcp__srv__' + GH, {}, T0, 1, {})
+  expect(s.label).not.toContain(GH)
 })
