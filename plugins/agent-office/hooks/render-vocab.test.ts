@@ -30,16 +30,25 @@ test('AC-014 render: legenda do mapa usa rótulo e glifo da tabela, cor do token
 })
 
 // AC-015: ASCII column and no color
-test('AC-015 render: OFFICE_ASCII e NO_COLOR usam a coluna ASCII e tiram a cor (compacto)', () => {
-  for (const env of [{ OFFICE_ASCII: '1', LANG: 'pt_BR.UTF-8' }, { NO_COLOR: '1', COLORTERM: 'truecolor', LANG: 'pt_BR.UTF-8' }]) {
-    for (const mode of ['tree', 'cards'] as const) {
-      const ls = renderCompact(agents, T + 5000, cview(env, mode))
-      const out = txt(ls)
-      expect(out).toContain(STATE_TABLE.done.ascii)
-      expect(out).toContain(STATE_TABLE.failed.ascii)
-      for (const g of ['✓', '✗', '●', '○', '▲', '⠹']) expect(out).not.toContain(g)
-      if ('NO_COLOR' in env) expect(ls.flat().filter(s => s.fg !== undefined)).toEqual([])
-    }
+test('AC-015 render: OFFICE_ASCII usa a coluna ASCII (compacto)', () => {
+  const env = { OFFICE_ASCII: '1', LANG: 'pt_BR.UTF-8' }
+  for (const mode of ['tree', 'cards'] as const) {
+    const out = txt(renderCompact(agents, T + 5000, cview(env, mode)))
+    expect(out).toContain(STATE_TABLE.done.ascii)
+    expect(out).toContain(STATE_TABLE.failed.ascii)
+    for (const g of ['✓', '✗', '●', '○', '▲', '⠹']) expect(out).not.toContain(g)
+  }
+})
+// Padrão: NO_COLOR tira só a cor; os glifos continuam Unicode (ASCII vem de OFFICE_ASCII ou do terminal).
+test('AC-015 render: NO_COLOR tira a cor e mantém os glifos Unicode (compacto)', () => {
+  const env = { NO_COLOR: '1', COLORTERM: 'truecolor', LANG: 'pt_BR.UTF-8' }
+  for (const mode of ['tree', 'cards'] as const) {
+    const ls = renderCompact(agents, T + 5000, cview(env, mode))
+    const out = txt(ls)
+    expect(out).toContain(STATE_TABLE.done.glyph)
+    expect(out).toContain(STATE_TABLE.failed.glyph)
+    expect(out).not.toContain(STATE_TABLE.done.ascii)
+    expect(ls.flat().filter(s => s.fg !== undefined)).toEqual([])
   }
 })
 test('AC-015 render: mapa em ASCII e sem cor', () => {
@@ -50,9 +59,13 @@ test('AC-015 render: mapa em ASCII e sem cor', () => {
   expect(nc.lines.flat().filter(s => s.fg !== undefined)).toEqual([])
   expect(nc.body.flat().filter(s => s.fg !== undefined)).toEqual([])
 })
-test('AC-015: NO_COLOR sozinho liga a coluna ASCII nos caps', () => {
-  expect(detectCaps({ NO_COLOR: '1', LANG: 'pt_BR.UTF-8' }).ascii).toBe(true)
-  expect(vocabFromEnv({ NO_COLOR: '1' })).toMatchObject({ ascii: true, color: false })
+test('AC-015: NO_COLOR sozinho tira a cor e não liga a coluna ASCII (caps e vocabulário)', () => {
+  expect(detectCaps({ NO_COLOR: '1', LANG: 'pt_BR.UTF-8' })).toMatchObject({ ascii: false, color: 'mono' })
+  expect(vocabFromEnv({ NO_COLOR: '1' })).toMatchObject({ ascii: false, color: false })
+})
+test('AC-015: NO_COLOR vazio não conta como definido (no-color.org), nos dois caminhos', () => {
+  expect(detectCaps({ NO_COLOR: '', COLORTERM: 'truecolor', LANG: 'pt_BR.UTF-8' })).toMatchObject({ ascii: false, color: 'truecolor' })
+  expect(vocabFromEnv({ NO_COLOR: '' })).toMatchObject({ ascii: false, color: true })
 })
 
 // AC-016: unknown state is drawn muted with ? and does not throw

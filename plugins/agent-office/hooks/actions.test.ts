@@ -18,11 +18,24 @@ test('g cycles mode, f toggles failed, o cycles sort', async () => {
   expect(applyAction(s0, 'sort').state.sort).toBe('state')
 })
 
-test('v toggles map to cards and back (never stuck)', async () => {
-  const c = applyAction(s0, 'view').state
-  expect(c.view).toBe('compact')
-  expect(c.mode).toBe('cards')
+// T-006: v cycles map -> árvore -> cards -> map; the map stays the initial view and v never gets stuck.
+test('v cycles map, árvore, cards and back to map', async () => {
+  const t = applyAction(s0, 'view').state
+  expect(t).toMatchObject({ view: 'compact', mode: 'tree' })
+  const c = applyAction(t, 'view').state
+  expect(c).toMatchObject({ view: 'compact', mode: 'cards' })
   expect(applyAction(c, 'view').state.view).toBe('map')
+})
+
+// T-006 / AC-019: g in árvore first opens every collapsed group (tree:all), then moves to the next mode.
+test('g in árvore: opens all groups first, then the next mode', async () => {
+  const t = { ...s0, view: 'compact' as const, mode: 'tree' as const }
+  const a = applyAction(t, 'group').state
+  expect(a).toMatchObject({ mode: 'tree' })
+  expect(a.expanded).toContain('tree:all')
+  const b = applyAction(a, 'group').state
+  expect(b.mode).toBe('grouped')
+  expect(b.expanded).not.toContain('tree:all')
 })
 
 test('s toggles search, back closes search, then attach, then detail', async () => {

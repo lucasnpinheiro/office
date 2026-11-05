@@ -45,12 +45,17 @@ test('AC-015 OFFICE_ASCII uses the ASCII column', async () => {
   expect(stateView('stopped', v, 'dark').glyph).toBe('[--]')
 })
 
-test('AC-015 NO_COLOR drops color and uses ASCII; connectors are + - :', async () => {
-  const v = vocabFromEnv({ NO_COLOR: '' })
-  expect(v).toMatchObject({ ascii: true, color: false })
+// no-color.org: NO_COLOR set and non-empty drops color only; the glyph column is not touched (ASCII is OFFICE_ASCII or the terminal).
+test('AC-015 NO_COLOR set and non-empty drops color and keeps the Unicode column', async () => {
+  const v = vocabFromEnv({ NO_COLOR: '1' })
+  expect(v).toMatchObject({ ascii: false, color: false })
   expect(stateView('done', v, 'dark').color).toBeUndefined()
-  expect(CONNECTORS.ascii).toEqual({ branch: '+', rule: '-', pair: ':' })
-  for (const s of STATES) expect(stateView(s, v, 'dark').glyph).toMatch(/^[\x20-\x7e]+$/)
+  expect(stateView('done', v, 'dark').glyph).toBe('✓')
+  expect(CONNECTORS.unicode.branch).toBe('├')
+})
+
+test('AC-015 NO_COLOR empty counts as not set: color stays', async () => {
+  expect(vocabFromEnv({ NO_COLOR: '' })).toMatchObject({ ascii: false, color: true })
 })
 
 test('AC-015 OFFICE_ASCII alone keeps color', async () => {

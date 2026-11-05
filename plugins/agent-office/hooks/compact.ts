@@ -5,7 +5,9 @@ import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, 
   truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
-import { nodeView, stateColor, keyOf, labelOf } from './vocabulary'
+import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet } from './vocabulary'
+import { CAPABILITIES } from './capabilities'
+import type { Capabilities } from './capabilities'
 
 export { isQuotaError }
 
@@ -17,9 +19,9 @@ export function detectCaps(env: Record<string, string | undefined>, o: { isTTY?:
   const term = (env.TERM ?? '').toLowerCase()
   const loc = env.LC_ALL || env.LC_CTYPE || env.LANG || ''
   const legacy = env.OS === 'Windows_NT' && !env.WT_SESSION && !env.TERM_PROGRAM && !env.ConEmuANSI && !env.ANSICON
-  const ascii = !!o.ascii || truthy(env.OFFICE_ASCII) || truthy(env.NO_COLOR) || term === 'linux' || term === 'dumb' || (loc !== '' && !/utf-?8/i.test(loc)) || legacy
+  const ascii = !!o.ascii || truthy(env.OFFICE_ASCII) || term === 'linux' || term === 'dumb' || (loc !== '' && !/utf-?8/i.test(loc)) || legacy
   const tty = o.isTTY !== false
-  const color: Caps['color'] = truthy(env.NO_COLOR) || !tty || term === 'dumb' ? 'mono'
+  const color: Caps['color'] = noColorSet(env.NO_COLOR) || !tty || term === 'dumb' ? 'mono'
     : /truecolor|24bit/i.test(env.COLORTERM ?? '') ? 'truecolor' : term.includes('256color') ? '256' : '16'
   return { ascii, numbered: legacy, color, reducedMotion: truthy(env.OFFICE_REDUCED_MOTION) || truthy(env.CI) || !tty }
 }
@@ -62,7 +64,10 @@ const DIM = '#9ca3af'
 export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall'
 export const DEFAULT_MODE: Mode = 'cards'
 export const NEXT_MODE: Record<Mode, Mode> = { tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'tree' }
-export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string }
+export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities }
+// Árvore: irmãos com o mesmo estado acima de 8 viram `Rodando ×N`; `g` com este item em expanded abre todos (AC-019).
+export const TREE_ALL = 'tree:all'
+export const TREE_COLLAPSE_OVER = 8
 
 const sp = (n: number): Seg[] => (n > 0 ? [{ t: ' '.repeat(n) }] : [])
 const col = (c: Caps, hex?: string) => quantize(hex, c.color)
@@ -179,16 +184,19 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const n_ = (f: (n: Node) => boolean) => ns.filter(f).length
   const act = n_(isOpenNode), ok = n_(n => n.state === 'done'), bad = n_(n => n.state === 'failed')
+  const costs = ns.filter(n => n.usage?.costUsd !== undefined)
+  const costTxt = costs.length ? `~$${costs.reduce((s, n) => s + (n.usage.costUsd ?? 0), 0).toFixed(2).replace('.', ',')}` : '—'
   const sid = String(v.sessionId ?? '').replace(/[^\w-]/g, '').slice(0, 6)
   const left: Line = [seg(c, 'Office', undefined, { bold: true }), seg(c, ` · ${v.project || '-'}${sid ? ' · #' + sid : ''}`, DIM)]
   // below the full layout the right side drops the words and the ETA, so the "Office" title keeps its room
   const full = layoutLevel(w) === 'full'
   const right: Line = [seg(c, `${glyph(c, 'running')} ${act}${full ? ' ativos' : ''}`, STATE_COLOR.running), seg(c, ` ${glyph(c, 'done')} ${ok}`, STATE_COLOR.done),
     seg(c, ` ${glyph(c, 'failed')} ${bad}`, STATE_COLOR.failed),
-    seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}`, DIM)]
+    seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · custo ${costTxt} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}`, DIM)]
   const geral: Line = [seg(c, 'Geral '), ...segBar(g, c, layoutLevel(w) === 'full' ? 20 : 10), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'} · `),
     seg(c, keyOf('group') ?? 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna agrupado', DIM)]
-  return [...ROUND_BOX(c, w, left, right), fit(geral, w)]
+  // sem agente não há progresso a mostrar: a linha Geral (com barra) só existe quando há agentes (AC-020)
+  return [...ROUND_BOX(c, w, left, right), ...(agents.length ? [fit(geral, w)] : [])]
 }
 
 function filterBar(g: Graph, v: CView): Line {
@@ -214,9 +222,25 @@ function footer(g: Graph, v: CView, hint = ''): Line[] {
   return out
 }
 
+// Topo da árvore: ◆ (decisão) e ✗ (falha) sempre primeiro. A tecla da ação só aparece se a capability for `yes` (AC-018).
+function pinnedLines(g: Graph, nm: Map<string, string>, keep: Set<string>, v: CView): Line[] {
+  const c = v.caps
+  // só a falha tem ação hoje (retry); a decisão (needs-you, ◆) entra com T-011 e o estado correspondente
+  const ret = bindable(v.capabilities ?? CAPABILITIES, 'terminal').find(e => e.act === 'retry')
+  return [...g.nodes.values()]
+    .filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'attention' || n.state === 'failed'))
+    .sort((a, b) => Number(b.state === 'attention') - Number(a.state === 'attention'))
+    .map(n => {
+      const e = n.state === 'failed' ? ret : undefined
+      const left: Line = [seg(c, glyph(c, n.state) + ' ', stateColor(n.state), { node: n.id }),
+        seg(c, nm.get(n.id) ?? n.name, undefined, { bold: true, node: n.id }), seg(c, n.error ? '  ' + n.error : '', DIM)]
+      return e ? spread(left, [seg(c, `${e.key} ${e.label}`, DIM)], v.width) : fit(left, v.width)
+    })
+}
+
 function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
   const c = v.caps, lvl = layoutLevel(v.width), out: Line[] = []
-  const br = c.ascii ? { mid: '|-', last: '`-', pipe: '| ', none: '  ' } : { mid: '├─', last: '╰─', pipe: '│ ', none: '  ' }
+  const br = c.ascii ? { mid: '|-', last: '`-', pipe: '| ', none: '  ' } : { mid: '├─', last: '└─', pipe: '│ ', none: '  ' }
   const row = (n: Node, prefix: string, label?: { name: string; extra?: string }): Line => {
     const name = label?.name ?? nm.get(n.id) ?? n.name
     const right = n.kind === 'task' ? metric(n) : `${label?.extra ?? metric(n)}  ${fmtMMSS(durationOf(n, now))}`
@@ -243,6 +267,19 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
         if (ms.length > 1) items.push({ group: { state: s, ms, key: `grp:${n.id}:${s}` } })
         else ms.forEach(k => items.push({ n: k }))
       }
+    } else if (v.mode === 'tree' && !v.expanded.has(TREE_ALL)) {
+      // irmãos do mesmo estado acima do limite viram um grupo colapsado, na posição do primeiro (AC-019)
+      const counts = new Map<State, number>()
+      for (const k of kids) if (k.kind === 'agent' && !pinned(k)) counts.set(k.state, (counts.get(k.state) ?? 0) + 1)
+      const done = new Set<State>()
+      for (const k of kids) {
+        const collapse = k.kind === 'agent' && !pinned(k) && (counts.get(k.state) ?? 0) > TREE_COLLAPSE_OVER
+        if (!collapse) items.push({ n: k })
+        else if (!done.has(k.state)) {
+          done.add(k.state)
+          items.push({ group: { state: k.state, ms: kids.filter(m => m.kind === 'agent' && !pinned(m) && m.state === k.state), key: `tree:${n.id}:${k.state}` } })
+        }
+      }
     } else kids.forEach(k => items.push({ n: k }))
     items.forEach((it, i) => {
       const last = i === items.length - 1
@@ -251,9 +288,10 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
       if (it.group) {
         const gr = it.group, open = v.expanded.has(gr.key)
         const med = fmtMMSS(median(gr.ms.map(m => durationOf(m, now))))
+        const tail = gr.key.startsWith('tree:') ? `  ${keyOf('group') ?? 'g'}: abrir todos` : `  mediana ${med}  ${open ? '[-]' : '[+]'}`
         out.push(fit([seg(c, pre, DIM), seg(c, glyph(c, gr.state) + ' ', stateColor(gr.state)),
           seg(c, `${stateLabel(c, gr.state)} ×${gr.ms.length}`, undefined, { bold: true, act: `grp:${gr.key}` }),
-          seg(c, `  mediana ${med}  ${open ? '[-]' : '[+]'}`, DIM, { act: `grp:${gr.key}` })], v.width))
+          seg(c, tail, DIM, { act: `grp:${gr.key}` })], v.width))
         if (open) gr.ms.forEach((m, j) => out.push(row(m, nxt + (j === gr.ms.length - 1 ? br.last : br.mid))))
       } else {
         out.push(row(it.n!, pre))
@@ -499,6 +537,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
   const out: Line[] = [...header(g, agents, now, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
   if (agents.length === 0) out.push([seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)])
   else {
+    if (v.mode === 'tree') out.push(...pinnedLines(g, nm, keep, v))
     const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
     if (v.mode === 'grouped' && bad.length) {
       out.push([seg(v.caps, `Atenção (${bad.length})`, STATE_COLOR.attention, { bold: true })])
