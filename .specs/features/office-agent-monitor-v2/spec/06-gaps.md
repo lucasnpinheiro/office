@@ -65,3 +65,7 @@ updated: 2026-11-05
 | 7 | open | CI com `claude plugin test`: a imagem do CI tem o binário e autenticação? | Passo registra `skipped` (AC-050). |
 
 Decisão do usuário (2026-11-05), visão inicial: mantém `map` como visão inicial; a árvore entra no ciclo da tecla `v`. Encerra a ambiguidade 3.
+
+Decisões do usuário (2026-11-05, finais):
+- Controles (gap 10, Unresolved 2): provar em sessão real primeiro; entregar só o provado; lacuna volta ao usuário. Outras tasks seguem. Probe T-001: Retry por id provado no terminal; Allow e Decline provados só em modo não interativo; Stop não provado; Pause e openInChat sem suporte (ADR 0002).
+- Custo (gap 2, Unresolved 4): tokens por agente mais total real da sessão; custo por agente fica `—`; sem tabela de preço. Encerra a Unresolved 4.

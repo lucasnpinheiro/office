@@ -1,197 +1,24 @@
-// Office Agent Monitor: pure graph + mind-map layout. Single office package: the
+// Office Agent Monitor: mind-map layout and text helpers. Single office package: the
 // Claude Code mod is the only implementation (the former Go TUI was folded in and removed).
 // No engine APIs, no clock: the caller passes `now` and the animation `frame`.
-import { parseDescription, modelLabel, EFFORT_DISPLAY } from './persona'
-import type { AgentLike } from './office'
 import { gitLabel } from './git'
 import type { GitInfo } from './git'
+import type { AgentRecord as AgentLike } from './office'
 import { HIDE_AFTER_MS } from './office'
+import { buildGraph, hiddenIds, hasRunningDescendant, MAX_DEPTH, isQuotaError, ATTENTION_AFTER_MS, isOpenNode, progressOf, overallProgress, durationOf, elapsedOf, etaOf, maxDepthOf } from './run-model'
+import type { Node, Graph, State, Kind, ToolNote } from './run-model'
+import { STATE_COLORS, nodeView, stateColor } from './vocabulary'
+import type { Vocab } from './vocabulary'
 
-export const MAX_DEPTH = 10
-// Quota / rate-limit failures are not agent bugs: they surface as attention items, not failures.
-// "429" only as an HTTP status (start of text, after error/status/http), "credit" only as a balance: a stray line
-// number or a form field named "credit card" is not a quota failure.
-export const isQuotaError = (t?: string): boolean =>
-  !!t && /quota|rate.?limit|usage limit|too many requests|overloaded|(?:^|\b(?:error|status|http|code)\W{0,3})429\b|\bhttp\/\d(?:\.\d)?\s+429\b|credit balance|out of credits|insufficient credit/i.test(t)
-export const ATTENTION_AFTER_MS = 10 * 60 * 1000
-
-export type State = 'pending' | 'running' | 'done' | 'attention' | 'inactive' | 'failed'
-export type Kind = 'session' | 'agent' | 'task'
-
-export type Node = {
-  id: string
-  parentId: string
-  name: string
-  persona: string
-  model: string
-  effort?: string
-  git?: GitInfo
-  shot?: { host?: string; has?: boolean }
-  tool?: string // only while the card runs
-  recent?: string[]
-  kind: Kind
-  state: State
-  depth: number
-  start?: number
-  end?: number
-  children: Node[]
-  dependsOn: string[]
-  error?: string
-}
-
-export type Graph = { root: Node; nodes: Map<string, Node> }
-
-const EFFORT_KEY: Record<string, string> = { low: 'low', medium: 'medium', high: 'high', xhigh: 'high', max: 'high' }
-const firstWords = (s?: string): string => (s ?? '').trim().split('\n')[0]!.slice(0, 60)
-
-export type ToolNote = { tool?: string; recent?: string[] }
-const isFinal = (s: State) => s === 'done' || s === 'failed' || s === 'inactive'
-// Still in progress: running, or attention without an end (stale). An ended quota error is attention but over.
-export const isOpenNode = (n: { state: State; end?: number }): boolean => n.state === 'running' || (n.state === 'attention' && n.end === undefined)
-// Any descendant (agent or task) still running: a done ancestor of it is 'awaiting children'.
-const hasRunningDescendant = (n: Node): boolean => n.children.some(c => c.state === 'running' || hasRunningDescendant(c))
-
-const todoState = (s: string): State => (s === 'in_progress' ? 'running' : s === 'completed' ? 'done' : 'pending')
-
-// Walk up while the parent is already at MAX_DEPTH so a child stays within the limit.
-function clampParent(g: Graph, p: Node): Node {
-  let cur = p
-  while (cur.depth >= MAX_DEPTH && cur.parentId) {
-    const up = g.nodes.get(cur.parentId)
-    if (!up) break
-    cur = up
-  }
-  return cur
-}
-
-// agents (spawn order) -> session root -> agents -> TodoWrite tasks. Nothing is invented:
-// state comes from status/endedAt/seenAt, tasks from the agent's own todos.
-export function buildGraph(agents: AgentLike[], now: number, sessionGit?: GitInfo, sessionTool?: ToolNote): Graph {
-  const root: Node = {
-    id: 'session', parentId: '', name: 'Claude Code', persona: 'Orquestrador', model: '', kind: 'session',
-    state: 'running', depth: 0, children: [], dependsOn: [], git: sessionGit, tool: sessionTool?.tool, recent: sessionTool?.recent,
-  }
-  const g: Graph = { root, nodes: new Map([[root.id, root]]) }
-  const byAgentId = new Map<string, Node>()
-  for (const a of agents) {
-    const p = parseDescription(a.description)
-    const caller = (a.parentAgentId && byAgentId.get(a.parentAgentId)) || root
-    const parent = clampParent(g, caller)
-    const stale = a.status === 'working' && now - (a.seenAt ?? a.startedAt) > ATTENTION_AFTER_MS
-    const model = p.model ?? a.model
-    const effort = p.effort ?? (a.effort ? EFFORT_KEY[a.effort.toLowerCase()] : undefined)
-    // no label in the description: fall back to the first prompt line, then the persona
-    const label = p.label || firstWords(a.prompt) || p.persona.name
-    const n: Node = {
-      id: a.id, parentId: parent.id, name: label,
-      persona: p.persona.name, model: model ? modelLabel(model) : '', effort: effort ? EFFORT_DISPLAY[effort]?.label : undefined, kind: 'agent', git: a.git,
-      state: a.status === 'error' ? (isQuotaError(a.error) ? 'attention' : 'failed') : a.status === 'done' ? 'done' : stale ? 'attention' : a.active === false ? 'pending' : 'running',
-      depth: parent.depth + 1, start: a.startedAt, end: a.endedAt, children: [], dependsOn: [],
-    }
-    if (a.status === 'error') n.error = a.error || 'falha'
-    if (n.state === 'running' || n.state === 'attention') { n.tool = a.tool; n.recent = a.recent; n.shot = a.shot }
-    parent.children.push(n)
-    g.nodes.set(n.id, n)
-    if (a.agentId) byAgentId.set(a.agentId, n)
-    let prev = ''
-    ;(a.todos ?? []).forEach((t, i) => {
-      const tp = clampParent(g, n)
-      const id = `${n.id}#${i}`
-      const task: Node = {
-        id, parentId: tp.id, name: t.content, persona: n.persona, model: n.model, effort: n.effort, kind: 'task',
-        state: todoState(t.status), depth: tp.depth + 1, children: [], dependsOn: prev ? [prev] : [],
-      }
-      tp.children.push(task)
-      g.nodes.set(id, task)
-      prev = id
-    })
-  }
-  const starts = [...g.nodes.values()].filter(n => n.kind !== 'session' && n.start !== undefined).map(n => n.start!)
-  if (starts.length) root.start = Math.min(...starts)
-  return g
-}
-
-function leafCounts(n: Node): [number, number] {
-  let done = 0, total = 0
-  for (const c of n.children) {
-    if (c.children.length === 0 && c.kind !== 'session') {
-      total++
-      if (c.state === 'done') done++
-    }
-    const [d, t] = leafCounts(c)
-    done += d
-    total += t
-    // an unfinished agent whose own subtree is all done is still one unit of work left
-    if (c.kind === 'agent' && c.children.length > 0 && !isFinal(c.state) && d === t) total++
-  }
-  return [done, total]
-}
-
-// Done ratio; undefined when there is no evidence (no leaves).
-export function progressOf(n: Node): number | undefined {
-  if (n.kind === 'task') return n.state === 'done' ? 1 : 0
-  if (n.kind === 'agent' && n.children.length === 0) return n.state === 'done' ? 1 : 0
-  const [d, t] = leafCounts(n)
-  return t === 0 ? undefined : d / t
-}
-
-export const overallProgress = (g: Graph): number | undefined => progressOf(g.root)
-
-export function durationOf(n: Node, now: number): number {
-  if (n.start === undefined) return 0
-  const d = (n.end ?? now) - n.start
-  return d > 0 ? d : 0
-}
-
-// Earliest start to now, or to the last end once every agent/task is final.
-export function elapsedOf(g: Graph, now: number): number {
-  const ns = [...g.nodes.values()].filter(n => n.kind !== 'session')
-  const first = Math.min(...ns.filter(n => n.start !== undefined).map(n => n.start!))
-  if (!Number.isFinite(first)) return 0
-  const allFinal = ns.length > 0 && ns.every(n => isFinal(n.state) || (n.state === 'attention' && n.end !== undefined))
-  const last = Math.max(0, ...ns.map(n => n.end ?? 0))
-  const end = allFinal && last > 0 ? last : now
-  return Math.max(0, end - first)
-}
-
-// Mean duration of finished agents/tasks x count of pending+running ones. undefined: <2 samples.
-export function etaOf(g: Graph): number | undefined {
-  let sum = 0, samples = 0, remaining = 0
-  for (const n of g.nodes.values()) {
-    if (n.kind === 'session') continue
-    if ((n.state === 'done' || n.state === 'failed') && n.start !== undefined && n.end !== undefined && n.end > n.start) {
-      sum += n.end - n.start
-      samples++
-    } else if (n.state === 'pending' || n.state === 'running') remaining++
-  }
-  return samples < 2 || remaining === 0 ? undefined : (sum / samples) * remaining
-}
-
-// Finished agents leave the map HIDE_AFTER_MS after they end (tasks go with them), unless a child agent is still visible.
-export function hiddenIds(g: Graph, now: number): Set<string> {
-  const hidden = new Set<string>()
-  const visit = (n: Node): boolean => { // true = stays visible
-    const kids = n.children.filter(k => k.kind === 'agent').map(visit)
-    if (n.kind !== 'agent') return true
-    const final = n.state === 'done' || n.state === 'failed'
-    const expired = final && n.end !== undefined && now - n.end > HIDE_AFTER_MS
-    const vis = !expired || kids.some(Boolean)
-    if (!vis) hidden.add(n.id)
-    return vis
-  }
-  visit(g.root)
-  return hidden
-}
-
-export const maxDepthOf = (g: Graph): number => Math.max(0, ...[...g.nodes.values()].map(n => n.depth))
+// Provisório (T-002): as telas ainda importam daqui; T-013 remove o que ficar sem chamador.
+export { buildGraph, hiddenIds, MAX_DEPTH, isQuotaError, ATTENTION_AFTER_MS, isOpenNode, progressOf, overallProgress, durationOf, elapsedOf, etaOf, maxDepthOf }
+export type { Node, Graph, State, Kind, ToolNote }
 
 // ---------- text helpers ----------
 export type Seg = { t: string; fg?: string; bold?: boolean; dim?: boolean; node?: string; toggle?: string; attach?: string; act?: string; hotkey?: string; btn?: true; variant?: 'primary' | 'secondary' } // node: click opens that agent's detail; toggle: click expands/collapses its branch
 export type Line = Seg[]
 
-export const STATE_COLOR: Record<State, string> = {
-  done: '#22c55e', running: '#3b82f6', attention: '#eab308', pending: '#e5e7eb', inactive: '#6b7280', failed: '#ef4444',
-}
+export const STATE_COLOR: Record<State, string> = STATE_COLORS // derivado de vocabulary.STATE_TABLE
 const DIM = '#9ca3af'
 const CONNECTOR = '#4b5563'
 const HEADER = '#6b7280'
@@ -298,8 +125,10 @@ export function progressBar(frac: number, cells = 10): string {
   return '▰'.repeat(f) + '▱'.repeat(cells - f)
 }
 
-export function stateIcon(s: State): string {
-  return s === 'failed' ? '✗ ' : s === 'done' ? '✓ ' : s === 'running' ? '● ' : s === 'attention' ? '! ' : s === 'inactive' ? '◌ ' : '○ '
+// Glifo da tabela única (vocabulary.STATE_TABLE) mais um espaço; coluna ASCII quando `vocab.ascii`.
+const DEFAULT_VOCAB: Vocab = { ascii: false, color: true }
+export function stateIcon(s: State, vocab: Vocab = DEFAULT_VOCAB): string {
+  return nodeView(s, vocab).glyph + ' '
 }
 
 const pctText = (f: number | undefined) => (f === undefined ? '—' : `${Math.round(f * 100)}%`)
@@ -314,6 +143,7 @@ export type View = {
   sessionId?: string
   git?: GitInfo // branch/worktree of the session's own cwd
   sessionTool?: ToolNote
+  vocab?: Vocab // glifos ASCII e cor (OFFICE_ASCII, NO_COLOR); ausente = Unicode com cor
   thumbs?: boolean // opt-in browser thumbnails; false = no change at all
 }
 
@@ -325,7 +155,7 @@ function nodeBox(c: Ctx, n: Node): { lines: Line[]; cr: number } {
   const dur = fmtMMSS(n.kind === 'session' ? elapsedOf(g, now) : durationOf(n, now))
   // done but a descendant still runs: keep the green done state, pulse the border blue/green with dashed edges
   const waiting = n.state === 'done' && hasRunningDescendant(n)
-  const color = waiting ? mixHex(STATE_COLOR.done, STATE_COLOR.running, breath(v.frame)) : STATE_COLOR[n.state]
+  const color = waiting ? mixHex(STATE_COLOR.done, STATE_COLOR.running, breath(v.frame)) : stateColor(n.state)
   const wt = n.kind === 'agent' && !!n.git?.worktree
   const edge = waiting ? '┄' : '─'
   const deps: Line[] = n.dependsOn.length
@@ -333,13 +163,13 @@ function nodeBox(c: Ctx, n: Node): { lines: Line[]; cr: number } {
     : []
 
   if (n.kind === 'task') {
-    const l1 = padLine([{ t: stateIcon(n.state), fg: color }, { t: truncRunes(n.name, boxW - 2), fg: color }], boxW)
+    const l1 = padLine([{ t: stateIcon(n.state, v.vocab), fg: color }, { t: truncRunes(n.name, boxW - 2), fg: color }], boxW)
     const who = [n.persona, n.model, n.effort].filter(Boolean).join(' · ')
     const l2 = padLine([{ t: truncRunes(`${pct}  ${dur}${who ? '  ' + who : ''}`, boxW), fg: DIM }], boxW)
     return { lines: [l1, l2, ...deps], cr: 0 }
   }
   const hidden = v.collapsed.has(n.id) && n.children.length > 0 ? ` +${n.children.length}` : ''
-  const icon = stateIcon(n.state)
+  const icon = stateIcon(n.state, v.vocab)
   const canToggle = n.children.length > 0
   const tog = canToggle ? 2 : 0
   const name = truncRunes(n.name, inner - len(icon) - len(hidden) - tog)
@@ -411,7 +241,7 @@ function connector(parentX: number, kids: { x: number; state: State }[], width: 
   }
   for (const k of kids) {
     const run = k.state === 'running'
-    bus[k.x] = { ...bus[k.x]!, fg: run ? RUN : STATE_COLOR[k.state] }
+    bus[k.x] = { ...bus[k.x]!, fg: run ? RUN : stateColor(k.state) }
     if (run) {
       for (let x = Math.min(parentX, k.x); x <= Math.max(parentX, k.x); x++) {
         const cur = bus[x]!
@@ -487,23 +317,27 @@ function levelCounts(c: Ctx, n: Node, d: number, acc: number[]): number[] {
 
 export const EMPTY_MESSAGE = 'Aguardando agentes… use o Claude normalmente'
 
-const LEGEND_ITEMS: [string, State][] = [
-  ['● Concluído', 'done'], ['┄ Concluído · aguarda filhos', 'done'], ['● Executando', 'running'], ['● Atenção', 'attention'],
-  ['● Pendente', 'pending'], ['● Inativo', 'inactive'], ['✗ Falha', 'failed'],
-]
 const WT_LEGEND = '⧉ Worktree'
-export function legendLine(): Line {
-  return [...LEGEND_ITEMS.flatMap(([t, s], i) => [...(i ? sp(2) : []), { t, fg: STATE_COLOR[s] } as Seg]), ...sp(2), { t: WT_LEGEND, fg: WORKTREE_COLOR } as Seg]
+// Legenda: glifo e rótulo da tabela única; "aguarda filhos" é o único texto próprio.
+function legendItems(vocab: Vocab): [string, State][] {
+  const item = (s: State) => { const x = nodeView(s, vocab); return `${x.glyph} ${x.label}` }
+  return [
+    [item('done'), 'done'], [`${vocab.ascii ? '.' : '┄'} ${nodeView('done', vocab).label} · aguarda filhos`, 'done'], [item('running'), 'running'],
+    [item('attention'), 'attention'], [item('pending'), 'pending'], [item('inactive'), 'inactive'], [item('failed'), 'failed'],
+  ]
+}
+export function legendLine(vocab: Vocab = DEFAULT_VOCAB): Line {
+  return [...legendItems(vocab).flatMap(([t, s], i) => [...(i ? sp(2) : []), { t, fg: stateColor(s) } as Seg]), ...sp(2), { t: WT_LEGEND, fg: WORKTREE_COLOR } as Seg]
 }
 
 // Legend + depth on one line when they fit; otherwise the legend wraps by item and depth gets its own line.
-export function footerLines(w: number, depth: Line): Line[] {
-  const one = legendLine()
+export function footerLines(w: number, depth: Line, vocab: Vocab = DEFAULT_VOCAB): Line[] {
+  const one = legendLine(vocab)
   if (lineWidth(one) + 2 + lineWidth(depth) <= w) return [spread(one, depth, w)]
   const out: Line[] = []
   let cur: Line = []
-  for (const [t, s] of LEGEND_ITEMS) {
-    const item: Seg = { t, fg: STATE_COLOR[s] }
+  for (const [t, s] of legendItems(vocab)) {
+    const item: Seg = { t, fg: stateColor(s) }
     if (cur.length && lineWidth(cur) + 2 + len(t) > w) { out.push(cur); cur = [] }
     cur = [...cur, ...(cur.length ? sp(2) : []), item]
   }
@@ -516,7 +350,7 @@ export function footerLines(w: number, depth: Line): Line[] {
 
 // Detail view of one agent: what the Office knows (persona, state, prompt, todos, activity, files).
 // Claude Code exposes no transcript API to mods, so this is the monitor's own record of the agent.
-export function detailLines(agents: AgentLike[], id: string, now: number): Line[] | undefined {
+export function detailLines(agents: AgentLike[], id: string, now: number, vocab: Vocab = DEFAULT_VOCAB): Line[] | undefined {
   const a = agents.find(x => x.id === id)
   if (!a) return undefined
   const g = buildGraph(agents, now)
@@ -524,9 +358,9 @@ export function detailLines(agents: AgentLike[], id: string, now: number): Line[
   if (!n) return undefined
   const row = (label: string, value: string): Line => [{ t: label + ': ', fg: DIM }, { t: value }]
   const out: Line[] = [
-    [{ t: stateIcon(n.state), fg: STATE_COLOR[n.state] }, { t: n.name, bold: true }],
+    [{ t: stateIcon(n.state, vocab), fg: stateColor(n.state) }, { t: n.name, bold: true }],
     [{ t: [n.persona, n.model, n.effort].filter(Boolean).join(' · '), fg: DIM }],
-    row('Estado', n.state), row('Duracao', fmtMMSS(durationOf(n, now))), row('Descricao', a.description),
+    row('Estado', nodeView(n.state, vocab).label), row('Duracao', fmtMMSS(durationOf(n, now))), row('Descricao', a.description),
   ]
   if (n.git) for (const t of gitLabel(n.git) ?? []) out.push([{ t, fg: DIM }])
   if (n.tool) out.push(row('Agora', n.tool))
@@ -565,7 +399,7 @@ export function renderMonitor(agents: AgentLike[], now: number, v: View): Frame 
     [{ t: '╰' + '─'.repeat(inner) + '╯', fg: HEADER }],
   ]
   const depth: Line = [{ t: `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, fg: DIM }]
-  const footer: Line[] = footerLines(w, depth)
+  const footer: Line[] = footerLines(w, depth, v.vocab)
 
   let body: Line[]
   if (agents.length === 0) {
@@ -595,7 +429,14 @@ export function renderMonitor(agents: AgentLike[], now: number, v: View): Frame 
     .filter(a => a.shot?.has && g.nodes.get(a.id) && ['running', 'attention'].includes(g.nodes.get(a.id)!.state) && !gone.has(a.id))
     .slice(-fit)
     .map(a => ({ id: a.id, name: g.nodes.get(a.id)!.name, host: a.shot!.host ?? '', columns: THUMB_COLS, rows: THUMB_ROWS, alt: `[tela: ${a.shot!.host ?? 'browser'}]` }))
-  return { header, body: body.map(l => truncLine(l, w)), footer, lines, thumbs, collapsible }
+  const frame: Frame = { header, body: body.map(l => truncLine(l, w)), footer, lines, thumbs, collapsible }
+  return v.vocab?.color === false ? noColor(frame) : frame
+}
+
+// NO_COLOR: nenhuma cor em nenhum trecho (estados, bordas, legenda, dicas).
+const stripLine = (l: Line): Line => l.map(s => (s.fg === undefined ? s : { ...s, fg: undefined }))
+function noColor(f: Frame): Frame {
+  return { ...f, header: f.header.map(stripLine), body: f.body.map(stripLine), footer: f.footer.map(stripLine), lines: f.lines.map(stripLine) }
 }
 
 // Size the pane's content wants: rows = rendered lines, columns = widest line (natural layout at up to 100 cols).

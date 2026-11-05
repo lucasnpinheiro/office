@@ -36,7 +36,7 @@ test('tree: one line per agent, glyphs, unique names, ETA calculando, legend', (
   const ag = [mk('a', { agentId: 'A', status: 'done', endedAt: T + 5000 }), mk('b'), mk('c', { status: 'working' })]
   ag.push(mk('d', { status: 'error' }))
   const out = txt(renderCompact(ag, T + 9000, v))
-  expect(out).toMatch(/✓ .*Dev|✓ a/); expect(out).toContain('✗'); expect(out).toContain('●')
+  expect(out).toMatch(/✓ .*Dev|✓ a/); expect(out).toContain('✗'); expect(out).toContain('⠹')
   expect(out).toContain('ETA calculando'); expect(out).toContain('Office')
   expect(out).toMatch(/Níveis de profundidade: 1\/10/)
 })
@@ -52,8 +52,8 @@ test('child shows task count instead of 0%', () => {
 test('grouped: siblings collapse by state with xN and failures pinned on top', () => {
   const ag = [mk('a'), mk('b'), mk('c'), mk('d', { status: 'error', endedAt: T + 1 })]
   const out = txt(renderCompact(ag, T + 9000, { ...v, mode: 'grouped' }))
-  expect(out).toContain('Em execução ×3'); expect(out).toContain('mediana')
-  expect(out.indexOf('Atenção')).toBeLessThan(out.indexOf('Em execução'))
+  expect(out).toContain('Rodando ×3'); expect(out).toContain('mediana')
+  expect(out.indexOf('Dev: d')).toBeLessThan(out.indexOf('Rodando ×3'))
 })
 test('search filters by name', () => {
   const out = txt(renderCompact([mk('alpha'), mk('beta')], T + 1000, { ...v, query: 'alp' }))
@@ -65,7 +65,7 @@ test('ungrouped: rounded cards with +N hint when overflowing', () => {
   expect(out).toContain('╭'); expect(out).toMatch(/↓ \+\d+ cards/)
 })
 test('status line and quota error', () => {
-  expect(statusText([mk('a'), mk('b', { status: 'done', endedAt: T + 1 })], T + 10)).toMatch(/^● 1 ativos · \d+%/)
+  expect(statusText([mk('a'), mk('b', { status: 'done', endedAt: T + 1 })], T + 10)).toMatch(/^⠹ 1 ativos · \d+%/)
   expect(isQuotaError('429 rate limit exceeded: quota')).toBe(true)
   expect(isQuotaError('syntax error')).toBe(false)
   const out = txt(renderCompact([mk('q', { status: 'error', endedAt: T + 1, error: 'usage limit reached' })], T + 5, v))
@@ -157,10 +157,10 @@ test('header: rounded box, Office - project - #sid left, colored counts + elapse
   const ls = cardsOut(ag, { project: 'megabor', sessionId: 'c716af99' })
   const t0 = txt(ls)
   expect(ls[0]![0]!.t).toMatch(/^╭─+╮$/)
-  expect(t0).toMatch(/│Office · megabor · #c716af/); expect(t0).toMatch(/● 1 ativos ✓ 1 ✗ 1 · 00:00:09 · ETA/)
+  expect(t0).toMatch(/│Office · megabor · #c716af/); expect(t0).toMatch(/⠹ 1 ativos ✓ 1 ✗ 1 · 00:00:09 · ETA/)
   expect(t0).not.toContain('⇄'); expect(statusText([mk('a')], T + 1)).not.toContain('⇄')
   const counts = ls[1]!.filter(s => /ativos|✓|✗/.test(s.t)).map(s => s.fg)
-  expect(counts).toContain('#3b82f6'); expect(counts).toContain('#22c55e'); expect(counts).toContain('#ef4444')
+  expect(counts).toContain('#7FA9FF'); expect(counts).toContain('#6FD08C'); expect(counts).toContain('#FF8A80')
 })
 test('Geral row: hatched segmented bar, percent, g toggles', () => {
   const t0 = txt(cardsOut([mk('a', { status: 'done', endedAt: T + 100 }), mk('b')]))
@@ -183,13 +183,13 @@ test('running leaf has no invented percent', () => {
 test('card border colors by state (blue running, red failed, gray done/pending)', () => {
   const ag = [mk('r'), mk('d', { status: 'done', endedAt: T + 5000 }), mk('f', { status: 'error', endedAt: T + 1000 })]
   const fg = cardsOut(ag).flatMap(l => l.filter(s => /^╭─{32}╮$/.test(s.t))).map(s => s.fg)
-  expect(fg).toContain('#3b82f6'); expect(fg).toContain('#ef4444'); expect(fg).toContain('#4b5563')
+  expect(fg).toContain('#7FA9FF'); expect(fg).toContain('#FF8A80'); expect(fg).toContain('#4b5563')
 })
 test('footer box with +N cards hint, / buscar, g modo; legend below', () => {
   const ag = Array.from({ length: 30 }, (_, i) => mk('x' + i))
   const o = txt(cardsOut(ag, { maxCardRows: 2 }))
   expect(o).toMatch(/│↓ \+\d+ cards ocultos.*s buscar · o ordenar│/)
-  expect(o).toMatch(/✓ ok\s+● rodando\s+▲ atenção\s+○ pendente\s+✗ falha/)
+  expect(o).toMatch(/✓ Concluído\s+⠹ Rodando\s+▲ Parado sem sinal\s+○ Na fila\s+✗ Falhou/)
 })
 test('ASCII header/footer use plain ascii only', () => {
   const o = txt(cardsOut([mk('a')], { caps: detectCaps({ OFFICE_ASCII: '1' }), project: 'p', sessionId: 'abc123' }))
@@ -200,7 +200,7 @@ test('maxLines caps card lines so footer always fits', () => {
   const ag = Array.from({ length: 12 }, (_, i) => mk('m' + i))
   const ls = renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 80, maxCardRows: 99, maxLines: 20 })
   expect(ls.length).toBeLessThanOrEqual(20 + 4 + 7)
-  expect(txt(ls)).toMatch(/✓ ok\s+● rodando/)
+  expect(txt(ls)).toMatch(/✓ Concluído\s+⠹ Rodando/)
 })
 
 // ---- gaps round: real %, pending, worktree summary, filter/sort, hotkeys ----
@@ -212,7 +212,7 @@ test('leaf with TodoWrite shows real percent and count; without todos no percent
 test('pending: spawned agent with no tool call yet (active=false) shows aguarda, hatched bar', () => {
   const o = txt(cardsOut([mk('q', { active: false }), mk('r', { active: true })]))
   expect(o).toContain('aguarda 1ª ação'); expect(o).toMatch(/○ Dev: q/)
-  expect(o).toMatch(/● Dev: r/)
+  expect(o).toMatch(/⠹ Dev: r/)
   expect(txt(cardsOut([mk('legacy')]))).not.toContain('aguarda')
 })
 test('worktree divider summary: structure and status', () => {

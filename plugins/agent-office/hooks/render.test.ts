@@ -13,7 +13,7 @@ for (const [cols, rows] of [[60, 30], [120, 60], [200, 20]] as const) {
       viewport: { columns: cols, rows } as any,
     })
     expect(await ui.find({ type: 'Text', text: /Office/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /rodando/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Rodando/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Níveis de profundidade/ })).toBeUndefined()
     await ui.unmount()
   })

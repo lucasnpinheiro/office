@@ -18,9 +18,9 @@ Kit `claude-code/testing` de `claude plugin test`, sem banco. Hook real e `$` de
 | I-004 | Success | Dado a lista de agentes de uma sessão com pai e filhos; quando os renderizadores de terminal e app desenham; então os dois leem o mesmo modelo e a saída atual não muda | AC-004 | integration | no | - | TODO |
 | I-005 | Deviation | Dado um agente cujo pai saiu pelo limite de 60 entradas; quando o modelo é montado; então o agente aparece como raiz com seus filhos | AC-005 | integration | no | - | TODO |
 | I-006 | Error | Dado um agente com horário de início inválido; quando o modelo é montado; então o agente aparece com tempo desconhecido e o painel segue funcionando | AC-006 | integration | no | - | TODO |
-| I-007 | Success | Dado um agente que roda Read e depois Bash; quando as duas chamadas terminam; então a linha do tempo tem dois passos em ordem, cada um com sua duração | AC-007 | integration | no | - | TODO |
-| I-008 | Deviation | Dado um agente sem dado de tokens na superfície; quando o modelo é montado; então tokens e custo ficam desconhecidos, não zerados | AC-008 | integration | no | - | TODO |
-| I-009 | Error | Dado um erro interno na captura de um passo; quando a ferramenta responde; então o agente recebe o resultado normal e o passo é omitido | AC-009 | integration | no | - | TODO |
+| I-007 | Success | Dado um agente que roda Read e depois Bash; quando as duas chamadas terminam; então a linha do tempo tem dois passos em ordem, cada um com sua duração | AC-007 | integration | no | - | DONE |
+| I-008 | Deviation | Dado um agente sem dado de tokens na superfície; quando o modelo é montado; então tokens e custo ficam desconhecidos, não zerados | AC-008 | integration | no | - | DONE |
+| I-009 | Error | Dado um erro interno na captura de um passo; quando a ferramenta responde; então o agente recebe o resultado normal e o passo é omitido | AC-009 | integration | no | - | DONE |
 | I-010 | Success | Dado um prompt que contém um token de API; quando o agente é registrado; então o estado guarda só a versão mascarada | AC-010 | integration | no | - | TODO |
 | I-011 | Deviation | Dado a variável de captura não definida; quando uma ferramenta termina; então nenhuma entrada ou saída é guardada e o detalhe explica como ligar | AC-011 | integration | no | - | TODO |
 | I-012 | Error | Dado um texto que faz o mascaramento falhar; quando o texto é capturado; então o original não entra no estado | AC-012 | integration | no | - | TODO |
