@@ -154,17 +154,19 @@ async function schedule($: EngineInterface) {
 // Commits ahead of the real base per worktree (T-007, AC-023): only through `$.process` (CLI; probe 2026-11-05, ADR 0002),
 // started in the background (never awaited by a render), 2 s limit, 30 s cache per worktree, failures cached too.
 const aheadCache: AheadCache = new Map()
+// SubagentStop ids seen before their agent got its agentId (spawn still resolving)
+const earlyStops = new Set<string>()
 const aheadNow = (): Record<string, AheadInfo> => {
   const out: Record<string, AheadInfo> = {}
   for (const [k, v] of aheadCache) if (v.info) out[k] = v.info
   return out
 }
-function refreshAhead($: EngineInterface, list: OfficeAgent[]) {
+function refreshAhead($: EngineInterface, list: OfficeAgent[], repos: readonly string[]) {
   // no $.process (app) or any failure inside it: the lookup rejects, cachedAhead caches "unknown", and the count is omitted (never zero)
   const run: ProcessRun = async (argv, init) => $.process.run(argv, init)
   for (const key of new Set(list.map(a => worktreeOfAgent(a)).filter((x): x is string => !!x))) {
     const before = aheadCache.get(key)?.info
-    bg(cachedAhead(aheadCache, key, Date.now(), () => aheadOf(run, key)).then(info => {
+    bg(cachedAhead(aheadCache, key, Date.now(), () => aheadOf(run, key, repos)).then(info => {
       if (info?.base !== before?.base || info?.ahead !== before?.ahead) $.ui.invalidate('ui.render')
     }))
   }
@@ -192,7 +194,7 @@ async function gitView($: EngineInterface) {
   const raw: OfficeAgent[] = await read($, office)
   const cwd = await $.session.cwd().catch(() => '')
   await refreshGit($, [cwd, ...raw.map(a => a.cwd)])
-  if ((await read($, modeAt)) === 'grouped') refreshAhead($, raw)
+  if ((await read($, modeAt)) === 'grouped') refreshAhead($, raw, [gitCache.get(cwd)?.info?.repo ?? cwd])
   const st: { tool?: string; recent?: string[] } = await read($, sessionToolAt)
   const thumbs = await thumbsOn($)
   if (!thumbs) shots.clear()
@@ -411,7 +413,13 @@ export const register: Register = on => {
       const res = await next(e)
       const agentId = (res as { agentId?: string }).agentId
       if (agentId) {
-        await update($, office, list => list.map(a => (a.id === entry.id ? { ...a, agentId } : a)))
+        // a fast agent can stop before this resolves (probe 2026-11-05: the workflow SubagentStop carries the spawn's agentId): apply the early stop
+        const early = earlyStops.delete(agentId)
+        await update($, office, list => list.map(a => (a.id === entry.id ? { ...a, agentId, ...(early && a.status === 'working' ? { status: 'done' as Status, endedAt: Date.now() } : {}) } : a)))
+      } else if (workflow) {
+        // no agentId: the SubagentStop can never be matched to this workflow agent, so it must not stay active/stalled forever
+        await update($, office, list => list.map(a => (a.id === entry.id && a.status === 'working' ? { ...a, status: 'done' as Status, endedAt: Date.now(), endUnknown: true } : a)))
+        bg(schedule($))
       }
       return res
     } catch (err) {
@@ -519,6 +527,7 @@ export const register: Register = on => {
   on('classic.SubagentStop', async ($, e, next) => {
     const sid = (e as { session_id?: string }).session_id
     if (sid) await update($, sidAt, () => sid)
+    if (e.agent_id && !((await read($, office)) as OfficeAgent[]).some(a => a.agentId === e.agent_id)) { earlyStops.add(e.agent_id); if (earlyStops.size > 100) earlyStops.delete(earlyStops.values().next().value as string) }
     await update($, office, list =>
       list.map(a =>
         a.agentId === e.agent_id && a.status === 'working'
@@ -574,7 +583,7 @@ export const register: Register = on => {
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, ahead: aheadNow(),
     }
     // detail screen (view-detail.ts, T-009) for both the compact and the map view; an agent that left the list falls back to the list with a warning
-    const detailOf = (id: string) => detailView(all, id, now, { captureIo: ioFlag })
+    const detailOf = (id: string) => detailView(all, id, now, { captureIo: ioFlag, ascii: caps.ascii })
     const gone = !!selRaw && !selected
     const goneWarning: typeof f.lines = gone ? [[{ t: detailOf(selRaw).warning ?? '', fg: '#eab308' }]] : []
     let compactFrame: typeof f.lines | undefined

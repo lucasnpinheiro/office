@@ -620,7 +620,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
 // ---------- detail ----------
 // The detail screen is view-detail.ts (T-009); this keeps the Caps-aware wrapper (ASCII fallback) for callers that draw Lines.
 export function detailCompact(agents: AgentLike[], id: string, now: number, caps: Caps, captureIo = false): Line[] | undefined {
-  const d = detailView(agents, id, now, { captureIo })
+  const d = detailView(agents, id, now, { captureIo, ascii: caps.ascii })
   if (d.back) return undefined
   return caps.ascii ? d.lines.map(asciiLine) : d.lines
 }

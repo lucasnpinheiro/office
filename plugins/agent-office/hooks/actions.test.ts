@@ -134,3 +134,19 @@ test('v do mapa mantém o modo que o usuário escolheu; sem escolha entra na ár
   expect(applyAction(s0, 'view').state).toMatchObject({ view: 'compact', mode: 'tree' })
   expect(startUi().modeChosen).toBe(false)
 })
+
+// Achado PR 19: Custo, Ferramentas e Workflow não filtram nem buscam; f e s não aparecem nem ligam nesses modos.
+test('hotkeys: f e s somem em Custo, Ferramentas e Workflow e voltam nos demais modos', () => {
+  const base = { ...initialUi(), view: 'compact' as const }
+  for (const mode of ['cost', 'tools', 'workflow'] as const) {
+    const keys = hotkeysFor({ ...base, mode }, false).map(h => h.key)
+    expect(keys).not.toContain('f')
+    expect(keys).not.toContain('s')
+    expect(keys).toContain('g')
+  }
+  for (const mode of ['tree', 'grouped', 'cards', 'waterfall'] as const) {
+    const keys = hotkeysFor({ ...base, mode }, false).map(h => h.key)
+    expect(keys).toContain('f')
+    expect(keys).toContain('s')
+  }
+})

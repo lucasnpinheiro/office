@@ -5,6 +5,7 @@ export type Status = 'working' | 'done' | 'error'
 export type AgentRecord = {
   id: string
   agentId?: string
+  endUnknown?: boolean // workflow agent that never got an agentId: its SubagentStop cannot be matched, so the end is unknown (state: stopped)
   parentAgentId?: string
   description: string
   subagentType?: string

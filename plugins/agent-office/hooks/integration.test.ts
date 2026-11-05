@@ -1,4 +1,5 @@
 import { test, expect } from 'claude-code/testing'
+import { GIT_SAFE_PREFIX } from './git'
 
 // Register-level integration (T-007 a T-010): drives the real register.tsx through the engine test kit and reads
 // what the pane draws (renderCompact via ui.render), not a view in isolation.
@@ -12,7 +13,7 @@ type Usage = { input_tokens: number; output_tokens: number; cache_creation_input
 const USAGE = (n: number): Usage => ({ input_tokens: n, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 })
 
 // ui.open/focus/status/session answers, a spawn that gives each agent a distinct agentId, and a turn.step that answers the usage the test sets
-function setup($: any, on: any, o: { process?: (argv: readonly string[], cwd?: string) => unknown; usd?: number } = {}) {
+function setup($: any, on: any, o: { process?: (argv: readonly string[], cwd?: string) => unknown; usd?: number; noAgentId?: boolean; stopDuringSpawn?: boolean } = {}) {
   let n = 0
   const box = { usage: undefined as Usage | undefined }
   on('ui.open', async () => ({ value: { isPlaced: true } }))
@@ -20,7 +21,11 @@ function setup($: any, on: any, o: { process?: (argv: readonly string[], cwd?: s
   on('ui.status', async () => ({ value: {} }) as any)
   on('session.cwd', async () => ({ value: '/work/meuapp' }))
   on('session.id', async () => ({ value: 'abcdef123' }))
-  on('agent.spawn', async () => ({ model: 'haiku', agentId: `ag-${++n}` }) as any)
+  on('agent.spawn', async () => {
+    const agentId = `ag-${++n}`
+    if (o.stopDuringSpawn) await $.classic.SubagentStop({ agent_id: agentId } as any) // fast agent: stops before the spawn resolves
+    return { model: 'haiku', ...(o.noAgentId ? {} : { agentId }) } as any
+  })
   on('turn.step', async function* () { return { answer: '', toolUses: [], usage: box.usage } as any })
   on('tool.call', async () => ({ result: { stdout: 'ok', stderr: '' } }) as any)
   on('classic.SubagentStop', async () => ({}) as any)
@@ -219,10 +224,10 @@ test('T-007 grupos: cada agente uma só vez, sob o divisor do seu worktree; agen
 })
 
 // ---- T-007 AC-023: `+N commits` só com $.process provado, em segundo plano, 30 s de cache ----
-const WT = '/repo/.claude/worktrees/agent-aa'
+const WT = '/work/meuapp/.claude/worktrees/agent-aa' // sob o cwd da sessão (setup): o git só roda aí
 const tick = () => new Promise(r => setTimeout(r, 30))
 const okRun = (calls: string[]) => (argv: readonly string[]) => {
-  const k = argv.slice(1).join(' ')
+  const k = argv.slice(GIT_SAFE_PREFIX.length).join(' ')
   calls.push(k)
   if (k.includes('@{upstream}')) return { exitCode: 0, stdout: 'origin/main\n', stderr: '' }
   if (k.startsWith('rev-list --count')) return { exitCode: 0, stdout: '4\n', stderr: '' }
@@ -245,6 +250,19 @@ test('T-007 worktrees: base real e +N commits aparecem depois da contagem em seg
   const n = calls.length
   await ui.unmount(); ui = await mount($); await tick()
   expect(calls.length).toBe(n) // cache de 30 s: nenhuma chamada nova
+  await ui.unmount()
+})
+
+test('T-007 segurança: worktree fora do repo da sessão nunca roda git (cwd é do agente)', async ($, on) => {
+  const calls: string[] = []
+  setup($, on, { process: okRun(calls) })
+  await start($)
+  await spawn($, 'w1', 'Dev: alfa', { cwd: '/evil/.claude/worktrees/agent-aa' })
+  await $.command.run({ command: 'office', args: 'mode grouped' } as any)
+  let ui = await mount($)
+  await tick(); await ui.unmount(); ui = await mount($)
+  expect(calls.length).toBe(0)
+  expect(await texts(ui)).not.toMatch(/commits/)
   await ui.unmount()
 })
 
@@ -302,5 +320,42 @@ test('T-009 selecionado sumiu: o botão voltar limpa o aviso', async ($, on) => 
   await ui.press({ key: 'office-back' })
   await ui.unmount(); ui = await mount($)
   expect(await texts(ui)).not.toContain('O agente saiu da lista')
+  await ui.unmount()
+})
+
+// ---- achado PR 19: agentes de workflow não ficam "ativos" para sempre ----
+// Probe 2026-11-05 (claude -p --plugin-dir): o agent.spawn de um agente de workflow devolve agentId e o SubagentStop traz o
+// mesmo agent_id (agent_type workflow-subagent), então a conclusão casa. Sem agentId não há como casar: fim desconhecido.
+test('workflow: SubagentStop com o agent_id do spawn conclui o agente (probe)', async ($, on) => {
+  setup($, on)
+  await start($)
+  await spawn($, 'toolu_wf', 'Dev: alfa', { workflow: { runId: 'wf_abc', agentIndex: 1 } })
+  await $.classic.SubagentStop({ agent_id: 'ag-1' } as any)
+  await $.command.run({ command: 'office', args: 'mode workflow' } as any)
+  const ui = await mount($)
+  const out = await texts(ui)
+  expect(out).toContain('Dev: alfa · Concluído')
+  await ui.unmount()
+})
+
+test('workflow: sem agentId não dá para casar o fim; o agente fica com fim desconhecido, nunca ativo nem parado sem sinal', async ($, on) => {
+  setup($, on, { noAgentId: true })
+  await start($)
+  await spawn($, 'toolu_wf', 'Dev: alfa', { workflow: { runId: 'wf_abc', agentIndex: 1 } })
+  await $.command.run({ command: 'office', args: 'mode workflow' } as any)
+  const ui = await mount($)
+  const out = await texts(ui)
+  expect(out).toContain('Dev: alfa · Interrompido')
+  expect(out).toContain('0 ativos')
+  await ui.unmount()
+})
+
+test('workflow: SubagentStop que chega antes de o spawn devolver o agentId também conclui o agente', async ($, on) => {
+  setup($, on, { stopDuringSpawn: true })
+  await start($)
+  await spawn($, 'toolu_wf', 'Dev: alfa', { workflow: { runId: 'wf_abc', agentIndex: 1 } })
+  await $.command.run({ command: 'office', args: 'mode workflow' } as any)
+  const ui = await mount($)
+  expect(await texts(ui)).toContain('Dev: alfa · Concluído')
   await ui.unmount()
 })

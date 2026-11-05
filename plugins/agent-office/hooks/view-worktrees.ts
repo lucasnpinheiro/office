@@ -5,6 +5,7 @@ import type { Line } from './monitor'
 import type { AgentLike } from './office'
 import type { AheadInfo } from './git'
 import { worktreeFromPath } from './git'
+import { maskText } from './mask'
 
 const DIM = '#9ca3af'
 const BRANCH = '#a855f7' // mesma cor da marca worktree (WORKTREE_COLOR)
@@ -39,11 +40,11 @@ export function worktreePartition(agents: AgentLike[]): { groups: WtGroup[]; res
 
 export const worktreeGroups = (agents: AgentLike[]): WtGroup[] => worktreePartition(agents).groups
 
-// Divisor de um grupo e, quando a contagem existe e é finita, `base <base> +N commits`.
+// Divisor de um grupo (branch, caminho e base mascarados: vêm do agente e do disco) e, quando a contagem existe e é finita, `base <base> +N commits`.
 export function groupDivider(g: Pick<WtGroup, 'name' | 'agents' | 'failed' | 'files'>, ahead?: AheadInfo): Line[] {
   const parts = [plural(g.agents.length, 'agente', 'agentes'), plural(g.failed, 'falha', 'falhas'), plural(g.files, 'arquivo', 'arquivos')]
-  const out: Line[] = [[{ t: `━━ ⧉ ${g.name} · ${parts.join(' · ')} ━━`, fg: BRANCH, bold: true }]]
-  if (ahead && typeof ahead.ahead === 'number' && Number.isFinite(ahead.ahead) && ahead.base) out.push([{ t: `  base ${ahead.base} +${ahead.ahead} commits`, fg: DIM }])
+  const out: Line[] = [[{ t: `━━ ⧉ ${maskText(g.name)} · ${parts.join(' · ')} ━━`, fg: BRANCH, bold: true }]]
+  if (ahead && typeof ahead.ahead === 'number' && Number.isFinite(ahead.ahead) && ahead.base) out.push([{ t: `  base ${maskText(ahead.base)} +${ahead.ahead} commits`, fg: DIM }])
   return out
 }
 
