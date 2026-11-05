@@ -1,6 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 import { parseSub, isRunning, frameFor, nextDelay, FRAME_MS, TICK_MS, paneWidth, drawSig } from './office'
 import type { AgentLike } from './office'
+import { SPIN_FRAME_MS, REDUCED_FRAME_MS } from './motion'
 
 const mk = (over: Partial<AgentLike> = {}): AgentLike => ({ id: 'a', description: 'x', status: 'working', startedAt: 0, ...over })
 
@@ -24,6 +25,13 @@ test('animation frame moves only while something runs; no timer when idle', () =
   expect(nextDelay(idle)).toBeUndefined()
 })
 
+test('T-014: running redraw is 6 frames/s in app and compact; reduced is 1 frame/s', () => {
+  const run = [mk()]
+  expect(nextDelay(run, 0, { compact: true })).toBe(SPIN_FRAME_MS)
+  expect(nextDelay(run, 0, { reducedMotion: true, compact: true })).toBe(REDUCED_FRAME_MS)
+  expect(nextDelay(run, 0, { reducedMotion: true })).toBe(REDUCED_FRAME_MS)
+})
+
 test('nextDelay keeps ticking while a finished agent waits to be hidden', () => {
   const done = { id: 'a', description: 'd', status: 'done' as const, startedAt: 0, endedAt: 1000 }
   expect(nextDelay([done], 5000)).toBe(TICK_MS)
@@ -43,7 +51,8 @@ test('parseSub: status and reset', () => {
 
 test('drawSig: equal for the same frame/second/data, different when any changes', () => {
   const a = [{ id: 'a', description: 'd', status: 'working' as const, startedAt: 0 }]
-  expect(drawSig(a, 1000)).toBe(drawSig(a, 1010))
-  expect(drawSig(a, 1000)).not.toBe(drawSig(a, 1200))
-  expect(drawSig(a, 1000)).not.toBe(drawSig([{ ...a[0]!, status: 'done' as const }], 1000))
+  const t = 6 * FRAME_MS // início exato de um quadro (FRAME_MS = 167 desde T-014)
+  expect(drawSig(a, t)).toBe(drawSig(a, t + 1))
+  expect(drawSig(a, t)).not.toBe(drawSig(a, t + FRAME_MS))
+  expect(drawSig(a, t)).not.toBe(drawSig([{ ...a[0]!, status: 'done' as const }], t))
 })
