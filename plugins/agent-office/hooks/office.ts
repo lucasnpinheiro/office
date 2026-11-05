@@ -1,5 +1,6 @@
 // Pure helpers of the monitor: command parsing and redraw timing. No engine APIs here, so it is unit-testable.
 import type { ToolStep, Usage } from './run-model'
+import { SPIN_FRAME_MS, frameIntervalMs } from './motion'
 export type Status = 'working' | 'done' | 'error'
 // Tipo único (T-002): une o antigo OfficeAgent (types/index.d.ts) e o AgentLike.
 export type AgentRecord = {
@@ -51,7 +52,7 @@ export function parseSub(args: string): Sub {
 }
 
 // ---------- timing ----------
-export const FRAME_MS = 150 // connector pulse + border breath, ~6 fps, only while something runs
+export const FRAME_MS = SPIN_FRAME_MS // connector pulse + border breath, 6 fps (T-014), only while something runs
 export const TICK_MS = 1000 // clocks (elapsed) while something is open but not running
 
 export const isRunning = (agents: AgentLike[]): boolean => agents.some(a => a.status === 'working')
@@ -76,9 +77,9 @@ export function ticker(): { next: () => number; current: (g: number) => boolean 
 }
 
 // Next redraw delay; undefined = nothing is open, no timer needed.
-export const COMPACT_FRAME_MS = 250 // compact view: 4 fps, within the 2-5 fps budget
+export const COMPACT_FRAME_MS = SPIN_FRAME_MS // compact view: 6 fps too (T-014 AC-045)
 export function nextDelay(agents: AgentLike[], now: number = Date.now(), opts?: { reducedMotion?: boolean; compact?: boolean }): number | undefined {
-  if (isRunning(agents)) return opts?.reducedMotion ? TICK_MS : opts?.compact ? COMPACT_FRAME_MS : FRAME_MS
+  if (isRunning(agents)) return frameIntervalMs({ running: true, reduced: opts?.reducedMotion, compact: opts?.compact })
   return hasPendingHide(agents, now) ? TICK_MS : undefined
 }
 
