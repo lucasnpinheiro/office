@@ -8,6 +8,7 @@ import type { AgentLike } from './office'
 import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
+import { worktreeLines } from './view-worktrees'
 
 export { isQuotaError }
 
@@ -63,7 +64,7 @@ const DIM = '#9ca3af'
 export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall'
 export const DEFAULT_MODE: Mode = 'cards'
 export const NEXT_MODE: Record<Mode, Mode> = { tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'tree' }
-export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities }
+export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities; ahead?: Record<string, number> }
 // Árvore: irmãos com o mesmo estado acima de 8 viram `Rodando ×N`; `g` com este item em expanded abre todos (AC-019).
 export const TREE_ALL = 'tree:all'
 export const TREE_COLLAPSE_OVER = 8
@@ -567,7 +568,10 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
         hint = `${v.caps.ascii ? '+' : '↓ +'}${sum(tops) - shown} cards ocultos (painel sem altura para mostrar todos)`
       } else out.push(...lines)
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
-    else out.push(...treeLines(g, nm, keep, now, v))
+    else {
+      if (v.mode === 'grouped') out.push(...worktreeLines(agents, v.ahead))
+      out.push(...treeLines(g, nm, keep, now, v))
+    }
   }
   out.push(...footer(g, v, hint))
   return out.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
