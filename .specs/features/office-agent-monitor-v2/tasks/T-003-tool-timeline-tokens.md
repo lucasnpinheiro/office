@@ -2,7 +2,7 @@
 id: T-003
 title: Capturar linha do tempo por ferramenta, tokens e custo em memória
 type: backend
-status: DONE
+status: IN_PROGRESS
 progress: 3/3
 updated: 2026-11-05
 depends_on: [T-002]
@@ -40,11 +40,16 @@ integração: `tests/integration.md` (linhas de AC-007 a AC-009) · cenários: `
 - [x] Teste RED antes do GREEN
 - [x] `claude plugin test .` em `plugins/agent-office` sem falha nova sobre a base de 160
 - [ ] Linhas de `tests/e2e-regression.md` impactadas verdes (não verificado: sem sessão real)
-- [ ] Julgada por subagente diferente do implementador (pendente)
+- [x] Achados do juiz corrigidos (ordem de início, id único, total real da sessão)
+- [x] Julgada por subagente diferente do implementador (achados corrigidos neste commit)
 
 ## Evidência
 - 2026-11-05, `claude plugin test .` em `plugins/agent-office`: RED = `hooks/capture.test.ts` falha ao carregar (módulo ausente); GREEN = exit 0, 165 pass, 0 fail (base 160 + 5 novos).
 - Sessão real (app ou terminal com subagente) não executada: a captura de passos e tokens só foi provada por testes unitários.
+
+- 2026-11-05, correção dos achados do juiz: RED = `capture.test.ts` falha (import `addSessionTokens` ausente); GREEN = 169 pass, 0 fail.
+- Sessão real parcial: `claude -p --model haiku --plugin-dir` com mod descartável (sem mexer em settings), subagente rodou `echo hi`: `turn.step` do subagente traz `agentId` (`TURNSTEP agentId=afaa7f... idx=0 usage={...}`), o da sessão principal vem sem (`agentId=-`). Não verificado: App, sessão interativa, comparação com `/cost`.
+- Total da sessão: tokens por agente + turno principal; sem a figura principal o total é `partial` (ADR 0002 "Total da sessão").
 
 ## Notas técnicas
 Arquivos prováveis: `plugins/agent-office/hooks/capture.ts`, `plugins/agent-office/hooks/capture.test.ts`.

@@ -9,7 +9,7 @@ import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf, isolatedCall } from './stats'
-import { addUsage, recordSafely, toolStep, usageOf } from './capture'
+import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf } from './capture'
 import { resolveGit } from './git'
 import { statusLines } from './status'
 import type { GitInfo } from './git'
@@ -17,6 +17,7 @@ import type { GitInfo } from './git'
 const PANE = 'agent-office'
 const office = atom({ plugin: 'agent-office', key: 'agents' } as const, [])
 const isOpen = atom({ plugin: 'agent-office', key: 'open' } as const, false)
+const sessionTokensAt = atom({ plugin: 'agent-office', key: 'sessionTokens' } as const, null as number | null) // main-session tokens, null = unknown
 const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as const, {})
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
@@ -428,6 +429,7 @@ export const register: Register = on => {
     try {
       const add = aid ? usageOf(res) : undefined
       if (aid && add) await update($, office, list => list.map(a => (a.agentId === aid ? (addUsage(a, add) as OfficeAgent) : a)))
+      else if (add) await update($, sessionTokensAt, cur => addSessionTokens(cur ?? undefined, add) ?? null) // main session (no agentId)
     } catch {
       // capture failed: the response is already final and goes on unchanged
     }

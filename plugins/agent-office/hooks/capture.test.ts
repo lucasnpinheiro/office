@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { pushStep, toolStep, usageOf, addUsage, recordSafely, MAX_STEPS } from './capture'
+import { pushStep, toolStep, usageOf, addUsage, addSessionTokens, recordSafely, MAX_STEPS } from './capture'
 import { buildRunModel } from './run-model'
 import type { AgentRecord } from './office'
 import type { Capabilities } from './capabilities'
@@ -66,4 +66,54 @@ test('AC-009: erro na captura devolve o agente inalterado, sem passo', () => {
   expect(out.steps).toBeUndefined()
   const ok = recordSafely(a, () => toolStep('tu9', 'Read', { file_path: '/a/b.ts' }, T0, 5, {}))
   expect(ok.steps?.length).toBe(1)
+})
+
+// Finding 1: parallel calls end out of order, steps stay in START order
+test('AC-007: chamadas paralelas que terminam fora de ordem ficam na ordem de início', () => {
+  const late = toolStep('b', 'Bash', {}, T0 + 50, 500, {}) // started second, finished first
+  const early = toolStep('a', 'Read', {}, T0 + 10, 900, {}) // started first, finished last
+  const mid = toolStep('c', 'Grep', {}, T0 + 30, 5, {})
+  let a = mk()
+  for (const s of [late, early, mid]) a = pushStep(a, s)
+  expect(a.steps?.map(s => s.id)).toEqual(['a', 'c', 'b'])
+  // same start: arrival order kept
+  a = pushStep(a, toolStep('d', 'Read', {}, T0 + 50, 1, {}))
+  expect(a.steps?.map(s => s.id)).toEqual(['a', 'c', 'b', 'd'])
+})
+
+// Finding 3: fallback id must not collide in the same millisecond
+test('AC-007: id de reserva não colide na mesma milissegundo', () => {
+  let a = mk()
+  a = pushStep(a, toolStep('Read@1', 'Read', {}, T0, 1, {}))
+  a = pushStep(a, toolStep('Read@1', 'Read', {}, T0, 1, {}))
+  a = pushStep(a, toolStep('Read@1', 'Read', {}, T0, 1, {}))
+  const ids = a.steps!.map(s => s.id)
+  expect(new Set(ids).size).toBe(3)
+  expect(ids[0]).toBe('Read@1')
+})
+
+// Finding 2: real session total = per-agent tokens + main-session turn.step tokens; partial when the session part is unknown
+test('AC-008: total da sessão soma os tokens do turno principal e fica completo', () => {
+  const a = addUsage(mk(), { tokens: 20 })
+  const b = addUsage(mk({ id: 'b', agentId: 'g-b' }), { tokens: 5 })
+  expect(addSessionTokens(undefined, undefined)).toBeUndefined()
+  expect(addSessionTokens(undefined, { tokens: 7 })).toBe(7)
+  expect(addSessionTokens(7, { tokens: 3 })).toBe(10)
+  expect(addSessionTokens(7, undefined)).toBe(7)
+  const m = buildRunModel([a, b], T0 + 1000, caps, 10)
+  expect(m.totals.tokens).toBe(35)
+  expect(m.totals.partial).toBe(false)
+})
+
+test('AC-008: sem tokens do turno principal o total é parcial, nunca completo', () => {
+  const a = addUsage(mk(), { tokens: 20 })
+  const m = buildRunModel([a], T0 + 1000, caps)
+  expect(m.totals.tokens).toBe(20)
+  expect(m.totals.partial).toBe(true)
+  // agent unknown, session known: still partial
+  const m2 = buildRunModel([a, mk({ id: 'z', agentId: 'g-z' })], T0 + 1000, caps, 10)
+  expect(m2.totals.tokens).toBe(30)
+  expect(m2.totals.partial).toBe(true)
+  // nothing known: unknown, not zero
+  expect(buildRunModel([mk()], T0 + 1000, caps).totals.tokens).toBeUndefined()
 })

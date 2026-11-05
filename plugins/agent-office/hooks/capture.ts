@@ -6,10 +6,17 @@ import { toolLabel } from './stats'
 
 export const MAX_STEPS = 200
 
-// Appends a finished step; past MAX_STEPS the oldest one goes and droppedSteps counts it.
+// Inserts a finished step by startedAt (parallel calls end out of order; steps stay in START order, ties keep arrival
+// order). A repeated id gets a "#n" suffix so ids stay unique. Past MAX_STEPS the oldest goes and droppedSteps counts it.
 export function pushStep(a: AgentRecord, step: ToolStep): AgentRecord {
   const prev = a.steps ?? []
-  const next = [...prev, step]
+  const taken = new Set(prev.map(s => s.id))
+  let id = step.id
+  for (let n = 2; taken.has(id); n++) id = `${step.id}#${n}`
+  const item = id === step.id ? step : { ...step, id }
+  let at = prev.length
+  while (at > 0 && prev[at - 1]!.startedAt > item.startedAt) at--
+  const next = [...prev.slice(0, at), item, ...prev.slice(at)]
   const over = next.length - MAX_STEPS
   return { ...a, steps: over > 0 ? next.slice(over) : next, droppedSteps: (a.droppedSteps ?? 0) + Math.max(0, over) }
 }
@@ -33,6 +40,12 @@ export function usageOf(res: unknown): Usage | undefined {
 export function addUsage(a: AgentRecord, add: Usage | undefined): AgentRecord {
   if (!add || add.tokens === undefined) return a
   return { ...a, usage: { ...(a.usage ?? {}), tokens: (a.usage?.tokens ?? 0) + add.tokens } }
+}
+
+// Main-session tokens (turn.step without agentId): running sum; undefined stays unknown, never zero.
+export function addSessionTokens(cur: number | undefined, add: Usage | undefined): number | undefined {
+  if (!add || add.tokens === undefined) return cur
+  return (cur ?? 0) + add.tokens
 }
 
 // Runs the capture; on any internal error the agent comes back unchanged and nothing is recorded.
