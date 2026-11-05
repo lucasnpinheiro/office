@@ -54,17 +54,15 @@ export type RunNode = {
   pending?: PendingDecision
 }
 
-export type WorkflowRun = {
-  name: string; round?: number
-  phases: { name: string; done: number; total: number; agentIds: string[] }[]
-}
+// O engine só dá `workflow.runId` e `agentIndex` no agent.spawn (probe 2026-11-05, ADR 0002): sem nome, rodada, fases ou total.
+export type WorkflowRun = { runId: string; agentIds: string[] } // agentIds na ordem de agentIndex
 
 export type RunModel = {
   nodes: RunNode[]; roots: string[]
   attention: string[]           // needs-you antes, failed depois
-  workflow?: WorkflowRun
+  workflows?: WorkflowRun[]     // por runId; ausente sem workflow
   totals: { running: number; done: number; of: number; tokens?: number; costUsd?: number; partial: boolean }
-  etaMs?: number                // só com 3 ou mais concluídos do mesmo modelo
+  etaMs?: number                // só com 3 ou mais concluídos do mesmo modelo conhecido; restante = só esse modelo; paralelismo só o observado
   caps: Capabilities
 }
 

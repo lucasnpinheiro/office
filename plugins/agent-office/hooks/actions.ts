@@ -14,12 +14,14 @@ export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: '
 export const startUi = (): Ui => ({ ...initialUi() })
 
 // `ctx.collapsed` (tree only): false when the tree shows no collapsed group, so g does not waste a press opening nothing.
-export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean } = {}): { state: Ui; close?: true } {
+// `ctx.workflow`: true only while a workflow run exists; otherwise g skips the Workflow stop (never an always-empty screen).
+export const nextModeOf = (m: Mode, workflow: boolean): Mode => { const n = NEXT_MODE[m]; return n === 'workflow' && !workflow ? NEXT_MODE[n] : n }
+export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workflow?: boolean } = {}): { state: Ui; close?: true } {
   if (a === 'close') return { state: s, close: true }
   // g em árvore: primeiro abre todos os grupos colapsados (estado do mesmo ciclo), depois passa ao modo seguinte.
   if (a === 'group') {
     if (s.mode === 'tree' && ctx.collapsed !== false && !s.expanded.includes(TREE_ALL)) return { state: { ...s, expanded: [...s.expanded, TREE_ALL] } }
-    return { state: { ...s, mode: NEXT_MODE[s.mode], modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_ALL) } }
+    return { state: { ...s, mode: nextModeOf(s.mode, ctx.workflow === true), modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_ALL) } }
   }
   if (a.startsWith('mode:')) return { state: { ...s, mode: a.slice(5) as Mode, modeChosen: true, filter: 'all' } }
   if (a === 'failed') return { state: { ...s, filter: s.filter === 'failed' ? 'all' : 'failed' } }

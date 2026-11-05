@@ -153,24 +153,32 @@ export function elapsedOf(g: Graph, now: number): number {
   return Math.max(0, end - first)
 }
 
-// Mean duration of finished agents of ONE model x count of pending+running ones. undefined unless some model has
-// at least 3 finished samples (AC-030): fewer, or samples from mixed models, give no promise.
+// ETA (AC-030, T-009). Conservative: undefined unless exactly one KNOWN model has >= ETA_MIN_SAMPLES finished agents.
+// remaining = agents of THAT model still pending/running (tasks and other models are not counted; an agent whose
+// delegate is still open is not counted twice). Parallelism comes only from the observed overlap of the finished
+// samples (max simultaneous): ETA = mean x ceil(remaining / concurrency). No overlap seen = sequential, the slower promise.
 export const ETA_MIN_SAMPLES = 3
+const maxOverlap = (spans: [number, number][]): number => {
+  const ev = spans.flatMap(([s, e]) => [[s, 1], [e, -1]] as [number, number][]).sort((a, b) => a[0] - b[0] || a[1] - b[1]) // end before start at a tie
+  let cur = 0, max = 0
+  for (const [, d] of ev) { cur += d; max = Math.max(max, cur) }
+  return Math.max(1, max)
+}
 export function etaOf(g: Graph): number | undefined {
-  const byModel = new Map<string, number[]>()
-  let remaining = 0
+  const spans = new Map<string, [number, number][]>()
+  const open: Node[] = []
   for (const n of g.nodes.values()) {
-    if (n.kind === 'session') continue
-    if (n.kind === 'agent' && n.state === 'done' && n.start !== undefined && n.end !== undefined && n.end > n.start) {
-      const xs = byModel.get(n.model) ?? []
-      xs.push(n.end - n.start)
-      byModel.set(n.model, xs)
-    } else if (n.state === 'pending' || n.state === 'running') remaining++
+    if (n.kind !== 'agent' || !n.model) continue // unknown model can never be proven the same model
+    if (n.state === 'done' && n.start !== undefined && n.end !== undefined && n.end > n.start) spans.set(n.model, [...(spans.get(n.model) ?? []), [n.start, n.end]])
+    else if (n.state === 'pending' || n.state === 'running') open.push(n)
   }
-  const ok = [...byModel.values()].filter(xs => xs.length >= ETA_MIN_SAMPLES)
-  if (ok.length !== 1 || remaining === 0) return undefined
-  const xs = ok[0]!
-  return (xs.reduce((s, x) => s + x, 0) / xs.length) * remaining
+  const ok = [...spans].filter(([, xs]) => xs.length >= ETA_MIN_SAMPLES)
+  if (ok.length !== 1) return undefined
+  const [model, xs] = ok[0]!
+  const remaining = open.filter(n => n.model === model && !n.children.some(c => c.kind === 'agent' && (c.state === 'pending' || c.state === 'running'))).length
+  if (remaining === 0) return undefined
+  const mean = xs.reduce((s, [a, b]) => s + (b - a), 0) / xs.length
+  return mean * Math.ceil(remaining / maxOverlap(xs))
 }
 
 // Finished agents leave the map HIDE_AFTER_MS after they end (tasks go with them), unless a child agent is still visible.
@@ -210,11 +218,12 @@ export type RunNode = {
   total?: { done: number; of: number }
   pending?: PendingDecision
 }
-export type WorkflowRun = { name: string; round?: number; phases: { name: string; done: number; total: number; agentIds: string[] }[] }
+// The engine gives a workflow's agents only `runId` and `agentIndex` (agent.spawn, probe 2026-11-05, ADR 0002): no name, round or phases.
+export type WorkflowRun = { runId: string; agentIds: string[] } // agentIds in agentIndex order
 export type RunModel = {
   nodes: RunNode[]; roots: string[]
   attention: string[]
-  workflow?: WorkflowRun
+  workflows?: WorkflowRun[]
   totals: { running: number; done: number; of: number; tokens?: number; costUsd?: number; partial: boolean }
   etaMs?: number
   caps: Capabilities
@@ -250,8 +259,15 @@ export function buildRunModel(agents: readonly AgentRecord[], now: number, caps:
       total: tasks.length ? { done: tasks.filter(c => c.state === 'done').length, of: tasks.length } : undefined,
     })
   }
+  const runs = new Map<string, { id: string; i: number }[]>()
+  for (const a of agents) {
+    if (!a.workflow || typeof a.workflow.runId !== 'string' || !a.workflow.runId.trim() || !nodes.some(n => n.id === a.id)) continue
+    runs.set(a.workflow.runId, [...(runs.get(a.workflow.runId) ?? []), { id: a.id, i: a.workflow.agentIndex }])
+  }
+  const workflows = [...runs].map(([runId, xs]) => ({ runId, agentIds: xs.sort((p, q) => p.i - q.i).map(x => x.id) }))
   return {
     nodes,
+    ...(workflows.length ? { workflows } : {}),
     roots: nodes.filter(n => n.parentId === undefined).map(n => n.id),
     attention: [...nodes.filter(n => n.state === 'needs-you'), ...nodes.filter(n => n.state === 'stalled'), ...nodes.filter(n => n.state === 'failed')].map(n => n.id),
     totals: {

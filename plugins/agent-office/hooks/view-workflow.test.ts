@@ -1,56 +1,35 @@
 import { test, expect } from 'claude-code/testing'
-import { workflowLines } from './view-workflow'
+import { workflowLines, workflowRuns, NO_WORKFLOW } from './view-workflow'
 
-// T-008 (Visão Workflow). Rendered output is tested as text; ACs from tasks/T-008-workflow-view.md.
-const agents = [
-  { id: 'a1', name: 'Dev: alfa' },
-  { id: 'a2', name: 'Dev: beta' },
-  { id: 'a3', name: 'Dev: gama' },
-]
-const run = {
-  name: 'Deploy',
-  round: 2,
-  phases: [
-    { name: 'Planejar', done: 1, total: 1, agentIds: ['a1'] },
-    { name: 'Codar', done: 1, total: 2, agentIds: ['a2', 'a3'] },
-    { name: 'Validar', done: 0, total: 3, agentIds: [] },
-  ],
-}
+// T-008 (Visão Workflow). O engine só dá `workflow.runId` e `agentIndex` no agent.spawn (probe 2026-11-05, ADR 0002):
+// nenhum nome de fase, rodada ou total. A visão agrupa por runId e diz que as fases estão indisponíveis.
+const wf = (id: string, name: string, runId: string, agentIndex: number, state = 'Rodando') => ({ id, name, state, workflow: { runId, agentIndex } })
 
-test('AC-024 workflow: nome, rodada, fases na ordem com feitos/total e agentes da fase atual', () => {
-  const out = workflowLines(run, agents).join('\n')
-  expect(out).toContain('Deploy')
-  expect(out).toContain('Rodada 2')
-  const iPlan = out.indexOf('Planejar 1/1')
-  const iCode = out.indexOf('Codar 1/2')
-  const iVal = out.indexOf('Validar 0/3')
-  expect(iPlan).toBeGreaterThanOrEqual(0)
-  expect(iCode).toBeGreaterThan(iPlan)
-  expect(iVal).toBeGreaterThan(iCode)
-  // fase atual = primeira com feitos < total (Codar): mostra os agentes dela
-  expect(out).toContain('Dev: beta')
-  expect(out).toContain('Dev: gama')
+test('AC-024 workflow: agrupa por runId, ordena por agentIndex, sem fases nem rodada inventadas', () => {
+  const out = workflowLines([wf('b', 'Dev: beta', 'wf_1', 2), wf('a', 'Dev: alfa', 'wf_1', 1, 'Concluído'), wf('c', 'Dev: gama', 'wf_2', 1)]).join('\n')
+  expect(out).toContain('wf_1')
+  expect(out).toContain('wf_2')
+  expect(out.indexOf('Dev: alfa')).toBeLessThan(out.indexOf('Dev: beta'))
+  expect(out).toContain('Fases: indisponíveis')
+  expect(out).toContain('2 agentes vistos')
+  expect(out).toContain('1 concluído')
+  expect(out).not.toMatch(/Rodada|\d+\/\d+ fases|Planejar|Codar|Validar/)
 })
 
-test('AC-025 sem workflow: mostra a mensagem e nenhuma fase', () => {
-  const lines = workflowLines(undefined, agents)
-  expect(lines).toEqual(['Nenhum workflow nesta sessão'])
-  expect(lines.join('\n')).not.toContain('/')
+test('AC-024 workflow: nunca promete total de agentes da execução', () => {
+  const out = workflowLines([wf('a', 'Dev: alfa', 'wf_1', 1)]).join('\n')
+  expect(out).toContain('1 agente visto')
+  expect(out).not.toMatch(/de \d+ agentes|\d+\/\d+/)
 })
 
-test('AC-026 formato não reconhecido: lista agentes sem fases, sem inventar nome nem total', () => {
-  const out = workflowLines({ phases: 'x' }, agents).join('\n')
-  expect(out).toContain('Dev: alfa')
-  expect(out).toContain('Dev: gama')
-  expect(out).not.toContain('Nenhum workflow')
-  expect(out).not.toContain('Rodada')
-  expect(out).not.toMatch(/\d+\/\d+/)
+test('AC-025 sem workflow: mensagem e nenhuma fase', () => {
+  expect(workflowLines([])).toEqual([NO_WORKFLOW])
+  expect(workflowLines([{ id: 'x', name: 'Dev: x', state: 'Rodando' }])).toEqual([NO_WORKFLOW])
+  expect(NO_WORKFLOW).toBe('Nenhum workflow nesta sessão')
 })
 
-test('AC-026 fase sem nome: lista agentes sem fases e sem nome inventado', () => {
-  const broken = { ...run, phases: [{ done: 0, total: 2, agentIds: ['a1'] }] }
-  const out = workflowLines(broken, agents).join('\n')
-  expect(out).toContain('Dev: alfa')
-  expect(out).not.toMatch(/\d+\/\d+/)
-  expect(out).not.toContain('Deploy')
+test('AC-026 dado malformado (runId vazio, índice inválido) não vira workflow nem derruba', () => {
+  const bad = [wf('a', 'Dev: a', '', 1), wf('b', 'Dev: b', 'wf_1', Number.NaN)] as never
+  expect(workflowRuns(bad)).toHaveLength(1) // o NaN fica no run, sem índice; o runId vazio é descartado
+  expect(workflowLines(bad).join('\n')).not.toContain('Dev: a')
 })

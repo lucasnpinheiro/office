@@ -120,3 +120,53 @@ test('tipos de capacidade vêm de capabilities.ts (uma fonte)', () => {
   const c: runModel.Capabilities = {} as Capabilities
   expect(c).toBeDefined()
 })
+
+test('T-008 buildRunModel: workflows agrupados por runId na ordem do agentIndex, sem fases nem rodada', () => {
+  const wf = (id: string, runId: string, agentIndex: number) => mk(id, { workflow: { runId, agentIndex } })
+  const m = buildRunModel([wf('b', 'wf_1', 2), wf('a', 'wf_1', 1), wf('c', 'wf_2', 1), mk('solto')], T0 + 1, caps)
+  expect(m.workflows).toEqual([{ runId: 'wf_1', agentIds: ['a', 'b'] }, { runId: 'wf_2', agentIds: ['c'] }])
+  expect(JSON.stringify(m)).not.toMatch(/phases|round/)
+  expect(buildRunModel([mk('solto')], T0 + 1, caps).workflows).toBeUndefined()
+})
+
+// T-009 etaOf honesto: só o mesmo modelo, sem tarefa, sem dupla contagem, paralelismo observado
+const S = '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo'
+const H = '🛠️ Pleno · 🪶 Haiku · 🟢 baixo'
+const done = (id: string, from: number, to: number, desc = S): AgentRecord => mk(id, { description: `${desc}: ${id}`, status: 'done', startedAt: T0 + from, endedAt: T0 + to })
+const run = (id: string, desc = S, over: Partial<AgentRecord> = {}): AgentRecord => mk(id, { description: `${desc}: ${id}`, ...over })
+
+test('ETA: só pendentes e rodando do MESMO modelo contam (outro modelo em andamento não entra)', () => {
+  const ag = [done('a', 0, 60_000), done('b', 100_000, 160_000), done('c', 200_000, 260_000), run('s1'), run('h1', H), run('h2', H)]
+  expect(etaOf(buildGraph(ag, T0 + 300_000))).toBe(60_000) // 1 Sonnet restante, sequencial (amostras sem sobreposição)
+})
+
+test('ETA: só agentes de outro modelo restando = nada a prever', () => {
+  const ag = [done('a', 0, 60_000), done('b', 100_000, 160_000), done('c', 200_000, 260_000), run('h1', H)]
+  expect(etaOf(buildGraph(ag, T0 + 300_000))).toBeUndefined()
+})
+
+test('ETA: tarefas (TodoWrite) não contam como trabalho restante', () => {
+  const ag = [done('a', 0, 60_000), done('b', 100_000, 160_000), done('c', 200_000, 260_000), run('s1', S, { todos: [{ content: 't1', status: 'pending' }, { content: 't2', status: 'pending' }, { content: 't3', status: 'in_progress' }] })]
+  expect(etaOf(buildGraph(ag, T0 + 300_000))).toBe(60_000)
+})
+
+test('ETA: pai rodando com filho rodando não conta duas vezes', () => {
+  const ag = [done('a', 0, 60_000), done('b', 100_000, 160_000), done('c', 200_000, 260_000), run('p'), run('k', S, { parentAgentId: 'g-p' })]
+  expect(etaOf(buildGraph(ag, T0 + 300_000))).toBe(60_000)
+})
+
+test('ETA: paralelismo observado nas amostras divide o restante (3 simultâneas, 6 restantes = 2 rodadas)', () => {
+  const ag = [done('a', 0, 60_000), done('b', 0, 60_000), done('c', 0, 60_000), ...['1', '2', '3', '4', '5', '6'].map(i => run(`s${i}`))]
+  expect(etaOf(buildGraph(ag, T0 + 70_000))).toBe(120_000)
+})
+
+test('ETA: amostras sem sobreposição = sequencial, nunca promete paralelismo', () => {
+  const ag = [done('a', 0, 60_000), done('b', 60_000, 120_000), done('c', 120_000, 180_000), run('s1'), run('s2')]
+  expect(etaOf(buildGraph(ag, T0 + 190_000))).toBe(120_000)
+})
+
+test('ETA: modelo desconhecido nunca vira "mesmo modelo"', () => {
+  const nm = (id: string, from: number, to: number): AgentRecord => mk(id, { description: 'sem persona', status: 'done', startedAt: T0 + from, endedAt: T0 + to })
+  const ag = [nm('a', 0, 60_000), nm('b', 100_000, 160_000), nm('c', 200_000, 260_000), mk('d', { description: 'sem persona' })]
+  expect(etaOf(buildGraph(ag, T0 + 300_000))).toBeUndefined()
+})

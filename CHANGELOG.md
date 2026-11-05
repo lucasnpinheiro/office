@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased (agent-office, T-007 to T-010 integration)
+
+- `agent-office`: the Cost, Tools and Workflow views are reachable with `g` (Workflow only while a workflow run exists);
+  the compact render now gets the RunModel with the main session's tokens. The main session's own `turn.step` tokens were
+  never summed (the usage was read only for subagents), so the total stayed `partial` for ever; fixed.
+- Header shows `tokens N` with `parcial` when something is unknown (the dead per-agent cost read is gone); the session USD
+  appears only when `$.session.usage()` gives it.
+- Grouped mode nests each agent under its worktree divider (once). `base <base> +N commits` uses the real base (upstream or
+  `origin/HEAD`), runs in the background with a 2 s limit and a 30 s cache, and is omitted on any failure.
+- Detail screen is `view-detail` for both views (every agent-provided text masked); an agent that left the list falls back to
+  the list with a warning. ETA counts only same-model agents still running and uses the parallelism seen in finished runs.
+- Workflow agents are grouped by `workflow.runId` (phases and rounds are not available from the engine).
+
 ## 0.1.2 (agent-office 0.15.3)
 
 - `agent-office`: agents spawned with `isolation: "worktree"` were never marked as worktree agents. `agent.spawn`'s input

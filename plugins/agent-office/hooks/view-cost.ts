@@ -1,6 +1,6 @@
 // Visão Custo (T-010, AC-031 a AC-033). Pure: renders from the RunModel only (no engine, no clock, no I/O).
-// Tokens come from turn.step usage. Cost is never invented: no price table, so per-agent `~$` stays `—`
-// and the total `~$` is `—` too. A total that leaves out an unknown agent is marked `parcial`.
+// Tokens come from turn.step usage. Cost is never invented: no price table, so per-agent `~$` stays `—`;
+// the session USD shows only when the caller read it from the engine (`sessionUsd`), else `~$ —`. A total that leaves out an unknown agent is marked `parcial`.
 import type { RunModel, RunNode } from './run-model'
 import type { Caps } from './compact'
 import type { Line, Seg } from './monitor'
@@ -17,9 +17,12 @@ export const fmtTokens = (n: number): string => {
   return String(n)
 }
 
+// Session total from `$.session.usage().cost.usd` (CLI, probe 2026-11-05, ADR 0002); per-agent cost stays unknown.
+export const fmtUsd = (usd: number): string => (!Number.isFinite(usd) || usd < 0 ? '—' : usd > 0 && usd < 0.01 ? '<$0,01' : `~$${usd.toFixed(2).replace('.', ',')}`)
+
 const dur = (n: RunNode, now: number): number | undefined => (n.startedAt === undefined ? undefined : Math.max(0, (n.endedAt ?? now) - n.startedAt))
 
-export function costLines(model: RunModel, now: number, v: { width: number; caps: Caps }): Line[] {
+export function costLines(model: RunModel, now: number, v: { width: number; caps: Caps; sessionUsd?: number }): Line[] {
   const c = v.caps, w = v.width
   const nameW = w >= 100 ? 24 : 14
   const cells = Math.max(8, w - nameW - 40)
@@ -30,7 +33,7 @@ export function costLines(model: RunModel, now: number, v: { width: number; caps
   const totalTxt = t.tokens === undefined ? '—' : fmtTokens(t.tokens) + (t.partial ? ' parcial' : '')
   // most expensive by tokens: there is no cost figure to rank by, so this is the honest proxy
   const top = nodes.filter(n => n.usage.tokens !== undefined).sort((a, b) => (b.usage.tokens ?? 0) - (a.usage.tokens ?? 0))[0]
-  const out: Line[] = [[seg(`Custo · total ${totalTxt} · ~$ — · ${top ? `maior consumo ${top.name} ${fmtTokens(top.usage.tokens!)}` : 'maior consumo —'}`, undefined, { bold: true })]]
+  const out: Line[] = [[seg(`Custo · total ${totalTxt} · sessão ${v.sessionUsd === undefined ? '~$ —' : fmtUsd(v.sessionUsd)} · ${top ? `maior consumo ${top.name} ${fmtTokens(top.usage.tokens!)}` : 'maior consumo —'}`, undefined, { bold: true })]]
   if (!nodes.length) return [...out, [seg('Sem agentes com custo', DIM)]]
   for (const n of nodes) {
     const d = dur(n, now)

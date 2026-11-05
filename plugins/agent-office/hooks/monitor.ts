@@ -348,30 +348,7 @@ export function footerLines(w: number, depth: Line, vocab: Vocab = DEFAULT_VOCAB
   return [...out, depth]
 }
 
-// Detail view of one agent: what the Office knows (persona, state, prompt, todos, activity, files).
-// Claude Code exposes no transcript API to mods, so this is the monitor's own record of the agent.
-export function detailLines(agents: AgentLike[], id: string, now: number, vocab: Vocab = DEFAULT_VOCAB, captureIo = false): Line[] | undefined {
-  const a = agents.find(x => x.id === id)
-  if (!a) return undefined
-  const g = buildGraph(agents, now)
-  const n = g.nodes.get(id)
-  if (!n) return undefined
-  const row = (label: string, value: string): Line => [{ t: label + ': ', fg: DIM }, { t: value }]
-  const out: Line[] = [
-    [{ t: stateIcon(n.state, vocab), fg: stateColor(n.state) }, { t: n.name, bold: true }],
-    [{ t: [n.persona, n.model, n.effort].filter(Boolean).join(' · '), fg: DIM }],
-    row('Estado', nodeView(n.state, vocab).label), row('Duracao', fmtMMSS(durationOf(n, now))), row('Descricao', a.description),
-  ]
-  if (n.git) for (const t of gitLabel(n.git) ?? []) out.push([{ t, fg: DIM }])
-  if (n.tool) out.push(row('Agora', n.tool))
-  if (a.recent?.length) out.push(row('Recentes', [...a.recent].reverse().join(' < ')))
-  if (a.prompt) { out.push([], [{ t: 'Prompt', bold: true }], ...a.prompt.split('\n').map(t => [{ t }] as Line)) }
-  if (!captureIo) out.push([{ t: 'Entrada/saída das ferramentas: desligado. Defina OFFICE_CAPTURE_IO=1 para ligar.', fg: DIM }])
-  if (a.todos?.length) { out.push([], [{ t: 'Tarefas', bold: true }], ...a.todos.map(t => [{ t: todoMark(t.status) + t.content }] as Line)) }
-  if (a.files?.length) { out.push([], [{ t: 'Arquivos', bold: true }], ...a.files.map(t => [{ t }] as Line)) }
-  return out
-}
-const todoMark = (s: string) => (s === 'completed' ? '✓ ' : s === 'in_progress' ? '● ' : '○ ')
+// The detail screen of an agent is view-detail.ts (T-009); the map and the compact view both draw it.
 
 export const THUMB_COLS = 12
 export const THUMB_ROWS = 5

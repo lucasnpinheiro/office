@@ -8,7 +8,14 @@ import type { AgentLike } from './office'
 import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
-import { worktreeLines } from './view-worktrees'
+import { worktreePartition, groupDivider, restDivider } from './view-worktrees'
+import type { AheadInfo } from './git'
+import { buildRunModel, RUN_STATE } from './run-model'
+import type { RunModel } from './run-model'
+import { costLines, fmtTokens, fmtUsd } from './view-cost'
+import { toolLines } from './view-tools'
+import { workflowLines } from './view-workflow'
+import { detailView } from './view-detail'
 
 export { isQuotaError }
 
@@ -61,10 +68,19 @@ export const boxChars = (c: Caps): Box =>
 const BAR = (c: Caps) => (c.ascii ? ['#', '.'] : ['█', '▒']) as [string, string]
 const DIM = '#9ca3af'
 
-export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall'
+export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall' | 'cost' | 'tools' | 'workflow'
+export const MODES: Mode[] = ['tree', 'grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow']
 export const DEFAULT_MODE: Mode = 'cards'
-export const NEXT_MODE: Record<Mode, Mode> = { tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'tree' }
-export type CView = { width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities; ahead?: Record<string, number> }
+// g cycle. `workflow` is only a stop while a workflow run exists (applyAction skips it otherwise: an always-empty screen is not shown).
+export const NEXT_MODE: Record<Mode, Mode> = { tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'cost', cost: 'tools', tools: 'workflow', workflow: 'tree' }
+export type CView = {
+  width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number
+  filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities
+  ahead?: Record<string, AheadInfo> // by worktree key: real base + commits ahead; absent = unknown (AC-023)
+  model?: RunModel // built once by the caller (register.tsx) with the session tokens; built here from the agents when absent
+  captureIo?: boolean // OFFICE_CAPTURE_IO=1: the Tools view may show masked input/output
+  sessionUsd?: number // `$.session.usage().cost.usd`, only when the engine gave it
+}
 // Árvore: irmãos com o mesmo estado acima de 8 viram `Rodando ×N`; `g` com este item em expanded abre todos (AC-019).
 export const TREE_ALL = 'tree:all'
 export const TREE_COLLAPSE_OVER = 8
@@ -184,15 +200,17 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const n_ = (f: (n: Node) => boolean) => ns.filter(f).length
   const act = n_(isOpenNode), ok = n_(n => n.state === 'done'), bad = n_(n => n.state === 'failed')
-  const costs = ns.filter(n => n.usage?.costUsd !== undefined)
-  const costTxt = costs.length ? `~$${costs.reduce((s, n) => s + (n.usage.costUsd ?? 0), 0).toFixed(2).replace('.', ',')}` : '—'
+  // tokens come from the RunModel (per agent + main session, `partial` when something is unknown); the session USD only when the engine gave it
+  const tot = (v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)).totals
+  const tokTxt = tot.tokens === undefined ? '—' : fmtTokens(tot.tokens) + (tot.partial ? ' parcial' : '')
+  const usdTxt = v.sessionUsd === undefined ? '' : ` · ${fmtUsd(v.sessionUsd)}`
   const sid = String(v.sessionId ?? '').replace(/[^\w-]/g, '').slice(0, 6)
   const left: Line = [seg(c, 'Office', undefined, { bold: true }), seg(c, ` · ${v.project || '-'}${sid ? ' · #' + sid : ''}`, DIM)]
   // below the full layout the right side drops the words and the ETA, so the "Office" title keeps its room
   const full = layoutLevel(w) === 'full'
   const right: Line = [seg(c, `${glyph(c, 'running')} ${act}${full ? ' ativos' : ''}`, STATE_COLOR.running), seg(c, ` ${glyph(c, 'done')} ${ok}`, STATE_COLOR.done),
     seg(c, ` ${glyph(c, 'failed')} ${bad}`, STATE_COLOR.failed),
-    seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · custo ${costTxt} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}${w >= 60 ? ' · ' + costTxt : ''}`, DIM)]
+    seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · tokens ${tokTxt}${usdTxt} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}${w >= 60 ? ' · ' + (tot.tokens === undefined ? '—' : fmtTokens(tot.tokens)) : ''}`, DIM)]
   const geral: Line = [seg(c, 'Geral '), ...segBar(g, c, layoutLevel(w) === 'full' ? 20 : 10), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'} · `),
     seg(c, keyOf('group') ?? 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna modo', DIM)]
   // sem agente não há progresso a mostrar: a linha Geral (com barra) só existe quando há agentes (AC-020)
@@ -238,7 +256,7 @@ function pinnedLines(g: Graph, nm: Map<string, string>, keep: Set<string>, v: CV
     })
 }
 
-function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
+function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, start: Node = g.root): Line[] {
   const c = v.caps, lvl = layoutLevel(v.width), out: Line[] = []
   const br = c.ascii ? { mid: '|-', last: '`-', pipe: '| ', none: '  ' } : { mid: '├─', last: '└─', pipe: '│ ', none: '  ' }
   const row = (n: Node, prefix: string, label?: { name: string; extra?: string }): Line => {
@@ -299,7 +317,25 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
       }
     })
   }
-  walk(g.root, '')
+  walk(start, '')
+  return out
+}
+
+// Grouped mode with worktrees (T-007): each worktree is a divider with ITS agents nested under it, every agent once.
+// A group's agents whose parent lives in another group (or none) become that group's top level.
+function groupedLines(g: Graph, agents: AgentLike[], nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
+  const part = worktreePartition(agents.filter(a => keep.has(a.id)))
+  if (!part.groups.length) return treeLines(g, nm, keep, now, v)
+  const sub = (list: AgentLike[], tag: string): Line[] => {
+    const ids = new Set(list.map(a => a.id))
+    const mine = new Set<string>()
+    for (const n of g.nodes.values()) if (keep.has(n.id) && (ids.has(n.id) || (n.kind === 'task' && ids.has(n.parentId)))) mine.add(n.id)
+    const top = [...g.nodes.values()].filter(n => ids.has(n.id) && !ids.has(n.parentId))
+    return treeLines(g, nm, mine, now, v, { ...g.root, id: `wt:${tag}`, children: top }) // the id keys the `Rodando ×N` groups: one set per worktree
+  }
+  const out: Line[] = []
+  for (const grp of part.groups) out.push(...groupDivider(grp, v.ahead?.[grp.key]), ...sub(grp.agents, grp.key))
+  if (part.rest.length) out.push(...restDivider(part.rest.length), ...sub(part.rest, 'rest'))
   return out
 }
 
@@ -545,6 +581,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
   const g = buildGraph(agents, now)
   const nm = names(g)
   const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
+  const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
   let hint = ''
   const out: Line[] = [...header(g, agents, now, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
   if (agents.length === 0) out.push([seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)])
@@ -568,53 +605,24 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
         hint = `${v.caps.ascii ? '+' : '↓ +'}${sum(tops) - shown} cards ocultos (painel sem altura para mostrar todos)`
       } else out.push(...lines)
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
-    else {
-      if (v.mode === 'grouped') out.push(...worktreeLines(agents, v.ahead))
-      out.push(...treeLines(g, nm, keep, now, v))
-    }
+    else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))
+    else if (v.mode === 'tools') out.push(...toolLines(model, now, { width: w, caps: v.caps }, v.captureIo === true))
+    else if (v.mode === 'workflow') {
+      const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? a.description, state: nodeView(RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], vocabOf(v.caps)).label, workflow: a.workflow }))
+      out.push(...workflowLines(wf).map((t): Line => [seg(v.caps, t, undefined, { bold: !t.startsWith('  ') })]))
+    } else if (v.mode === 'grouped') out.push(...groupedLines(g, agents, nm, keep, now, v))
+    else out.push(...treeLines(g, nm, keep, now, v))
   }
   out.push(...footer(g, v, hint))
   return out.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
 }
 
 // ---------- detail ----------
+// The detail screen is view-detail.ts (T-009); this keeps the Caps-aware wrapper (ASCII fallback) for callers that draw Lines.
 export function detailCompact(agents: AgentLike[], id: string, now: number, caps: Caps, captureIo = false): Line[] | undefined {
-  const a = agents.find(x => x.id === id)
-  if (!a) return undefined
-  const g = buildGraph(agents, now)
-  const n = g.nodes.get(id)
-  if (!n) return undefined
-  const nm = names(g)
-  const row = (k: string, val: string): Line => [seg(caps, k + ': ', DIM), seg(caps, val)]
-  const link = (x: Node): Seg => seg(caps, `${glyph(caps, x.state)} ${nm.get(x.id) ?? x.name}`, stateColor(x.state), { node: x.kind === 'agent' ? x.id : undefined })
-  const sibs = (g.nodes.get(n.parentId)?.children ?? []).filter(k => k.kind === 'agent')
-  const idx = sibs.findIndex(k => k.id === id)
-  const parent = g.nodes.get(n.parentId)
-  const kids = n.children
-  // a TodoWrite chain: each task waits on the previous one
-  const blockedBy = kids.flatMap(k => k.dependsOn.map(d => g.nodes.get(d)).filter((x): x is Node => !!x && x.state !== 'done'))
-  const out: Line[] = [
-    [seg(caps, glyph(caps, n.state) + ' ', stateColor(n.state)), seg(caps, nm.get(id) ?? n.name, undefined, { bold: true })],
-    [seg(caps, [n.persona, n.model, n.effort].filter(Boolean).join(' · '), DIM)],
-    row('Estado', n.state), row('Progresso', metric(n)), row('Duração', fmtMMSS(durationOf(n, now))),
-    row('Descrição', a.description),
-  ]
-  if (n.error) out.push(row('Erro', n.error))
-  if (n.tool) out.push(row('Agora', n.tool))
-  if (a.recent?.length) out.push(row('Log', [...a.recent].reverse().join(' < ')))
-  out.push([], [seg(caps, 'Dependências', undefined, { bold: true })])
-  out.push([seg(caps, 'Pai: ', DIM), parent && parent.kind === 'agent' ? link(parent) : seg(caps, 'sessão')])
-  out.push([seg(caps, 'Filhos: ', DIM), ...(kids.length ? kids.slice(0, 6).flatMap((k, i) => [...sp(i ? 1 : 0), link(k)]) : [seg(caps, '—')])])
-  out.push([seg(caps, 'Bloqueado por: ', DIM), ...(blockedBy.length ? blockedBy.slice(0, 4).flatMap((k, i) => [...sp(i ? 1 : 0), link(k)]) : [seg(caps, '—')])])
-  out.push([seg(caps, 'Bloqueia: ', DIM), seg(caps, '—')])
-  if (sibs.length > 1) out.push([seg(caps, `Irmãos (${idx + 1}/${sibs.length}): `, DIM),
-    ...(idx > 0 ? [seg(caps, `${keyOf('prevSibling')}: anterior `, undefined, { node: sibs[idx - 1]!.id, hotkey: keyOf('prevSibling') })] : []),
-    ...(idx < sibs.length - 1 ? [seg(caps, `${keyOf('nextSibling')}: próximo`, undefined, { node: sibs[idx + 1]!.id, hotkey: keyOf('nextSibling') })] : []),
-    ...sibs.filter(k => k.id !== id).slice(0, 4).flatMap(k => [...sp(1), link(k)])])
-  if (a.files?.length) { out.push([], [seg(caps, 'Anexos', undefined, { bold: true })], ...a.files.map(f => [seg(caps, '  ' + f, '#60a5fa', { attach: f })] as Line)) }
-  if (a.prompt) out.push([], [seg(caps, 'Prompt', undefined, { bold: true })], [seg(caps, a.prompt)])
-  if (!captureIo) out.push([seg(caps, 'Entrada/saída das ferramentas: desligado. Defina OFFICE_CAPTURE_IO=1 para ligar.', DIM)])
-  return caps.ascii ? out.map(asciiLine) : out
+  const d = detailView(agents, id, now, { captureIo })
+  if (d.back) return undefined
+  return caps.ascii ? d.lines.map(asciiLine) : d.lines
 }
 
 const IMG = /\.(png|jpe?g|gif|webp|bmp|svg)$/i

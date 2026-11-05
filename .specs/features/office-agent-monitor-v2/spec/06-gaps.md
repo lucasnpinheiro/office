@@ -13,9 +13,9 @@ updated: 2026-11-05
 | 3 | Prompt só truncado | Segredos mascarados | sim | T-004 | Flows5 |
 | 4 | 6 estados | 8 estados | parcial | T-005 | `monitor.ts:18` |
 | 5 | `attention` só por 10 min ou quota | Precisa de você separado | sim, not verified | T-011 | `monitor.ts:88` |
-| 6 | Sem workflow | Fases e rodada | sim, not verified | T-008 | `register.tsx:358` |
+| 6 | Sem workflow | Fases e rodada | PARCIAL: só `runId` e `agentIndex` no spawn (provado, ADR 0002 Probe 4); fases, rodada e nome SEM fonte no engine | T-008 | `register.tsx` agent.spawn, `view-workflow.ts` |
 | 7 | Worktree de definição não reconhecida | Todo agente no grupo certo | parcial | T-007 | PR #5 |
-| 8 | Sem commits à frente | `+N commits` | sim, só CLI | T-007 | `git.ts` não usa subprocesso |
+| 8 | Sem commits à frente | `+N commits` | sim, só CLI (provado, ADR 0002 Probe 5) | T-007 | `git.ts` `aheadOf`: `$.process`, 2 s, cache de 30 s |
 | 9 | `etaOf` com 2 amostras | 3 do mesmo modelo | não | T-009 | `monitor.ts:158` |
 | 10 | Sem ações reais | Pause, Stop, Retry, Allow, Decline | sim, not verified | T-011, T-012 | `actions.ts` |
 | 11 | Dois modos e quatro visões | Seis abas | não | T-006 a T-011 | `actions.ts:5`, `compact.ts:60` |
@@ -63,6 +63,8 @@ updated: 2026-11-05
 | 5 | blocks go-live, só o app | Motion, largura, 44 px e `prefers-reduced-motion` no app só se provam executando. | Marcado not verified; não declara paridade. |
 | 6 | open | Meta de 93% de cobertura sem ferramenta: `claude plugin test --help` não tem opção, sem `package.json` e sem `bun` no PATH. | Rastreio AC → teste; números só quando houver ferramenta. |
 | 7 | open | CI com `claude plugin test`: a imagem do CI tem o binário e autenticação? | Passo registra `skipped` (AC-050). |
+| 8 | open, precisa do usuário | Workflow: o engine 2.1.311 não dá nome, fases nem rodada (só `runId` e `agentIndex`). AC-024 como escrito não tem fonte. | A visão agrupa por `runId` e diz "Fases: indisponíveis"; nenhum nome de fase é inventado. Decidir: reescrever AC-024 para o que existe, ou pedir o dado ao engine. |
+| 9 | open | Custo por agente segue `—` (decisão de 2026-11-05). O USD da sessão existe no CLI (`$.session.usage().cost.usd`, ADR Probe 6) e aparece no cabeçalho só quando vem; no App não foi executado. | AC-031 mostra `~$ —` por agente. |
 
 Decisão do usuário (2026-11-05), visão inicial: mantém `map` como visão inicial; a árvore entra no ciclo da tecla `v`. Encerra a ambiguidade 3.
 

@@ -30,9 +30,29 @@ test('AC-021 worktrees: divisor de cada branch com quantidade e falhas', () => {
   expect(out).toContain('main')
 })
 
-test('AC-021 worktrees: base <branch> +N commits quando a contagem existe', () => {
-  const out = txt(renderCompact(wtAgents, T + 5000, view({ ahead: { 'feat-a': 3 } })))
-  expect(out).toContain('base feat-a +3 commits')
+test('AC-021 worktrees: base real +N commits quando a contagem existe (chave = raiz do worktree)', () => {
+  const ahead = { [`${R}/feat-a`]: { base: 'origin/main', ahead: 3 } }
+  const out = txt(renderCompact(wtAgents, T + 5000, view({ ahead })))
+  expect(out).toContain('base origin/main +3 commits')
+  expect(out).not.toContain('base feat-a') // a base nunca é o nome da própria branch
+  expect(out.match(/commits/g)).toHaveLength(1) // só o grupo com contagem
+})
+
+test('AC-021 worktrees: cada agente aparece uma só vez, aninhado sob o divisor do seu worktree', () => {
+  const lines = txt(renderCompact(wtAgents, T + 5000, view())).split('\n')
+  const at = (re: RegExp) => lines.findIndex(l => re.test(l))
+  for (const n of ['Dev: a1', 'Dev: a2', 'Dev: b1', 'Dev: m1']) expect([n, lines.filter(l => l.includes(n) && /[├└]─/.test(l)).length]).toEqual([n, 1])
+  const dA = at(/━.*feat-a.*━/), dB = at(/━.*feat-b.*━/), dM = at(/━.*main.*━/)
+  expect(at(/─.*Dev: a1/)).toBeGreaterThan(dA); expect(at(/─.*Dev: a2/)).toBeGreaterThan(dA)
+  expect(at(/─.*Dev: a1/)).toBeLessThan(dB)
+  expect(at(/─.*Dev: b1/)).toBeGreaterThan(dB); expect(at(/─.*Dev: b1/)).toBeLessThan(dM)
+  expect(at(/─.*Dev: m1/)).toBeGreaterThan(dM)
+})
+
+test('AC-021 worktrees: agente sem worktree conhecido continua visível, sob o aviso próprio', () => {
+  const out = txt(renderCompact([...wtAgents, mk('x1', { cwd: '/nao/existe' })], T + 5000, view()))
+  expect(out).toContain('sem worktree conhecido')
+  expect(out.match(/Dev: x1/g)).toHaveLength(1)
 })
 
 // AC-022: agente sem isolation na chamada, reconhecido pelo primeiro arquivo dentro de .claude/worktrees

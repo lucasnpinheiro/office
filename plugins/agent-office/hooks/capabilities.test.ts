@@ -27,7 +27,7 @@ test('CAPABILITIES matches ADR 0002 exactly', () => {
     tokensPerAgent: { terminal: 'yes', app: 'not-verified' },
     costPerAgent: { terminal: 'no', app: 'no' },
     permissionEvent: { terminal: 'yes', app: 'not-verified' },
-    workflowEvent: { terminal: 'no', app: 'no' },
+    workflowEvent: { terminal: 'yes', app: 'not-verified' }, // só runId + agentIndex no agent.spawn (probe 2026-11-05); fases e rodada seguem sem fonte
     worktreeFromDefinition: { terminal: 'not-verified', app: 'not-verified' },
     commitsAhead: { terminal: 'yes', app: 'no' },
     containerWidth: { terminal: 'not-verified', app: 'not-verified' },
