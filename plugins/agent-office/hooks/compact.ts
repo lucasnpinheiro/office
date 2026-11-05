@@ -523,7 +523,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
 }
 
 // ---------- detail ----------
-export function detailCompact(agents: AgentLike[], id: string, now: number, caps: Caps): Line[] | undefined {
+export function detailCompact(agents: AgentLike[], id: string, now: number, caps: Caps, captureIo = false): Line[] | undefined {
   const a = agents.find(x => x.id === id)
   if (!a) return undefined
   const g = buildGraph(agents, now)
@@ -558,6 +558,7 @@ export function detailCompact(agents: AgentLike[], id: string, now: number, caps
     ...sibs.filter(k => k.id !== id).slice(0, 4).flatMap(k => [...sp(1), link(k)])])
   if (a.files?.length) { out.push([], [seg(caps, 'Anexos', undefined, { bold: true })], ...a.files.map(f => [seg(caps, '  ' + f, '#60a5fa', { attach: f })] as Line)) }
   if (a.prompt) out.push([], [seg(caps, 'Prompt', undefined, { bold: true })], [seg(caps, a.prompt)])
+  if (!captureIo) out.push([seg(caps, 'Entrada/saída das ferramentas: desligado. Defina OFFICE_CAPTURE_IO=1 para ligar.', DIM)])
   return caps.ascii ? out.map(asciiLine) : out
 }
 

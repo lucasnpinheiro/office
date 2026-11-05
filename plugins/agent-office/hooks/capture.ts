@@ -5,6 +5,24 @@ import type { ToolStep, Usage } from './run-model'
 import { toolLabel } from './stats'
 import { maskText, maskCapped, MASK_FAILED } from './mask'
 
+// Fields of the tool.call event that are envelope, not tool arguments (the engine passes arguments flat on the event).
+const ENVELOPE = new Set(['tool', 'tool_use_id', 'agentId', 'parentAgentId', 'session_id', 'transcript_path', 'permission_mode', 'hook_event_name', 'type', 'isolation'])
+export function toolArgs(e: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(e).filter(([k]) => !ENVELOPE.has(k)))
+}
+
+// Error text for the state: masked first, cut to 200 after (a secret on the boundary never leaks a part).
+export function errorText(res: unknown): string {
+  let t: unknown
+  if (res instanceof Error) t = res.message
+  else {
+    const r = res as { text?: string; content?: unknown } | undefined
+    t = r?.text ?? (() => { try { return JSON.stringify(r?.content ?? '') } catch { return MASK_FAILED } })()
+  }
+  const m = maskText(String(t))
+  return m === MASK_FAILED ? m : m.slice(0, 200)
+}
+
 export const MAX_STEPS = 200
 
 // Inserts a finished step by startedAt (parallel calls end out of order; steps stay in START order, ties keep arrival
@@ -34,7 +52,8 @@ export function toolStep(id: string, tool: string, input: Record<string, unknown
       try { return JSON.stringify(v) } catch { return MASK_FAILED }
     }
     const i = text(input) ?? ''
-    const o = text(res)
+    const rr = res as { result?: unknown } | undefined
+    const o = text(rr && typeof rr === 'object' && 'result' in rr && rr.result !== undefined ? rr.result : res)
     step.io = { input: i === MASK_FAILED ? i : maskCapped(i), ...(o === undefined ? {} : { output: o === MASK_FAILED ? o : maskCapped(o) }) }
   }
   return step

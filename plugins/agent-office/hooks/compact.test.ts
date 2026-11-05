@@ -256,3 +256,9 @@ test('cards cut: nested child rows use their absolute line, never a dangling bus
   expect(o).not.toContain('+0 cards')
   expect(o).toContain('+1 cards ocultos')
 })
+
+test('detail: nota de captura desligada também no detalhe compacto', () => {
+  const ag = [mk('p', { agentId: 'P' })]
+  expect(txt(detailCompact(ag, 'p', T + 1000, caps)!)).toContain('OFFICE_CAPTURE_IO=1')
+  expect(txt(detailCompact(ag, 'p', T + 1000, caps, true)!)).not.toContain('OFFICE_CAPTURE_IO=1')
+})

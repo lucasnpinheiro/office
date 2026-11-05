@@ -9,7 +9,7 @@ import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf, isolatedCall } from './stats'
-import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf } from './capture'
+import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf, errorText, toolArgs } from './capture'
 import { captureIoOn, maskText } from './mask'
 import { resolveGit } from './git'
 import { statusLines } from './status'
@@ -104,10 +104,7 @@ const withGit = (list: OfficeAgent[], sessionCwd: string): OfficeAgent[] =>
     return info ? { ...a, git: info } : a
   })
 
-const errText = (res: unknown): string => {
-  const t = (res as { text?: string; content?: unknown })?.text ?? JSON.stringify((res as { content?: unknown })?.content ?? '')
-  return String(t).slice(0, 200)
-}
+const errText = errorText // masked, then cut to 200 (capture.ts)
 // Agent calls with isolation: "worktree", by tool_use_id, from tool.call until the call answers
 const isolatedCalls = new Set<string>()
 let timer: { cancel: () => void } | undefined
@@ -333,7 +330,7 @@ export const register: Register = on => {
       isolated: isolated && !spawnCwd ? true : undefined,
       id: e.tool_use_id || `${Date.now()}-${Math.random()}`,
       parentAgentId: e.parentAgentId,
-      description: e.description,
+      description: maskText(e.description ?? ''), // masked before it reaches the state (T-004)
       prompt: firstLine(maskText(e.prompt ?? ''), 300), // masked before it reaches the state (T-004)
       subagentType: e.subagentType,
       status: 'working',
@@ -352,7 +349,7 @@ export const register: Register = on => {
       return res
     } catch (err) {
       await update($, office, list =>
-        list.map(a => (a.id === entry.id ? { ...a, status: 'error' as Status, endedAt: Date.now(), error: String((err as Error)?.message ?? err).slice(0, 200) } : a)),
+        list.map(a => (a.id === entry.id ? { ...a, status: 'error' as Status, endedAt: Date.now(), error: errorText(err instanceof Error ? err : new Error(String(err))) } : a)),
       )
       bg(schedule($))
       throw err
@@ -417,7 +414,7 @@ export const register: Register = on => {
         list.map(a =>
           a.agentId === aid
             ? (recordSafely({ ...(applyTool(a, e.tool, input, res) as OfficeAgent), seenAt: Date.now() }, () =>
-                toolStep((e as { tool_use_id?: string }).tool_use_id ?? `${e.tool}@${startedAt}`, e.tool, input, startedAt, durationMs, res, ioOn),
+                toolStep((e as { tool_use_id?: string }).tool_use_id ?? `${e.tool}@${startedAt}`, e.tool, toolArgs(input), startedAt, durationMs, res, ioOn),
               ) as OfficeAgent)
             : a,
         ),
@@ -500,15 +497,16 @@ export const register: Register = on => {
       maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 12,
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
     }
+    const ioFlag = await captureIoOf($)
     let compactFrame: typeof f.lines | undefined
     if (view === 'compact') {
       if (selected && attach) {
         const text = await Promise.resolve($.fs.read(attach)).then(r => (typeof r === 'string' ? r : '[binário]')).catch(() => '[não foi possível ler o arquivo]')
         compactFrame = [[{ t: attach, bold: true, attach: '' }], ...previewLines(text, attach, 40)]
-      } else if (selected) compactFrame = detailCompact(all, selected, now, caps)
+      } else if (selected) compactFrame = detailCompact(all, selected, now, caps, ioFlag)
       else compactFrame = renderCompact(all, now, compactView)
     }
-    const detail = selected && view !== 'compact' ? detailLines(all, selected, now, await captureIoOf($)) : undefined
+    const detail = selected && view !== 'compact' ? detailLines(all, selected, now, ioFlag) : undefined
     const act = (a: string) => dispatch($, a)
     const ui = { ...(await readUi($)), selected }
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch
@@ -554,7 +552,7 @@ export const register: Register = on => {
         return (
           <Box flexDirection="row">
             <Box flexDirection="column" width={cols - 49}>{field}{left.map(draw)}{keysRow}</Box>
-            <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{backBtn}{(detailCompact(all, selected, now, caps) ?? []).map(draw)}</Box>
+            <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{backBtn}{(detailCompact(all, selected, now, caps, ioFlag) ?? []).map(draw)}</Box>
           </Box>
         )
       }

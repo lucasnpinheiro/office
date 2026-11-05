@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { maskText, maskCapped, captureIoOn, MASK, MASK_FAILED, IO_MAX } from './mask'
+import { maskText, maskCapped, captureIoOn, MASK, MASK_FAILED, IO_MAX, IN_MAX } from './mask'
 
 // Realistic shapes only (fake values built at runtime so no secret scanner trips on this file)
 const GH = 'ghp_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'
@@ -112,4 +112,64 @@ test('AC-013: mascara antes de truncar; segredo no limite não vaza parte', () =
 test('AC-011: só o valor exato 1 liga a captura', () => {
   expect(captureIoOn('1')).toBe(true)
   for (const v of ['0', 'true', ' 1', '1 ', '', undefined, 'yes', '11']) expect(captureIoOn(v)).toBe(false)
+})
+
+// Judge finding 1: ReDoS. Linear matching + input cap (bounded input, no timing assertion)
+test('SEC: entrada adversarial grande é limitada e continua mascarada', () => {
+  const big = '-token'.repeat(30000) + ` password=${GH}`
+  const out = maskText(big)
+  expect(out.length).toBeLessThanOrEqual(IN_MAX + 64)
+  expect(out).not.toContain(GH)
+  const tail = 'x'.repeat(IN_MAX) + ` token=${GH}`
+  expect(maskText(tail)).not.toContain(GH)
+  // key-like runs, quotes without a close, many keys: still bounded by the cap
+  for (const t of ['-token'.repeat(30000), 'a.'.repeat(60000), 'password="'.repeat(20000), 'x token '.repeat(20000), '://a:'.repeat(30000)])
+    expect(maskText(t).length).toBeLessThanOrEqual(IN_MAX + 64)
+})
+
+test('SEC: tempo limitado em entrada adversarial no teto (folga larga)', () => {
+  const t0 = Date.now()
+  maskText('-token'.repeat(30000))
+  expect(Date.now() - t0).toBeLessThan(2000)
+})
+
+// Judge finding 2: whole value masked
+test('SEC: valor inteiro mascarado (array, espaços, @ na senha)', () => {
+  const j = maskText('{"password":["abc1","def2"],"ok":1}')
+  expect(j).not.toContain('abc1'); expect(j).not.toContain('def2'); expect(j).toContain('"ok":1')
+  expect(maskText('{"password":[["abc1"],["def2"]]}')).not.toMatch(/abc1|def2/)
+  expect(maskText('{"token":{"a":"zz9","b":"yy8"},"ok":1}')).not.toMatch(/zz9|yy8/)
+  const sp = maskText('password: hunter two')
+  expect(sp).not.toContain('hunter'); expect(sp).not.toContain('two')
+  const u = maskText('git clone https://user:p@ss:word@host/r.git')
+  expect(u).not.toContain('p@ss'); expect(u).not.toContain('word'); expect(u).toContain('@host/r.git')
+})
+
+// Judge finding 3: more patterns
+const more: [string, string, string][] = [
+  ['credential=', 'credential=abc123secretvalue', 'abc123secretvalue'],
+  ['PRIVATE_KEY=', 'PRIVATE_KEY=zzTopSecret99', 'zzTopSecret99'],
+  ['ACCESS_KEY=', 'ACCESS_KEY=qqAccess8877', 'qqAccess8877'],
+  ['api key:', 'api key: abc999zzz', 'abc999zzz'],
+  ['curl -u', 'curl -u admin:s3cretpw https://x.test', 's3cretpw'],
+  ['--password x', 'tool --password hunter22 --other', 'hunter22'],
+  ['-phunter2', 'mysql -u root -phunter2 db', 'hunter2'],
+  ['sk_live_', 'k=' + 'sk_live_' + 'AbCdEfGh12345678', 'AbCdEfGh12345678'],
+  ['slack hook', 'https://hooks.slack.com/services/' + 'T0000AAAA/B0000BBBB/XXXXxxxxYYYYyyyy', 'XXXXxxxxYYYYyyyy'],
+  ['AIza', 'k ' + 'AIza' + 'SyA-1234567890abcdefghijk', 'SyA-1234567890abcdefghijk'],
+  ['npm_', 'npm_' + 'abcdefghij0123456789ABCDEFGHIJ', 'abcdefghij0123456789'],
+  ['redis ://:pw@', 'redis://:pw0rd@cache:6379', 'pw0rd'],
+  ['?key=', 'GET https://api.test/v1?key=abcd1234zz&x=1', 'abcd1234zz'],
+  ['senha=', 'senha=minhaSenha77', 'minhaSenha77'],
+]
+for (const [name, input, secret] of more) {
+  test(`SEC: mascara ${name}`, () => {
+    const out = maskText(input)
+    expect(out).not.toContain(secret)
+    expect(out).toContain(MASK)
+  })
+}
+
+test('SEC: sem exagero em comandos comuns', () => {
+  for (const t of ['git push -u origin main', 'ls -path foo', 'npm run build --silent', 'curl -u onlyuser https://x.test', 'mysql -u root db', 'see https://example.com:8080/a/b@2x.png']) expect(maskText(t)).toBe(t)
 })

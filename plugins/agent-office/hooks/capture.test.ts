@@ -1,6 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 import { MASK_FAILED, MASK } from './mask'
-import { pushStep, toolStep, usageOf, addUsage, addSessionTokens, recordSafely, MAX_STEPS } from './capture'
+import { pushStep, toolStep, usageOf, addUsage, addSessionTokens, recordSafely, MAX_STEPS, errorText, toolArgs } from './capture'
+import { applyTool } from './stats'
 import { buildRunModel } from './run-model'
 import type { AgentRecord } from './office'
 import type { Capabilities } from './capabilities'
@@ -156,4 +157,36 @@ test('AC-012: io que não serializa falha fechado, sem o original', () => {
 test('AC-010: rótulo do passo passa pela máscara', () => {
   const s = toolStep('t1', 'mcp__srv__' + GH, {}, T0, 1, {})
   expect(s.label).not.toContain(GH)
+})
+
+// Judge finding 4: error text is masked before it reaches the state
+test('AC-010: texto de erro é mascarado antes de ir ao estado', () => {
+  const a = errorText({ text: `falhou: token=${GH} fim` })
+  expect(a).not.toContain(GH); expect(a).toContain(MASK)
+  const b = errorText({ content: [{ type: 'text', text: `password: ${'hunter two'}` }] })
+  expect(b).not.toContain('hunter')
+  expect(errorText(new Error(`boom api_key=${GH}`))).not.toContain(GH)
+  expect(errorText({ text: 'x'.repeat(500) }).length).toBeLessThanOrEqual(200)
+  // secret on the 200-char boundary never leaks a part
+  expect(errorText({ text: `${'a '.repeat(90)}token=${GH}` })).not.toContain('ghp_')
+})
+
+test('AC-010: todos (conteúdo e subject) passam pela máscara', () => {
+  const w = applyTool(mk(), 'TodoWrite', { todos: [{ content: `deploy com token=${GH}`, status: 'pending' }] })
+  expect(JSON.stringify(w.todos)).not.toContain(GH)
+  const c = applyTool(mk(), 'TaskCreate', { subject: `usar password=hunter2hunter2` }, { task: { id: '1' } })
+  expect(JSON.stringify(c.todos)).not.toContain('hunter2hunter2')
+  const u = applyTool(mk({ todos: [{ id: '1', content: 'x', status: 'pending' }] }), 'TaskUpdate', { taskId: '1', subject: `api_key=${GH}` })
+  expect(JSON.stringify(u.todos)).not.toContain(GH)
+})
+
+// Judge finding 5: io.input = tool args (no event envelope), io.output = the result only
+test('AC-013: io.input são só os argumentos e io.output só o resultado', () => {
+  const ev = { tool: 'Bash', tool_use_id: 'tu1', agentId: 'g-a', command: 'ls -la' }
+  expect(toolArgs(ev)).toEqual({ command: 'ls -la' })
+  const s = toolStep('tu1', 'Bash', toolArgs(ev), T0, 5, { ref: 'r', result: { stdout: 'ok' }, text: 'ok' }, true)
+  expect(s.io?.input).toBe('{"command":"ls -la"}')
+  expect(s.io?.input).not.toContain('tu1')
+  expect(s.io?.output).toBe('{"stdout":"ok"}')
+  expect(s.io?.output).not.toContain('ref')
 })
