@@ -43,11 +43,15 @@ test('pane footer has one-letter hotkeys; s opens search and silences them; v to
   expect(await ui.find({ key: 'h-g' })).toBeUndefined()
   await ui.input({ key: 'office-search', text: '' })
   await ui.unmount(); ui = await mount()
-  await ui.press({ key: 'h-v' })
+  // T-006: v cicla mapa -> árvore -> cards -> mapa
+  await ui.press({ key: 'h-v' }) // árvore -> cards
+  await ui.unmount(); ui = await mount()
+  expect(await ui.find({ key: 'h-g' })).toBeDefined()
+  await ui.press({ key: 'h-v' }) // cards -> mapa
   await ui.unmount(); ui = await mount()
   expect(await ui.find({ key: 'h-g' })).toBeUndefined()
   expect(await ui.find({ key: 'h-v' })).toBeDefined()
-  await ui.press({ key: 'h-v' })
+  await ui.press({ key: 'h-v' }) // mapa -> árvore
   await ui.unmount(); ui = await mount()
   expect(await ui.find({ key: 'h-g' })).toBeDefined()
   await ui.unmount()

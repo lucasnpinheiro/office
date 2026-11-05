@@ -1,5 +1,5 @@
 // Pure UI reducer for the pane's buttons and hotkeys, so every action is testable without a surface.
-import { DEFAULT_MODE, NEXT_MODE } from './compact'
+import { DEFAULT_MODE, NEXT_MODE, TREE_ALL } from './compact'
 import type { Mode } from './compact'
 import { keyOf, labelOf } from './vocabulary'
 
@@ -14,11 +14,20 @@ export const startUi = (): Ui => ({ ...initialUi() })
 
 export function applyAction(s: Ui, a: string): { state: Ui; close?: true } {
   if (a === 'close') return { state: s, close: true }
-  if (a === 'group') return { state: { ...s, mode: NEXT_MODE[s.mode] } }
+  // g em árvore: primeiro abre todos os grupos colapsados (estado do mesmo ciclo), depois passa ao modo seguinte.
+  if (a === 'group') {
+    if (s.mode === 'tree' && !s.expanded.includes(TREE_ALL)) return { state: { ...s, expanded: [...s.expanded, TREE_ALL] } }
+    return { state: { ...s, mode: NEXT_MODE[s.mode], expanded: s.expanded.filter(k => k !== TREE_ALL) } }
+  }
   if (a.startsWith('mode:')) return { state: { ...s, mode: a.slice(5) as Mode, filter: 'all' } }
   if (a === 'failed') return { state: { ...s, filter: s.filter === 'failed' ? 'all' : 'failed' } }
   if (a === 'sort') return { state: { ...s, sort: s.sort === 'time' ? 'state' : s.sort === 'state' ? 'name' : 'time' } }
-  if (a === 'view') return { state: { ...s, view: s.view === 'map' ? 'compact' : 'map' } }
+  // v cicla mapa (inicial) -> árvore -> cards -> mapa
+  if (a === 'view') {
+    if (s.view === 'map') return { state: { ...s, view: 'compact', mode: 'tree' } }
+    if (s.mode === 'tree') return { state: { ...s, mode: 'cards' } }
+    return { state: { ...s, view: 'map' } }
+  }
   if (a === 'search') return { state: { ...s, searching: !s.searching } }
   if (a === 'back') {
     if (s.searching) return { state: { ...s, searching: false } }

@@ -31,10 +31,10 @@ export const CONNECTORS = {
 } as const
 
 export type Vocab = { ascii: boolean; color: boolean }
-// OFFICE_ASCII ou NO_COLOR definida (qualquer valor): coluna ASCII. Só NO_COLOR tira a cor.
+// no-color.org: NO_COLOR definida e não vazia tira a cor, só isso. A coluna ASCII vem de OFFICE_ASCII ou do terminal (compact.ts detectCaps).
+export const noColorSet = (v: string | undefined): boolean => !!v
 export function vocabFromEnv(env: Record<string, string | undefined>): Vocab {
-  const noColor = env.NO_COLOR !== undefined
-  return { ascii: env.OFFICE_ASCII !== undefined || noColor, color: !noColor }
+  return { ascii: env.OFFICE_ASCII !== undefined, color: !noColorSet(env.NO_COLOR) }
 }
 
 export type StateView = { label: string; glyph: string; color?: string; known: boolean }
