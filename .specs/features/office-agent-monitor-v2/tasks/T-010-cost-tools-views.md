@@ -2,8 +2,8 @@
 id: T-010
 title: Visões Custo e Ferramentas
 type: frontend
-status: TODO
-progress: 0/3
+status: IN_PROGRESS
+progress: 1/3
 updated: 2026-11-05
 depends_on: [T-003, T-006]
 origin: null
