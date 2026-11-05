@@ -2,8 +2,8 @@
 id: T-015
 title: README, documentação e CI
 type: docs
-status: TODO
-progress: 0/3
+status: IN_PROGRESS
+progress: 1/3
 updated: 2026-11-05
 depends_on: [T-012, T-013, T-014]
 origin: null
@@ -25,9 +25,9 @@ Documentar teclas, variáveis e limites, e fazer os testes bloquearem no CI quan
 Fora: Publicação em marketplace.
 
 ## Critérios de aceite
-- [ ] AC-048 — WHEN a entrega termina, the system SHALL ter no README todas as teclas, variáveis `OFFICE_*`, capacidades ausentes e a nota de não verificado do app. Cenário: S-048 @success.
-- [ ] AC-049 — WHERE `claude plugin test` estiver disponível no CI, the system SHALL fazer a falha de teste bloquear o job. Cenário: S-049 @deviation.
-- [ ] AC-050 — IF o CLI não existir no CI, the system SHALL registrar `skipped` de forma explícita e nunca `pass`. Cenário: S-050 @error.
+- [x] AC-048 — WHEN a entrega termina, the system SHALL ter no README todas as teclas, variáveis `OFFICE_*`, capacidades ausentes e a nota de não verificado do app. Cenário: S-048 @success.
+- [ ] AC-049 (NÃO CUMPRIDO: o passo segue `continue-on-error`; não há como verificar aqui se a imagem do CI tem `claude plugin test` e o runtime `claude-code/testing`) — WHERE `claude plugin test` estiver disponível no CI, the system SHALL fazer a falha de teste bloquear o job. Cenário: S-049 @deviation.
+- [ ] AC-050 (PARCIAL: o passo imprime `SKIPPED` e grava no resumo quando o subcomando falta; só verificado por leitura, não observado no CI) — IF o CLI não existir no CI, the system SHALL registrar `skipped` de forma explícita e nunca `pass`. Cenário: S-050 @error.
 
 ## Testes vinculados
 integração: `tests/integration.md` (linhas de AC-048 a AC-050) · cenários: `acceptance/delivery.feature` tag `@T-015` · demais linhas por `Covers` em `tests/`.
@@ -42,8 +42,8 @@ integração: `tests/integration.md` (linhas de AC-048 a AC-050) · cenários: `
 - [ ] Linhas de `tests/e2e-regression.md` impactadas verdes
 - [ ] Julgada por subagente diferente do implementador
 
-## Evidência
-Preencher ao concluir: comando, exit code e data. DONE sem evidência é inválido.
+## Evidência parcial
+`claude plugin test .` em `plugins/agent-office`: base nova de main 352 pass, 0 fail; após esta task 358 pass, 0 fail (2026-11-05). `depends_on` T-012 não cumprida (BLOCKED): task segue IN_PROGRESS, não DONE.
 
 ## Notas técnicas
 Arquivos prováveis: `.github/workflows/validate.yml`, `plugins/agent-office/README.md`.

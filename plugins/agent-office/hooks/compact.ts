@@ -5,6 +5,7 @@ import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, 
   truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
+import { spinnerGlyph } from './motion'
 import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
@@ -59,7 +60,9 @@ export const layoutLevel = (w: number): 'full' | 'abbr' | 'line' => ({ full: 'fu
 // ---------- glyphs ----------
 // Glifo e rótulo vêm da tabela única (vocabulary.STATE_TABLE); estado desconhecido vira `?` em muted (AC-016).
 const vocabOf = (c: Caps) => ({ ascii: c.ascii, color: c.color !== 'mono' })
-const glyph = (c: Caps, s: string) => nodeView(s, vocabOf(c)).glyph
+// AC-045/046: o spinner do estado running gira com o quadro; fixo em ASCII, movimento reduzido ou sem quadro.
+const glyph = (c: Caps, s: string, frame?: number) =>
+  s === 'running' && frame !== undefined && !c.ascii && !c.reducedMotion ? spinnerGlyph(frame, false) : nodeView(s, vocabOf(c)).glyph
 export const stateGlyph = glyph
 const stateLabel = (c: Caps, s: string) => nodeView(s, vocabOf(c)).label
 type Box = { tl: string; tr: string; bl: string; br: string; v: string; h: string }
@@ -265,7 +268,7 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const row = (n: Node, prefix: string, label?: { name: string; extra?: string }): Line => {
     const name = label?.name ?? nm.get(n.id) ?? n.name
     const right = n.kind === 'task' ? metric(n) : `${label?.extra ?? metric(n)}  ${fmtMMSS(durationOf(n, now))}`
-    const left: Line = [seg(c, prefix, DIM), seg(c, glyph(c, n.state) + ' ', stateColor(n.state), { node: n.kind === 'agent' ? n.id : undefined }),
+    const left: Line = [seg(c, prefix, DIM), seg(c, glyph(c, n.state, v.frame) + ' ', stateColor(n.state), { node: n.kind === 'agent' ? n.id : undefined }),
       seg(c, name, undefined, { bold: n.kind === 'agent', node: n.kind === 'agent' ? n.id : undefined })]
     const meta = lvl === 'full' && n.kind === 'agent' ? [n.persona, n.model, n.effort].filter(Boolean).join('·') : ''
     const room = v.width - strWidth(right) - 2
@@ -454,7 +457,7 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   const time = n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now))
   return [
     [seg(c, b.tl + b.h.repeat(inner) + b.tr, edge)],
-    body([seg(c, glyph(c, n.state) + ' ', col_, { node: id }), seg(c, truncRunes(nm.get(id) ?? n.name, inner - 2), undefined, { bold: true, node: id })]),
+    body([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, truncRunes(nm.get(id) ?? n.name, inner - 2), undefined, { bold: true, node: id })]),
     body([seg(c, truncRunes([n.persona, n.model].filter(Boolean).join(' · '), inner), DIM, { node: id })]),
     body(row3),
     body([...bar, seg(c, ` ${pctText} `), seg(c, time, DIM)]),
@@ -558,7 +561,7 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
     for (const k of n.children.filter(x => x.kind === 'agent' && keep.has(x.id))) {
       const grow = growth(c, k, idx++, now)
       const [ob, cb] = c.ascii ? ['|', '|'] : ['▕', '▏']
-      out.push(fit([seg(c, glyph(c, k.state) + ' ', stateColor(k.state), { node: k.id }),
+      out.push(fit([seg(c, glyph(c, k.state, frame) + ' ', stateColor(k.state), { node: k.id }),
         seg(c, padWidth(truncRunes('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
         ...spanBar(k, tl.t0, tl.tot, now, cells, c, frame, grow), seg(c, cb + ' ' + fmtMMSS(durationOf(k, now)), DIM)], v.width))
       walk(k, d + 1)

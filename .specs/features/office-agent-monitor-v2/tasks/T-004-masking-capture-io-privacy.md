@@ -2,8 +2,8 @@
 id: T-004
 title: Mascarar segredos, opt-in OFFICE_CAPTURE_IO e atualizar privacidade
 type: backend
-status: TODO
-progress: 0/4
+status: IN_PROGRESS
+progress: 4/4
 updated: 2026-11-05
 depends_on: [T-003]
 origin: null
@@ -27,10 +27,10 @@ Mascarar antes de guardar: prompt, rótulos, e entrada/saída opcional. Atualiza
 Fora: Interface de exibição (T-009).
 
 ## Critérios de aceite
-- [ ] AC-010 — WHEN um prompt ou rótulo de comando for capturado, the system SHALL substituir cada segredo reconhecido por `••••••••` antes de guardar o texto no estado. Cenário: S-010 @success.
-- [ ] AC-011 — WHILE `OFFICE_CAPTURE_IO` for diferente de `1`, the system SHALL não guardar entrada nem saída de ferramentas e SHALL mostrar a nota de desligado no detalhe. Cenário: S-011 @deviation.
-- [ ] AC-012 — IF o mascaramento falhar, the system SHALL guardar `[mascaramento falhou]` no lugar do texto original. Cenário: S-012 @error.
-- [ ] AC-013 — WHEN `OFFICE_CAPTURE_IO=1`, the system SHALL guardar entrada e saída mascaradas e limitadas a 2000 caracteres por campo, somente em memória, e `docs/privacy.md` SHALL declarar esse comportamento. Cenário: S-013 @success.
+- [x] AC-010 — WHEN um prompt ou rótulo de comando for capturado, the system SHALL substituir cada segredo reconhecido por `••••••••` antes de guardar o texto no estado. Cenário: S-010 @success.
+- [x] AC-011 — WHILE `OFFICE_CAPTURE_IO` for diferente de `1`, the system SHALL não guardar entrada nem saída de ferramentas e SHALL mostrar a nota de desligado no detalhe. Cenário: S-011 @deviation.
+- [x] AC-012 — IF o mascaramento falhar, the system SHALL guardar `[mascaramento falhou]` no lugar do texto original. Cenário: S-012 @error.
+- [x] AC-013 — WHEN `OFFICE_CAPTURE_IO=1`, the system SHALL guardar entrada e saída mascaradas e limitadas a 2000 caracteres por campo, somente em memória, e `docs/privacy.md` SHALL declarar esse comportamento. Cenário: S-013 @success.
 
 ## Testes vinculados
 integração: `tests/integration.md` (linhas de AC-010 a AC-013) · cenários: `acceptance/foundation.feature` tag `@T-004` · demais linhas por `Covers` em `tests/`.

@@ -212,7 +212,7 @@ test('leaf with TodoWrite shows real percent and count; without todos no percent
 test('pending: spawned agent with no tool call yet (active=false) shows aguarda, hatched bar', () => {
   const o = txt(cardsOut([mk('q', { active: false }), mk('r', { active: true })]))
   expect(o).toContain('aguarda 1ª ação'); expect(o).toMatch(/○ Dev: q/)
-  expect(o).toMatch(/⠹ Dev: r/)
+  expect(o).toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] Dev: r/) // spinner gira com o quadro (frame 0 = ⠋)
   expect(txt(cardsOut([mk('legacy')]))).not.toContain('aguarda')
 })
 test('worktree divider summary: structure and status', () => {
@@ -262,3 +262,23 @@ test('detail: nota de captura desligada também no detalhe compacto', () => {
   expect(txt(detailCompact(ag, 'p', T + 1000, caps)!)).toContain('OFFICE_CAPTURE_IO=1')
   expect(txt(detailCompact(ag, 'p', T + 1000, caps, true)!)).not.toContain('OFFICE_CAPTURE_IO=1')
 })
+
+// T-014 leftover (AC-045/AC-046): the spinner glyph cycles in the real render, fixed in reduced motion
+const spinTxt = (frame: number, c: typeof caps, mode: 'tree' | 'cards' | 'waterfall') =>
+  txt(renderCompact([mk('r', { status: 'working' })], T + 9000, { ...v, mode, caps: c, frame }))
+const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+for (const mode of ['tree', 'cards', 'waterfall'] as const) {
+  test(`spinner glyph cycles with the frame in ${mode} render`, () => {
+    for (let f = 0; f < 10; f++) expect(spinTxt(f, caps, mode)).toContain(SPIN[f]!)
+  })
+  test(`spinner glyph stays fixed in reduced motion and ASCII (${mode})`, () => {
+    const red = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8', OFFICE_REDUCED_MOTION: '1' })
+    for (const f of [0, 5, 7]) {
+      const o = spinTxt(f, red, mode)
+      expect(o).toContain('⠹')
+      for (const g of SPIN.filter(x => x !== '⠹')) expect(o).not.toContain(g)
+    }
+    const asc = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8', OFFICE_ASCII: '1' })
+    for (const f of [3, 4]) for (const g of SPIN) expect(spinTxt(f, asc, mode)).not.toContain(g)
+  })
+}

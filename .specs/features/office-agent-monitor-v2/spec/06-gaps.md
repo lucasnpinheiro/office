@@ -70,4 +70,5 @@ Decisão do usuário (2026-11-05), visão inicial: mantém `map` como visão ini
 
 Decisões do usuário (2026-11-05, finais):
 - Controles (gap 10, Unresolved 2): provar em sessão real primeiro; entregar só o provado; lacuna volta ao usuário. Outras tasks seguem. Probe T-001: Retry por id provado no terminal; Allow e Decline provados só em modo não interativo; Stop não provado; Pause e openInChat sem suporte (ADR 0002).
+- Adiamento (2026-11-05): código de permissão adiado. T-011 e T-012 ficam `BLOCKED` (status aceito por `check_bundle`) até o usuário rodar as sondas manuais da ADR 0002 em sessão interativa real. Allow, Decline, Stop e Retry ficam ocultos; sem código de permissão nem `tool.check`. AC-034 a AC-041 e o sino de AC-045 (precisa do estado `◆`) seguem não cumpridos.
 - Custo (gap 2, Unresolved 4): tokens por agente mais total real da sessão; custo por agente fica `—`; sem tabela de preço. Encerra a Unresolved 4.

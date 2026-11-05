@@ -2,7 +2,7 @@
 id: T-012
 title: Ações: Pause, Stop, Retry e open-in-chat
 type: frontend
-status: TODO
+status: BLOCKED
 progress: 0/4
 updated: 2026-11-05
 depends_on: [T-001, T-009, T-011]
@@ -31,6 +31,11 @@ Fora: Ações em lote.
 - [ ] AC-039 — WHILE a confirmação estiver aberta, the system SHALL interpretar `y` e `n` como resposta, e `n` SHALL cancelar sem chamar o engine. Cenário: S-039 @deviation.
 - [ ] AC-040 — IF o engine recusar ou falhar, the system SHALL mostrar a mensagem no card e manter o estado anterior. Cenário: S-040 @error.
 - [ ] AC-041 — WHERE `CAPABILITIES` for falso para uma ação, the system SHALL não desenhar botão nem tecla dessa ação em nenhuma superfície. Cenário: S-041 @deviation.
+
+## BLOCKED (decisão do usuário, 2026-11-05)
+Código de permissão adiado. Bloqueada até o usuário rodar as sondas manuais da ADR 0002 (Allow, Decline, Stop, Retry em sessão
+interativa real). Até lá Allow, Decline, Stop e Retry ficam ocultos (`CAPABILITIES` não é `yes`), sem código de permissão nem
+`tool.check`. Nenhum AC desta task foi cumprido. Registrado em `spec/06-gaps.md`.
 
 ## Testes vinculados
 integração: `tests/integration.md` (linhas de AC-038 a AC-041) · cenários: `acceptance/actions.feature` tag `@T-012` · demais linhas por `Covers` em `tests/`.

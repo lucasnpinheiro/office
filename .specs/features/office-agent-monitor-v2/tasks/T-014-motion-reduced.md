@@ -25,7 +25,7 @@ Aplicar a tabela de efeitos e o modo reduzido.
 Fora: Efeitos fora da tabela do Padrão.
 
 ## Critérios de aceite
-- [ ] AC-045 — PARCIAL. Feito: intervalo de quadro de 6/s (`motion.ts`, ligado em `office.ts` `nextDelay`, usado por `register.tsx`). Não feito: o glifo do spinner não cicla no render (`vocabulary.ts` segue com `⠹` fixo; `spinnerGlyph` não está ligado); o sino não é emitido (`bellOnNewDecision` não está ligado); `◆` subir ao topo já existia em `compact.ts`, não reverificado com teste de movimento. Cenário: S-045 @success.
+- [ ] AC-045 — PARCIAL. Feito: intervalo de quadro de 6/s (`motion.ts`, `office.ts` `nextDelay`); o glifo do spinner cicla no render real (`compact.ts` `glyph(c, state, frame)` com `spinnerGlyph`, em árvore, cards e waterfall; fixo em ASCII e movimento reduzido; teste por `renderCompact`). Não feito: o sino (não há estado pendente `◆` sem T-011; `bellOnNewDecision` segue sem ligação, não ligado de propósito). Cenário: S-045 @success.
 - [ ] AC-046 — PARCIAL. Feito: `nextDelay` com movimento reduzido = 1000 ms (`frameIntervalMs`); `register.tsx` zera `frame` com `caps.reducedMotion`; barra e cards estáticos em reduzido (`compact.ts`, já existente). Não verificado: sinal de movimento reduzido do sistema e o app (ADR 0002). Cenário: S-046 @deviation.
 - [ ] AC-047 — PARCIAL. Feito: regra pura `transitionFor` (sem `appMotion` = troca direta). Não ligado a nenhuma superfície: o app não tem render verificado (ADR 0002, `appMotion` not-verified). Cenário: S-047 @error.
 

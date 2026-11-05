@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.0 (agent-office, T-014 leftovers, T-015 docs and CI)
+
+- The running spinner glyph now cycles with the frame in the tree, cards and waterfall renders; it stays fixed in reduced motion
+  and ASCII (AC-045/046, tested through `renderCompact`). The bell is not wired: there is no pending-decision state (`◆` needs
+  T-011), so AC-045's bell is unmet.
+- README states what ships, the keys (g, o, v, f, s, b, p, n, q), the `OFFICE_*` variables, what is terminal only and what is not
+  verified in the Claude app. `docs/privacy.md` checked, unchanged.
+- Allow, Decline, Stop, Retry, Pause and open-in-chat stay hidden: T-011 and T-012 are BLOCKED until the manual probes in ADR 0002
+  are run (user decision). No permission or `tool.check` code.
+- CI: the `claude plugin test` step stays non-blocking (CLI/runtime availability in CI is unverified) and now prints `SKIPPED`
+  explicitly when the subcommand is missing.
+- Coverage of 93% is not measurable with the current runner (`coverage-report.md`).
+
 ## Unreleased (agent-office, PR 19 findings)
 
 - Security: `+N commits` runs only `rev-parse` / `rev-list` / `symbolic-ref` through `env GIT_CONFIG_NOSYSTEM=1 GIT_OPTIONAL_LOCKS=0
