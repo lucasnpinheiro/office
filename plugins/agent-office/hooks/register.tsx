@@ -10,6 +10,7 @@ import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf, isolatedCall } from './stats'
 import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf } from './capture'
+import { captureIoOn, maskText } from './mask'
 import { resolveGit } from './git'
 import { statusLines } from './status'
 import type { GitInfo } from './git'
@@ -31,6 +32,9 @@ const searchingAt = atom({ plugin: 'agent-office', key: 'searching' } as const, 
 const queryAt = atom({ plugin: 'agent-office', key: 'query' } as const, '')
 const expandedAt = atom({ plugin: 'agent-office', key: 'expanded' } as const, [])
 const attachAt = atom({ plugin: 'agent-office', key: 'attach' } as const, '')
+
+// OFFICE_CAPTURE_IO=1 (exactly) turns on masked tool input/output capture; read fresh, any failure means off.
+const captureIoOf = async ($: EngineInterface): Promise<boolean> => captureIoOn(await Promise.resolve($.env.get('OFFICE_CAPTURE_IO')).catch(() => undefined))
 
 // Terminal capabilities from the environment (ASCII, color depth, reduced motion). Cached for the session.
 let capsCache: Caps | undefined
@@ -330,7 +334,7 @@ export const register: Register = on => {
       id: e.tool_use_id || `${Date.now()}-${Math.random()}`,
       parentAgentId: e.parentAgentId,
       description: e.description,
-      prompt: firstLine(e.prompt, 300),
+      prompt: firstLine(maskText(e.prompt ?? ''), 300), // masked before it reaches the state (T-004)
       subagentType: e.subagentType,
       status: 'working',
       active: false,
@@ -408,11 +412,12 @@ export const register: Register = on => {
       }
     }
     if (aid) {
+      const ioOn = await captureIoOf($)
       await update($, office, list =>
         list.map(a =>
           a.agentId === aid
             ? (recordSafely({ ...(applyTool(a, e.tool, input, res) as OfficeAgent), seenAt: Date.now() }, () =>
-                toolStep((e as { tool_use_id?: string }).tool_use_id ?? `${e.tool}@${startedAt}`, e.tool, input, startedAt, durationMs, res),
+                toolStep((e as { tool_use_id?: string }).tool_use_id ?? `${e.tool}@${startedAt}`, e.tool, input, startedAt, durationMs, res, ioOn),
               ) as OfficeAgent)
             : a,
         ),
@@ -503,7 +508,7 @@ export const register: Register = on => {
       } else if (selected) compactFrame = detailCompact(all, selected, now, caps)
       else compactFrame = renderCompact(all, now, compactView)
     }
-    const detail = selected && view !== 'compact' ? detailLines(all, selected, now) : undefined
+    const detail = selected && view !== 'compact' ? detailLines(all, selected, now, await captureIoOf($)) : undefined
     const act = (a: string) => dispatch($, a)
     const ui = { ...(await readUi($)), selected }
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch
