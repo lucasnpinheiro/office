@@ -16,6 +16,7 @@ import { costLines, fmtTokens, fmtUsd } from './view-cost'
 import { toolLines } from './view-tools'
 import { workflowLines } from './view-workflow'
 import { detailView } from './view-detail'
+import { termLevel, effectiveCols, appColumns, rowStyle, fitAgora } from './layout'
 
 export { isQuotaError }
 
@@ -52,7 +53,8 @@ export const sortNodes = (ns: Node[], sort: CView['sort'] = 'time'): Node[] =>
   sort === 'state' ? [...ns].sort((a, b) => RANK[a.state] - RANK[b.state])
     : sort === 'name' ? [...ns].sort((a, b) => a.name.localeCompare(b.name)) : ns
 
-export const layoutLevel = (w: number): 'full' | 'abbr' | 'line' => (w >= 100 ? 'full' : w >= 50 ? 'abbr' : 'line')
+// 100+ full, 60 a 99 compact (abbr), abaixo de 60 só lista (line); largura desconhecida cai em 80 (layout.ts, AC-042/AC-044)
+export const layoutLevel = (w: number): 'full' | 'abbr' | 'line' => ({ full: 'full', compact: 'abbr', list: 'line' } as const)[termLevel(w)]
 
 // ---------- glyphs ----------
 // Glifo e rótulo vêm da tabela única (vocabulary.STATE_TABLE); estado desconhecido vira `?` em muted (AC-016).
@@ -80,6 +82,7 @@ export type CView = {
   model?: RunModel // built once by the caller (register.tsx) with the session tokens; built here from the agents when absent
   captureIo?: boolean // OFFICE_CAPTURE_IO=1: the Tools view may show masked input/output
   sessionUsd?: number // `$.session.usage().cost.usd`, only when the engine gave it
+  containerPx?: number // app container width (px), only when the engine reports it (ADR 0002: containerWidth not-verified); absent = terminal rules
 }
 // Árvore: irmãos com o mesmo estado acima de 8 viram `Rodando ×N`; `g` com este item em expanded abre todos (AC-019).
 export const TREE_ALL = 'tree:all'
@@ -268,7 +271,9 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     const room = v.width - strWidth(right) - 2
     const l2 = fit(left, Math.max(8, room))
     const mid = meta && lineWidth(l2) + strWidth(meta) + 2 < room ? [...sp(1), seg(c, meta, DIM)] : []
-    return spread([...l2, ...mid], [seg(c, right, DIM)], v.width)
+    // `agora` (ferramenta em curso): o que encolhe primeiro; nome, métrica e tempo ficam (AC-044)
+    const agora = n.kind === 'agent' && n.state === 'running' && n.tool ? fitAgora(n.tool, room - lineWidth(l2) - lineWidth(mid) - 3) : ''
+    return spread([...l2, ...mid, ...(agora ? [seg(c, '  ' + agora, DIM)] : [])], [seg(c, right, DIM)], v.width)
   }
   const walk = (n: Node, prefix: string) => {
     const kids = sortNodes(n.children.filter(k => keep.has(k.id)), v.sort)
@@ -487,7 +492,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const layoutChildren = (parent: Node, px: number, virtual: boolean, parentFlow: string, base: number): Line[] => {
     const kids = agentKids(parent)
     const x = px + CARD_INDENT
-    const per = perRowOf(v.width, px)
+    const per = Math.min(perRowOf(v.width, px), v.containerPx === undefined ? Infinity : appColumns(v.containerPx))
     const leaf = (k: Node) => agentKids(k).length === 0 && flowOf(k) === parentFlow
     const leaves = kids.filter(leaf), branches = kids.filter(k => !leaf(k))
     type Row = { kind: 'leaves'; ns: Node[] } | { kind: 'branch'; n: Node }
@@ -575,10 +580,19 @@ export function treeHasCollapsed(agents: AgentLike[], now: number, v: Pick<CView
   })
 }
 
-export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[] {
-  const w = v.width
-  if (layoutLevel(w) === 'line') return [fit([seg(v.caps, statusText(agents, now, v.caps.ascii))], w)]
+export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line[] {
+  const w = effectiveCols(v0.width) // 0, negativa ou NaN: 80 colunas, uma coluna (AC-044)
+  // app com container < 520 px: cards viram linhas de estado, nome e tempo (AC-043)
+  const rows = v0.containerPx !== undefined && v0.mode === 'cards' && rowStyle(v0.containerPx) === 'row'
+  const v: CView = { ...v0, width: w, mode: rows ? 'tree' : v0.mode }
   const g = buildGraph(agents, now)
+  if (layoutLevel(w) === 'line') {
+    // abaixo de 60 colunas só a lista: falha e decisão primeiro, depois as linhas da árvore
+    const nm0 = names(g), keep0 = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
+    if (agents.length === 0) return [fit([seg(v.caps, 'Aguardando agentes…', DIM)], w)]
+    const list = [...pinnedLines(g, nm0, keep0, v), ...treeLines(g, nm0, keep0, now, { ...v, mode: 'tree' })]
+    return list.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
+  }
   const nm = names(g)
   const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)

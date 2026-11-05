@@ -6,7 +6,8 @@ import { renderMonitor, inlineSize } from './monitor'
 import { renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
 import { buildRunModel } from './run-model'
-import { CAPABILITIES } from './capabilities'
+import { CAPABILITIES, canUse } from './capabilities'
+import { sideDetail } from './layout'
 import { detailView } from './view-detail'
 import { hasWorkflow } from './view-workflow'
 import { worktreeOfAgent } from './view-worktrees'
@@ -572,6 +573,7 @@ export const register: Register = on => {
       maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 12,
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, ahead: aheadNow(),
+      containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,
     }
     // detail screen (view-detail.ts, T-009) for both the compact and the map view; an agent that left the list falls back to the list with a warning
     const detailOf = (id: string) => detailView(all, id, now, { captureIo: ioFlag })
@@ -613,7 +615,9 @@ export const register: Register = on => {
         )}
       </Box>
     ) }
-    const side = view === 'compact' && !!selected && !attach && cols >= ((e as { surface?: string }).surface === 'desktop' ? 110 : 150)
+    // largura do container (px): só se a ADR 0002 marcar `containerWidth` como yes no app; hoje não-verificada, então vale a regra de colunas
+    const px = canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined
+    const side = view === 'compact' && !!selected && !attach && sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' })
     // footer hotkeys for the current view (actions.ts): one letter each, none while the search Input has the keys
     const keysRow = draw([
       ...hotkeysFor(ui, side).flatMap((h, i) => [...(i ? [{ t: FOOTER_SEP }] : []), { t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }]),
