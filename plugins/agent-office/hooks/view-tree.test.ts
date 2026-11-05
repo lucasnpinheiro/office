@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { renderCompact, detectCaps } from './compact'
+import { renderCompact, detectCaps, treeHasCollapsed } from './compact'
 import type { CView } from './compact'
 import { applyAction, initialUi } from './actions'
 import { CAPABILITIES } from './capabilities'
@@ -93,4 +93,23 @@ test('AC-020 árvore: sem agente mostra o vazio sem barra de progresso', () => {
   expect(out).toContain('Aguardando agentes')
   expect(out).not.toContain('Geral')
   expect(out).not.toMatch(/[█▒]/)
+})
+
+// Judge finding 9: cost at 60 columns, compact form
+test('AC-018 árvore: custo aparece no cabeçalho a 60 colunas, em forma curta (— sem dado: ADR 0002, sem tabela de preço)', () => {
+  const lines = txt(renderCompact([mk('o')], T + 5000, view({ width: 60, project: 'proj' }))).split('\n')
+  const head = lines.slice(0, 3).join('\n')
+  expect(head).toContain('Office')
+  expect(lines[1]).toMatch(/\d\d:\d\d · —/)
+  expect(lines[1]).not.toContain('custo') // forma curta: sem a palavra
+})
+
+// Judge finding 10: stale hint, treeHasCollapsed
+test('AC-019 árvore: dica do cabeçalho não diz "alterna agrupado"', () => {
+  expect(txt(renderCompact(family, T + 5000, view()))).not.toContain('alterna agrupado')
+})
+test('AC-019 árvore: treeHasCollapsed só é true com mais de 8 irmãos do mesmo estado', () => {
+  expect(treeHasCollapsed(siblings(9), T + 5000, view())).toBe(true)
+  expect(treeHasCollapsed(siblings(8), T + 5000, view())).toBe(false)
+  expect(treeHasCollapsed(family, T + 5000, view())).toBe(false)
 })

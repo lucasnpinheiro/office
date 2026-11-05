@@ -30,11 +30,14 @@ export const CONNECTORS = {
   ascii: { branch: '+', rule: '-', pair: ':' },
 } as const
 
+// 0/false/no/off/empty are false, everything else true (one rule for OFFICE_* flags, shared with compact.ts detectCaps)
+export const truthy = (v?: string): boolean => !!v && !['0', 'false', 'no', 'off', ''].includes(v.toLowerCase())
+
 export type Vocab = { ascii: boolean; color: boolean }
 // no-color.org: NO_COLOR definida e não vazia tira a cor, só isso. A coluna ASCII vem de OFFICE_ASCII ou do terminal (compact.ts detectCaps).
 export const noColorSet = (v: string | undefined): boolean => !!v
 export function vocabFromEnv(env: Record<string, string | undefined>): Vocab {
-  return { ascii: env.OFFICE_ASCII !== undefined, color: !noColorSet(env.NO_COLOR) }
+  return { ascii: truthy(env.OFFICE_ASCII), color: !noColorSet(env.NO_COLOR) }
 }
 
 export type StateView = { label: string; glyph: string; color?: string; known: boolean }

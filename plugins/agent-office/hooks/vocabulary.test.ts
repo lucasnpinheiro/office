@@ -108,3 +108,10 @@ test('a control whose capability is not yes is not bound', async () => {
   expect(bindable(yes, 'app').map(e => e.act)).not.toContain('stop')
   expect(keyOf('stop')).toBe('x')
 })
+
+// Judge finding 13: same truthiness as detectCaps
+test('OFFICE_ASCII=0/false/off não liga ASCII (igual a detectCaps)', async () => {
+  for (const x of ['0', 'false', 'no', 'off', '']) expect(vocabFromEnv({ OFFICE_ASCII: x }).ascii).toBe(false)
+  expect(vocabFromEnv({ OFFICE_ASCII: '1' }).ascii).toBe(true)
+  expect(vocabFromEnv({}).ascii).toBe(false)
+})

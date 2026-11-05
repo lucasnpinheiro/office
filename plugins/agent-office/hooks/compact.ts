@@ -5,7 +5,7 @@ import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, 
   truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
-import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet } from './vocabulary'
+import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
 
@@ -13,7 +13,6 @@ export { isQuotaError }
 
 // ---------- capabilities ----------
 export type Caps = { ascii: boolean; numbered: boolean; color: 'truecolor' | '256' | '16' | 'mono'; reducedMotion: boolean }
-const truthy = (v?: string) => !!v && !['0', 'false', 'no', 'off', ''].includes(v.toLowerCase())
 
 export function detectCaps(env: Record<string, string | undefined>, o: { isTTY?: boolean; ascii?: boolean } = {}): Caps {
   const term = (env.TERM ?? '').toLowerCase()
@@ -192,9 +191,9 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const full = layoutLevel(w) === 'full'
   const right: Line = [seg(c, `${glyph(c, 'running')} ${act}${full ? ' ativos' : ''}`, STATE_COLOR.running), seg(c, ` ${glyph(c, 'done')} ${ok}`, STATE_COLOR.done),
     seg(c, ` ${glyph(c, 'failed')} ${bad}`, STATE_COLOR.failed),
-    seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · custo ${costTxt} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}`, DIM)]
+    seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · custo ${costTxt} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}${w >= 60 ? ' · ' + costTxt : ''}`, DIM)]
   const geral: Line = [seg(c, 'Geral '), ...segBar(g, c, layoutLevel(w) === 'full' ? 20 : 10), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'} · `),
-    seg(c, keyOf('group') ?? 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna agrupado', DIM)]
+    seg(c, keyOf('group') ?? 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna modo', DIM)]
   // sem agente não há progresso a mostrar: a linha Geral (com barra) só existe quando há agentes (AC-020)
   return [...ROUND_BOX(c, w, left, right), ...(agents.length ? [fit(geral, w)] : [])]
 }
@@ -525,6 +524,18 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
   }
   walk(g.root, 0)
   return out
+}
+
+// True when the tree (mode tree, g not yet opened) would show at least one `Rodando ×N` group: same rule as treeLines.
+export function treeHasCollapsed(agents: AgentLike[], now: number, v: Pick<CView, 'query' | 'filter'>): boolean {
+  const g = buildGraph(agents, now)
+  const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
+  const pinned = (k: Node) => k.state === 'failed' || k.state === 'attention'
+  return [g.root, ...g.nodes.values()].some(n => {
+    const counts = new Map<State, number>()
+    for (const k of n.children) if (keep.has(k.id) && k.kind === 'agent' && !pinned(k)) counts.set(k.state, (counts.get(k.state) ?? 0) + 1)
+    return [...counts.values()].some(x => x > TREE_COLLAPSE_OVER)
+  })
 }
 
 export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[] {

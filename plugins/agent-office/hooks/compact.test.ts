@@ -164,7 +164,7 @@ test('header: rounded box, Office - project - #sid left, colored counts + elapse
 })
 test('Geral row: hatched segmented bar, percent, g toggles', () => {
   const t0 = txt(cardsOut([mk('a', { status: 'done', endedAt: T + 100 }), mk('b')]))
-  expect(t0).toMatch(/Geral [█▒]+ \d+% · g alterna agrupado/)
+  expect(t0).toMatch(/Geral [█▒]+ \d+% · g alterna modo/)
 })
 test('no slanted parallelogram glyphs anywhere (render badly in terminals)', () => {
   expect(txt(cardsOut([mk('a'), mk('b', { status: 'done', endedAt: T + 100 })]))).not.toMatch(/[▰▱]/)
