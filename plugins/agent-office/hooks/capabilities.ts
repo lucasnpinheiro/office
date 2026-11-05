@@ -25,9 +25,9 @@ export const CAPABILITIES: Capabilities = {
   tokensPerAgent: { terminal: 'yes', app: 'not-verified' },
   costPerAgent: no,
   permissionEvent: { terminal: 'yes', app: 'not-verified' },
-  workflowEvent: no,
+  workflowEvent: { terminal: 'yes', app: 'not-verified' }, // só `workflow.runId` + `agentIndex` no agent.spawn (ADR 0002); nenhuma fase, rodada ou nome
   worktreeFromDefinition: nv,
-  commitsAhead: { terminal: 'yes', app: 'no' },
+  commitsAhead: { terminal: 'yes', app: 'no' }, // `git rev-list --count` por $.process provado em 2026-11-05 (ADR 0002)
   containerWidth: nv,
   appMotion: nv,
   reducedMotionSignal: nv,

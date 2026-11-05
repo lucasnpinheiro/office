@@ -28,11 +28,12 @@ test('AC-018 árvore: conectores ├─ e └─ (sem ╰─)', () => {
   expect(rows(out).join('\n')).not.toContain('╰─') // a moldura do cabeçalho usa ╰ e fica fora da árvore
 })
 
-test('AC-018 árvore: cabeçalho com tempo, rodando e custo', () => {
+test('AC-018 árvore: cabeçalho com tempo, rodando e tokens (sem custo inventado)', () => {
   const out = txt(renderCompact(family, T + 5000, view()))
   expect(out).toContain('00:00:05')
   expect(out).toContain('ativos')
-  expect(out).toMatch(/custo —/) // sem dado de custo: traço, nunca ~$0,00
+  expect(out).toMatch(/tokens —/) // sem dado: traço, nunca zero
+  expect(out).not.toMatch(/custo|~\$0,00/)
 })
 
 // ◆ (decisão) não existe no modelo até T-011: o fixado de hoje é ▲ (atenção) e ✗ (falha).
@@ -96,12 +97,12 @@ test('AC-020 árvore: sem agente mostra o vazio sem barra de progresso', () => {
 })
 
 // Judge finding 9: cost at 60 columns, compact form
-test('AC-018 árvore: custo aparece no cabeçalho a 60 colunas, em forma curta (— sem dado: ADR 0002, sem tabela de preço)', () => {
+test('AC-018 árvore: tokens aparecem no cabeçalho a 60 colunas, em forma curta (— sem dado)', () => {
   const lines = txt(renderCompact([mk('o')], T + 5000, view({ width: 60, project: 'proj' }))).split('\n')
   const head = lines.slice(0, 3).join('\n')
   expect(head).toContain('Office')
   expect(lines[1]).toMatch(/\d\d:\d\d · —/)
-  expect(lines[1]).not.toContain('custo') // forma curta: sem a palavra
+  expect(lines[1]).not.toContain('tokens') // forma curta: sem a palavra
 })
 
 // Judge finding 10: stale hint, treeHasCollapsed

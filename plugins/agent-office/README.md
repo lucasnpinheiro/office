@@ -31,7 +31,7 @@ claude plugin uninstall agent-office@office
 ## Use
 
 - `/office` toggles, `/office start | stop`, `/office status`, `/office reset` (monitor closed), `/office help`.
-- `/office view [map|compact]` (no value toggles), `/office mode tree|grouped|cards|waterfall`,
+- `/office view [map|compact]` (no value toggles), `/office mode tree|grouped|cards|waterfall|cost|tools|workflow`,
   `/office sort time|state|name`, `/office filter failed|all`, `/office search <text>`, `/office open <id>`,
   `/office width <cols>`, `/office collapse | expand`.
 - Hotkeys work only while the pane has the focus: press **ctrl+x tab** (or click the pane) first. Each view draws its own

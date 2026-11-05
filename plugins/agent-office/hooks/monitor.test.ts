@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { buildGraph, contentSize, inlineSize, MAX_INLINE_ROWS, renderMonitor, etaOf, overallProgress, maxDepthOf, STATE_COLOR, lineText, lineWidth, MAX_DEPTH, detailLines, progressBar, mixHex, breath, PULSE_FRAMES, WORKTREE_COLOR } from './monitor'
+import { buildGraph, contentSize, inlineSize, MAX_INLINE_ROWS, renderMonitor, etaOf, overallProgress, maxDepthOf, STATE_COLOR, lineText, lineWidth, MAX_DEPTH, progressBar, mixHex, breath, PULSE_FRAMES, WORKTREE_COLOR } from './monitor'
+import { detailScreen } from './view-detail'
 import type { AgentLike } from './office'
 
 const T0 = 1_700_000_000_000
@@ -293,25 +294,23 @@ test('card name and persona segments carry the node id (clickable); branch toggl
   expect(segs.filter(s => s.toggle === 'b').length).toBe(0)
 })
 
-test('detailLines: persona, state, prompt, todos of one agent; undefined for unknown id and session', () => {
+test('detalhe (view-detail): persona, estado, prompt, tarefas e arquivos de um agente; sem agente = volta à lista', () => {
   const a = mk('a', { prompt: 'faça X\ndepois Y', todos: [{ content: 'passo 1', status: 'completed' }], recent: ['Read', 'Edit'], files: ['a.ts'] })
-  const d = detailLines([a], 'a', T0 + 5000)!.map(lineText).join('\n')
+  const d = detailScreen([a], 'a', T0 + 5000).lines.join('\n')
   expect(d).toContain('Pleno')
   expect(d).toContain('tarefa a')
   expect(d).toContain('faça X')
   expect(d).toContain('depois Y')
   expect(d).toContain('passo 1')
   expect(d).toContain('a.ts')
-  expect(detailLines([a], 'zzz', T0)).toBeUndefined()
-  expect(detailLines([a], 'session', T0)).toBeUndefined()
+  expect(detailScreen([a], 'zzz', T0).back).toBe(true)
+  expect(detailScreen([a], 'session', T0).back).toBe(true)
 })
 
 test('AC-011: detalhe mostra nota de captura desligada e como ligar', () => {
   const a = mk('a')
-  const off = detailLines([a], 'a', T0 + 5000)!.map(lineText).join('\n')
-  expect(off).toContain('OFFICE_CAPTURE_IO=1')
-  const on = detailLines([a], 'a', T0 + 5000, undefined, true)!.map(lineText).join('\n')
-  expect(on).not.toContain('OFFICE_CAPTURE_IO=1')
+  expect(detailScreen([a], 'a', T0 + 5000).lines.join('\n')).toContain('OFFICE_CAPTURE_IO=1')
+  expect(detailScreen([a], 'a', T0 + 5000, { captureIo: true }).lines.join('\n')).not.toContain('OFFICE_CAPTURE_IO=1')
 })
 
 test('task node inherits persona/model/effort from its agent', () => {

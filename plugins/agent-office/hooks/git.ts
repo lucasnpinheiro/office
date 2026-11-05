@@ -54,6 +54,43 @@ export function worktreeFromPath(p: string): string | undefined {
   return /^(.*\/\.claude\/worktrees\/[^/]+)/.exec(p ?? '')?.[1]
 }
 
+// ---------- commits à frente (T-007, AC-023) ----------
+// Só com `$.process` (CLI), provado por probe em 2026-11-05 (ADR 0002): `rev-parse @{upstream}` / `symbolic-ref origin/HEAD`
+// dão a base, `rev-list --count base..HEAD` a contagem. Falha, saída estranha ou mais de 2 s = sem contagem (nunca zero).
+export type ProcessRun = (argv: readonly string[], init?: { cwd?: string; timeoutMs?: number }) => Promise<{ exitCode: number; stdout: string; stderr?: string }>
+export type AheadInfo = { base: string; ahead: number }
+export const AHEAD_TTL_MS = 30_000
+export const AHEAD_TIMEOUT_MS = 2000
+const SAFE_REF = /^[A-Za-z0-9][\w./-]*$/ // a ref nunca começa com "-" (não vira opção do git) e não tem espaço nem shell
+
+export async function aheadOf(run: ProcessRun | undefined, cwd: string, timeoutMs = AHEAD_TIMEOUT_MS): Promise<AheadInfo | undefined> {
+  if (typeof run !== 'function' || !cwd) return undefined
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const limit = new Promise<undefined>(r => { timer = setTimeout(() => r(undefined), timeoutMs) })
+  const git = async (...args: string[]): Promise<string | undefined> => {
+    const r = await run(['git', ...args], { cwd, timeoutMs }).catch(() => undefined)
+    return r && r.exitCode === 0 ? String(r.stdout).trim() : undefined
+  }
+  const work = (async (): Promise<AheadInfo | undefined> => {
+    const base = (await git('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}')) ?? (await git('symbolic-ref', '--short', 'refs/remotes/origin/HEAD'))
+    if (!base || !SAFE_REF.test(base)) return undefined
+    const n = await git('rev-list', '--count', `${base}..HEAD`)
+    return n !== undefined && /^\d+$/.test(n) ? { base, ahead: Number(n) } : undefined
+  })()
+  try { return await Promise.race([work, limit]) } finally { if (timer) clearTimeout(timer) }
+}
+
+export type AheadCache = Map<string, { at: number; info?: AheadInfo; pending?: boolean }>
+// One lookup per key every AHEAD_TTL_MS, failures included (a broken git must not cost 2 s on every frame); none while one is in flight.
+export async function cachedAhead(cache: AheadCache, key: string, now: number, load: () => Promise<AheadInfo | undefined>): Promise<AheadInfo | undefined> {
+  const hit = cache.get(key)
+  if (hit && (hit.pending || now - hit.at < AHEAD_TTL_MS)) return hit.info
+  cache.set(key, { at: now, info: hit?.info, pending: true })
+  const info = await load().catch(() => undefined)
+  cache.set(key, { at: now, info })
+  return info
+}
+
 // Card lines: "⎇ branch" then, in a linked worktree, "⧉ name" on its own line (the card is narrow).
 // A repo other than the session's is prefixed ("repo:branch"). undefined when there is nothing to show.
 export function gitLabel(g: GitInfo | undefined, sessionRepo?: string): string[] | undefined {

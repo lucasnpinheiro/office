@@ -2,8 +2,14 @@ import { atom, read, update } from 'claude-code'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
-import { renderMonitor, inlineSize, detailLines } from './monitor'
-import { renderCompact, treeHasCollapsed, detailCompact, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE } from './compact'
+import { renderMonitor, inlineSize } from './monitor'
+import { renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
+import type { CView } from './compact'
+import { buildRunModel } from './run-model'
+import { CAPABILITIES } from './capabilities'
+import { detailView } from './view-detail'
+import { hasWorkflow } from './view-workflow'
+import { worktreeOfAgent } from './view-worktrees'
 import { applyAction, FOOTER_SEP, footerTail, hotkeysFor, startUi } from './actions'
 import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
@@ -11,14 +17,15 @@ import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf, isolatedCall } from './stats'
 import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf, errorText, toolArgs } from './capture'
 import { captureIoOn, maskText } from './mask'
-import { resolveGit } from './git'
+import { resolveGit, aheadOf, cachedAhead } from './git'
 import { statusLines } from './status'
-import type { GitInfo } from './git'
+import type { GitInfo, AheadInfo, AheadCache, ProcessRun } from './git'
 
 const PANE = 'agent-office'
 const office = atom({ plugin: 'agent-office', key: 'agents' } as const, [])
 const isOpen = atom({ plugin: 'agent-office', key: 'open' } as const, false)
 const sessionTokensAt = atom({ plugin: 'agent-office', key: 'sessionTokens' } as const, null as number | null) // main-session tokens, null = unknown
+const sessionUsdAt = atom({ plugin: 'agent-office', key: 'sessionUsd' } as const, null as number | null) // `$.session.usage().cost.usd` (CLI), null = unknown
 const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as const, {})
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
@@ -61,7 +68,7 @@ async function capsOf($: EngineInterface): Promise<Caps> {
 }
 
 const HELP =
-  'Uso: /office start | stop | (alterna). /office view [map|compact] (sem valor alterna); /office mode tree|grouped|cards|waterfall (tree = árvore com conectores; ou g); /office search <texto> (vazio limpa); /office sort time|state|name; /office filter failed|all; /office width <colunas>; /office open <id> (detalhe). Teclas (com o painel focado: ctrl+x tab ou clique): v cicla mapa > árvore > cards (um modo escolhido com g é mantido ao sair do mapa), g modo (na árvore, g abre os grupos recolhidos antes de passar ao modo seguinte), o ordenar, f só falhas, s buscar, Enter detalhe, b voltar, p/n irmaos no detalhe, q fechar. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
+  'Uso: /office start | stop | (alterna). /office view [map|compact] (sem valor alterna); /office mode tree|grouped|cards|waterfall|cost|tools|workflow (tree = árvore com conectores; cost = custo e tokens; tools = ferramentas; workflow só mostra algo com execução de workflow; ou g); /office search <texto> (vazio limpa); /office sort time|state|name; /office filter failed|all; /office width <colunas>; /office open <id> (detalhe). Teclas (com o painel focado: ctrl+x tab ou clique): v cicla mapa > árvore > cards (um modo escolhido com g é mantido ao sair do mapa), g modo (cicla árvore, agrupado, cards, linha do tempo, custo, ferramentas e, só com workflow em curso, workflow; na árvore, g abre os grupos recolhidos antes de passar ao modo seguinte), o ordenar, f só falhas, s buscar, Enter detalhe, b voltar, p/n irmaos no detalhe, q fechar. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
 
 // Fire-and-forget engine calls (status line, redraw timer, resize, focus) never surface as unhandled rejections.
 const bg = (p: unknown): void => { void Promise.resolve(p).catch(() => undefined) }
@@ -144,10 +151,48 @@ async function schedule($: EngineInterface) {
   timer = t
 }
 
+// Commits ahead of the real base per worktree (T-007, AC-023): only through `$.process` (CLI; probe 2026-11-05, ADR 0002),
+// started in the background (never awaited by a render), 2 s limit, 30 s cache per worktree, failures cached too.
+const aheadCache: AheadCache = new Map()
+const aheadNow = (): Record<string, AheadInfo> => {
+  const out: Record<string, AheadInfo> = {}
+  for (const [k, v] of aheadCache) if (v.info) out[k] = v.info
+  return out
+}
+function refreshAhead($: EngineInterface, list: OfficeAgent[]) {
+  // no $.process (app) or any failure inside it: the lookup rejects, cachedAhead caches "unknown", and the count is omitted (never zero)
+  const run: ProcessRun = async (argv, init) => $.process.run(argv, init)
+  for (const key of new Set(list.map(a => worktreeOfAgent(a)).filter((x): x is string => !!x))) {
+    const before = aheadCache.get(key)?.info
+    bg(cachedAhead(aheadCache, key, Date.now(), () => aheadOf(run, key)).then(info => {
+      if (info?.base !== before?.base || info?.ahead !== before?.ahead) $.ui.invalidate('ui.render')
+    }))
+  }
+}
+
+// RunModel for the compact views: per-agent tokens plus the main session's own turn.step tokens (partial when unknown)
+async function runModelOf($: EngineInterface, list: OfficeAgent[], now: number) {
+  const tokens: number | null = await read($, sessionTokensAt)
+  return buildRunModel(list, now, CAPABILITIES, tokens ?? undefined)
+}
+
+// session USD from the engine (CLI: `$.session.usage().cost.usd`, probe 2026-11-05); unknown stays unknown, never zero
+let usdBusy = false
+async function refreshUsd($: EngineInterface) {
+  if (usdBusy) return
+  usdBusy = true
+  try {
+    const u = await $.session.usage()
+    const usd = (u as { cost?: { usd?: unknown } } | undefined)?.cost?.usd
+    if (typeof usd === 'number' && Number.isFinite(usd) && usd >= 0) await update($, sessionUsdAt, () => usd)
+  } catch { /* no usage: header keeps no figure */ } finally { usdBusy = false }
+}
+
 async function gitView($: EngineInterface) {
   const raw: OfficeAgent[] = await read($, office)
   const cwd = await $.session.cwd().catch(() => '')
   await refreshGit($, [cwd, ...raw.map(a => a.cwd)])
+  if ((await read($, modeAt)) === 'grouped') refreshAhead($, raw)
   const st: { tool?: string; recent?: string[] } = await read($, sessionToolAt)
   const thumbs = await thumbsOn($)
   if (!thumbs) shots.clear()
@@ -163,7 +208,12 @@ async function wantSize($: EngineInterface, list: OfficeAgent[], collapsed: stri
   if ((await read($, viewAt)) !== 'compact') return inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
   const caps = await capsOf($)
   const wcols = (await read($, colsAt)) || 80
-  const lines = renderCompact(list, Date.now(), { width: wcols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt), expanded: new Set(), maxCardRows: 6 })
+  const now = Date.now()
+  const usd: number | null = await read($, sessionUsdAt)
+  const lines = renderCompact(list, now, {
+    width: wcols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt), expanded: new Set(), maxCardRows: 6,
+    model: await runModelOf($, list, now), captureIo: await captureIoOf($), sessionUsd: usd ?? undefined, ahead: aheadNow(),
+  })
   return { rows: Math.min(40, Math.max(8, lines.length + 1)), columns: wcols }
 }
 let lastSize = ''
@@ -214,12 +264,14 @@ async function writeUi($: EngineInterface, n: Ui) {
 }
 // one entry for every button and hotkey: pure reducer, then persist, redraw, keep the keys on the pane
 // whether the tree shows a collapsed group right now (decides if g has something to open)
-async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolean }> {
+async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolean; workflow: boolean }> {
   const list = (await read($, office)) as OfficeAgent[]
-  return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter }) }
+  return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter }), workflow: hasWorkflow(list) } // workflow: g only stops there while a run exists
 }
 async function dispatch($: EngineInterface, a: string) {
   const ui = await readUi($)
+  // a selection that left the list (agent dropped by the 60-entry cap, /office reset) is cleared by the next action, whichever it is
+  if (ui.selected && !((await read($, office)) as OfficeAgent[]).some(x => x.id === ui.selected)) ui.selected = ''
   const r = applyAction(ui, a, a === 'group' ? await groupCtx($, ui) : {})
   if (r.close) return closeOffice($)
   await writeUi($, r.state)
@@ -252,7 +304,7 @@ export const register: Register = on => {
     await update($, expandedAt, () => start.expanded)
     await update($, modeChosenAt, () => start.modeChosen)
     const m = ((await $.env.get('OFFICE_MODE').catch(() => undefined)) ?? '').trim().toLowerCase()
-    if (['tree', 'grouped', 'cards', 'waterfall'].includes(m)) { await update($, modeAt, () => m); await update($, modeChosenAt, () => true) }
+    if ((MODES as string[]).includes(m)) { await update($, modeAt, () => m); await update($, modeChosenAt, () => true) }
     const vw = ((await $.env.get('OFFICE_VIEW').catch(() => undefined)) ?? '').trim().toLowerCase()
     if (vw === 'map' || vw === 'compact') await update($, viewAt, () => vw)
     const w = parseInt((await $.env.get('OFFICE_WIDTH').catch(() => undefined)) ?? '', 10)
@@ -277,7 +329,7 @@ export const register: Register = on => {
     }
     if (w0 === 'mode' || w0 === 'g') {
       const cur = (await read($, modeAt)) as Mode
-      const m = (['tree', 'grouped', 'cards', 'waterfall'] as Mode[]).includes(arg as Mode) ? (arg as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group', await groupCtx($, await readUi($))).state.mode
+      const m = MODES.includes(arg as Mode) ? (arg as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group', await groupCtx($, await readUi($))).state.mode
       await update($, modeAt, () => m); await update($, modeChosenAt, () => true); $.ui.invalidate('ui.render'); return { text: `Modo: ${m}.` }
     }
     if (w0 === 'search' || w0 === 'buscar') { await update($, queryAt, () => arg); $.ui.invalidate('ui.render'); return { text: arg ? `Busca: ${arg}` : 'Busca limpa.' } }
@@ -334,10 +386,16 @@ export const register: Register = on => {
     const spawnCwd = (e as { cwd?: string }).cwd
     const isolated = isolatedCalls.has(e.tool_use_id)
     const parentCwd = e.parentAgentId ? (await read($, office) as OfficeAgent[]).find(a => a.agentId === e.parentAgentId)?.cwd : undefined
+    // an agent started by a workflow script's agent() carries the run id and its own index (probe 2026-11-05: every agent of
+    // one run shares the SAME tool_use_id, so the id must include the index or the cards would merge)
+    const wfRaw = (e as { workflow?: { runId?: unknown; agentIndex?: unknown } }).workflow
+    const workflow = wfRaw && typeof wfRaw.runId === 'string' && wfRaw.runId.trim() && typeof wfRaw.agentIndex === 'number' && Number.isFinite(wfRaw.agentIndex)
+      ? { runId: wfRaw.runId, agentIndex: wfRaw.agentIndex } : undefined
     const entry: OfficeAgent = {
       cwd: spawnCwd ?? (isolated ? undefined : parentCwd ?? (await $.session.cwd().catch(() => ''))) ?? undefined,
       isolated: isolated && !spawnCwd ? true : undefined,
-      id: e.tool_use_id || `${Date.now()}-${Math.random()}`,
+      id: workflow ? `${e.tool_use_id}:${workflow.runId}:${workflow.agentIndex}` : e.tool_use_id || `${Date.now()}-${Math.random()}`,
+      workflow,
       parentAgentId: e.parentAgentId,
       description: maskText(e.description ?? ''), // masked before it reaches the state (T-004)
       prompt: firstLine(maskText(e.prompt ?? ''), 300), // masked before it reaches the state (T-004)
@@ -438,9 +496,12 @@ export const register: Register = on => {
     const res = yield* next(e)
     const aid = (e as { agentId?: string }).agentId
     try {
-      const add = aid ? usageOf(res) : undefined
+      const add = usageOf(res) // with or without agentId: the main session's own steps feed the session total
       if (aid && add) await update($, office, list => list.map(a => (a.agentId === aid ? (addUsage(a, add) as OfficeAgent) : a)))
-      else if (add) await update($, sessionTokensAt, cur => addSessionTokens(cur ?? undefined, add) ?? null) // main session (no agentId)
+      else if (add) {
+        await update($, sessionTokensAt, cur => addSessionTokens(cur ?? undefined, add) ?? null) // main session (no agentId)
+        bg(refreshUsd($).then(() => $.ui.invalidate('ui.render')))
+      }
     } catch {
       // capture failed: the response is already final and goes on unchanged
     }
@@ -502,23 +563,29 @@ export const register: Register = on => {
     const caps = await capsOf($)
     const attach: string = await read($, attachAt)
     const sidFallback: string = await read($, sidAt)
-    const compactView = {
+    const ioFlag = await captureIoOf($)
+    const usd: number | null = await read($, sessionUsdAt)
+    const compactView: CView = {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
       expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4,
       maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 12,
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
+      model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, ahead: aheadNow(),
     }
-    const ioFlag = await captureIoOf($)
+    // detail screen (view-detail.ts, T-009) for both the compact and the map view; an agent that left the list falls back to the list with a warning
+    const detailOf = (id: string) => detailView(all, id, now, { captureIo: ioFlag })
+    const gone = !!selRaw && !selected
+    const goneWarning: typeof f.lines = gone ? [[{ t: detailOf(selRaw).warning ?? '', fg: '#eab308' }]] : []
     let compactFrame: typeof f.lines | undefined
     if (view === 'compact') {
       if (selected && attach) {
         const text = await Promise.resolve($.fs.read(attach)).then(r => (typeof r === 'string' ? r : '[binário]')).catch(() => '[não foi possível ler o arquivo]')
-        compactFrame = [[{ t: attach, bold: true, attach: '' }], ...previewLines(text, attach, 40)]
-      } else if (selected) compactFrame = detailCompact(all, selected, now, caps, ioFlag)
-      else compactFrame = renderCompact(all, now, compactView)
+        compactFrame = [[{ t: maskText(attach), bold: true, attach: '' }], ...previewLines(text, attach, 40)]
+      } else if (selected) compactFrame = detailOf(selected).lines
+      else compactFrame = [...goneWarning, ...renderCompact(all, now, compactView)]
     }
-    const detail = selected && view !== 'compact' ? detailLines(all, selected, now, vocab, ioFlag) : undefined
+    const detail = selected && view !== 'compact' ? detailOf(selected).lines : undefined
     const act = (a: string) => dispatch($, a)
     const ui = { ...(await readUi($)), selected }
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch
@@ -564,13 +631,13 @@ export const register: Register = on => {
         return (
           <Box flexDirection="row">
             <Box flexDirection="column" width={cols - 49}>{field}{left.map(draw)}{keysRow}</Box>
-            <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{backBtn}{(detailCompact(all, selected, now, caps, ioFlag) ?? []).map(draw)}</Box>
+            <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{backBtn}{detailOf(selected).lines.map(draw)}</Box>
           </Box>
         )
       }
       return (
         <Box flexDirection="column">
-          {selected ? backBtn : field}
+          {selected || gone ? backBtn : field}
           {compactFrame.map(draw)}
           {keysRow}
         </Box>
@@ -587,6 +654,8 @@ export const register: Register = on => {
     }
     return (
       <Box flexDirection="column">
+        {gone ? <Button key="office-back-gone" onPress={() => void act('back')}>{'[← voltar]'}</Button> : null}
+        {goneWarning.map(draw)}
         {f.header.map(draw)}
         {f.body.map(draw)}
         {f.collapsible.length > 1 ? (

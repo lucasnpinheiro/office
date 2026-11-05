@@ -31,6 +31,7 @@ export type AgentRecord = {
   steps?: ToolStep[] // finished tool calls in start order, memory only (T-003), capped by capture.MAX_STEPS
   droppedSteps?: number // steps dropped past the cap
   usage?: Usage // tokens from turn.step; undefined = unknown, never zero
+  workflow?: { runId: string; agentIndex: number } // from the agent.spawn event of a workflow script's agent() (probe 2026-11-05, ADR 0002); no phase, round or name
 }
 export type AgentLike = AgentRecord // alias provisório até as telas migrarem
 

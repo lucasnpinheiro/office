@@ -111,6 +111,21 @@ test('g em árvore sem grupos colapsados pula direto ao próximo modo', async ()
   expect(applyAction(t, 'group', { collapsed: true }).state.expanded).toContain('tree:all')
 })
 
+test('g alcança Custo e Ferramentas; Workflow só entra no ciclo com uma execução em curso (T-008, T-010)', async () => {
+  const cycle = (ctx: { workflow?: boolean }) => {
+    const seen: string[] = []
+    let s = { ...s0, mode: 'tree' as const }
+    for (let i = 0; i < 8; i++) { s = applyAction(s, 'group', { collapsed: false, ...ctx }).state as typeof s; seen.push(s.mode) }
+    return seen
+  }
+  expect(cycle({}).slice(0, 6)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'tree'])
+  expect(cycle({ workflow: false }).slice(0, 6)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'tree'])
+  expect(cycle({ workflow: true }).slice(0, 7)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow', 'tree'])
+  // v continua mapa > árvore > cards > mapa, mesmo depois de g ter passado por Custo
+  const viaCost = applyAction(applyAction(applyAction(s0, 'group').state, 'group').state, 'view').state // cards > waterfall > cost, v do mapa
+  expect(viaCost).toMatchObject({ view: 'compact', mode: 'cost' })
+})
+
 test('v do mapa mantém o modo que o usuário escolheu; sem escolha entra na árvore', async () => {
   const chosen = applyAction(applyAction(s0, 'mode:grouped').state, 'view').state
   expect(chosen).toMatchObject({ view: 'compact', mode: 'grouped' })

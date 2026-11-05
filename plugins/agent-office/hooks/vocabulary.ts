@@ -75,7 +75,7 @@ export const KEY_MAP: KeyEntry[] = [
   { key: 'v', act: 'view', label: 'visão' },
   { key: 'f', act: 'failed', label: 'só falhas' },
   { key: 's', act: 'search', label: 'buscar' },
-  { key: 'g', act: 'group', label: 'modo' }, // cicla tree, grouped, cards, waterfall; colapsado/todos é um estado desse ciclo
+  { key: 'g', act: 'group', label: 'modo' }, // cicla tree, grouped, cards, waterfall, cost, tools e, só com workflow em curso, workflow; colapsado/todos é um estado desse ciclo
   { key: 'o', act: 'sort', label: 'ordenar' },
   { key: 'q', act: 'close', label: 'fechar' },
   { key: 'y', act: 'confirm', label: 'sim', ctx: 'confirm' },

@@ -88,7 +88,7 @@ bash scripts/check-sanitized.sh
 
 - **Map** (default at session start): mind map of the session, its agents and their TodoWrite tasks.
 - **Compact** (`v` from the map): one of four modes, cycled with `g` or set with `/office mode`:
-  `cards` (default), `tree`, `grouped` (siblings collapsed by state), `waterfall` (spans on a shared time axis).
+  `cards` (default), `tree`, `grouped` (siblings collapsed by state; with worktrees, each worktree is a divider with its agents nested under it), `waterfall` (spans on a shared time axis), `cost` (tokens and time per agent; `~$` stays `—` per agent, the session USD shows only when the engine gives it), `tools` (calls per tool) and `workflow` (agents grouped by workflow run id; phases are not available from the engine; `g` stops there only while a run exists).
 - **Detail**: Enter (or a click) on a card; `b` goes back. On a pane 150+ columns wide (110+ in the desktop app) it
   opens as a side panel next to the cards.
 
@@ -123,7 +123,7 @@ search, empty clears it).
 | View | Keys |
 | --- | --- |
 | Map | `v` to compact, `b` back (detail open), `q` close |
-| Compact (cards / tree / grouped / waterfall) | `g` mode, `o` sort, `f` only failures, `s` search, `v` to map, `q` close |
+| Compact (cards / tree / grouped / waterfall / cost / tools / workflow) | `g` mode, `o` sort, `f` only failures, `s` search, `v` to map, `q` close |
 | Detail (narrow pane) | `b` back, `p` / `n` previous / next sibling, `q` close |
 | Detail as side panel | the compact keys plus `b` back |
 | Attachment preview | `b` close preview, `q` close |
@@ -134,7 +134,7 @@ Not possible for a mod: `/` or Esc as keys, opening files externally, kitty/sixe
 ### Commands
 
 `/office` (toggle), `/office start | stop`, `/office view [map|compact]` (no value toggles),
-`/office mode tree|grouped|cards|waterfall`, `/office sort time|state|name`, `/office filter failed|all`,
+`/office mode tree|grouped|cards|waterfall|cost|tools|workflow`, `/office sort time|state|name`, `/office filter failed|all`,
 `/office search <text>` (empty clears), `/office open <id>`, `/office width <cols>` (a request: a docked pane is capped
 at about 45% of the terminal), `/office collapse | expand`, `/office status`, `/office reset` (monitor closed),
 `/office help`. Subcommands are case-insensitive.
@@ -144,7 +144,7 @@ at about 45% of the terminal), `/office collapse | expand`, `/office status`, `/
 | Variable | Effect |
 | --- | --- |
 | `OFFICE_VIEW` | `map` (default) or `compact`: the view at session start |
-| `OFFICE_MODE` | `cards` (default), `tree`, `grouped`, `waterfall` |
+| `OFFICE_MODE` | `cards` (default), `tree`, `grouped`, `waterfall`, `cost`, `tools`, `workflow` |
 | `OFFICE_WIDTH` | requested pane width in columns |
 | `OFFICE_ASCII=1` | ASCII glyphs (also automatic for `TERM=linux\|dumb`, non-UTF-8 locales, legacy Windows conhost) |
 | `NO_COLOR` | monochrome (otherwise truecolor, 256 or 16 colors, detected) |

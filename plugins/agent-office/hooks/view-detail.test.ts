@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detailScreen, progressText } from './view-detail'
+import { detailScreen, detailView, progressText } from './view-detail'
 import { buildGraph, etaOf } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
 import { MASK } from './mask'
@@ -87,4 +87,41 @@ test('AC-030 ETA: 3 concluídos de modelos diferentes não mostram estimativa', 
     mk('d', { model: 'sonnet' }),
   ]
   expect(etaOf(buildGraph(mixed, T0 + 130_000))).toBeUndefined()
+})
+
+// T-009 (revisão): todo texto do agente passa por maskText ao desenhar, mesmo dado antigo ainda sem máscara
+test('AC-027 máscara no detalhe: nome, ferramenta, worktree, pai, filhos, descrição, erro, linha do tempo e arquivos', () => {
+  const SECRET = 'xyz999secretvalue'
+  const parent = mk('p1', { agentId: 'P', description: `Dev: pai token=${SECRET}` })
+  const a = mk('a1', {
+    agentId: 'A', parentAgentId: 'P', description: `Dev: nome token=${SECRET}`, tool: `Bash token=${SECRET}`,
+    git: { worktree: `wt token=${SECRET}`, branch: `br token=${SECRET}` }, status: 'error', error: `falhou token=${SECRET}`,
+    steps: [{ id: 's1', tool: `Tool token=${SECRET}`, label: `rodou token=${SECRET}`, startedAt: T0, durationMs: 1000, io: { input: `in token=${SECRET}`, output: `out token=${SECRET}` } }],
+    files: [`/x/token=${SECRET}.ts`], todos: [{ content: `fazer token=${SECRET}`, status: 'pending' }],
+  })
+  const kid = mk('k1', { agentId: 'K', parentAgentId: 'A', description: `Dev: filho token=${SECRET}` })
+  const v = detailView([parent, a, kid], 'a1', T0 + 5000, { captureIo: true })
+  const out = v.lines.map(l => l.map(s => s.t).join('')).join('\n')
+  expect(out).not.toContain(SECRET)
+  expect(out).toContain(MASK)
+  // o caminho real do anexo continua no segmento clicável (só o texto exibido é mascarado)
+  expect(v.lines.flat().some(s => s.attach === `/x/token=${SECRET}.ts`)).toBe(true)
+})
+
+test('AC-027 detalhe: links de pai e filhos, anexos e tarefas do detalhe anterior continuam', () => {
+  const a = mk('a1', { agentId: 'A', todos: [{ content: 'passo', status: 'in_progress' }], files: ['/x/a.diff'], parentAgentId: 'P' })
+  const v = detailView([mk('p1', { agentId: 'P' }), a, mk('k1', { agentId: 'K', parentAgentId: 'A' }), mk('a2', { agentId: 'B', parentAgentId: 'P' })], 'a1', T0 + 1)
+  const segs = v.lines.flat()
+  expect(segs.filter(s => s.node).map(s => s.node)).toEqual(expect.arrayContaining(['p1', 'k1', 'a2']))
+  expect(segs.some(s => s.hotkey === 'n')).toBe(true)
+  expect(segs.some(s => s.attach === '/x/a.diff')).toBe(true)
+  expect(v.lines.map(l => l.map(s => s.t).join('')).join('\n')).toContain('● passo')
+})
+
+test('AC-027 detalhe com captura ligada mostra entrada/saída mascaradas na linha do tempo', () => {
+  const a = mk('a1', { steps: [{ id: 's1', tool: 'Bash', label: 'ls', startedAt: T0, io: { input: 'ls -la', output: 'total 0' } }] })
+  const on = detailScreen([a], 'a1', T0 + 1, { captureIo: true }).lines.join('\n')
+  expect(on).toContain('entrada: ls -la')
+  expect(on).toContain('saída: total 0')
+  expect(detailScreen([a], 'a1', T0 + 1).lines.join('\n')).not.toContain('entrada:')
 })
