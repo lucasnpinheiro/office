@@ -4,6 +4,7 @@ import { parseDescription, modelLabel, EFFORT_DISPLAY } from './persona'
 import type { AgentRecord } from './office'
 import type { GitInfo } from './git'
 import { HIDE_AFTER_MS } from './office'
+import type { Capabilities } from './capabilities'
 
 export const MAX_DEPTH = 10
 // Quota / rate-limit failures are not agent bugs: they surface as attention items, not failures.
@@ -104,7 +105,7 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
       prev = id
     })
   }
-  const starts = [...g.nodes.values()].filter(n => n.kind !== 'session' && n.start !== undefined).map(n => n.start!)
+  const starts = [...g.nodes.values()].filter(n => n.kind !== 'session' && n.start !== undefined && Number.isFinite(n.start)).map(n => n.start!)
   if (starts.length) root.start = Math.min(...starts)
   return g
 }
@@ -185,14 +186,7 @@ export const maxDepthOf = (g: Graph): number => Math.max(0, ...[...g.nodes.value
 
 // ---------- RunModel (contrato em spec/04-contracts.md) ----------
 export type RunState = 'queued' | 'running' | 'needs-you' | 'stalled' | 'paused' | 'failed' | 'done' | 'stopped'
-export type Surface = 'terminal' | 'app'
-export type CapabilityKey =
-  | 'pause' | 'stop' | 'retry' | 'allow' | 'decline' | 'openInChat'
-  | 'toolTiming' | 'tokensPerAgent' | 'costPerAgent' | 'permissionEvent'
-  | 'workflowEvent' | 'worktreeFromDefinition' | 'commitsAhead'
-  | 'containerWidth' | 'appMotion' | 'reducedMotionSignal'
-export type Verdict = 'yes' | 'no' | 'not-verified'
-export type Capabilities = Record<CapabilityKey, Record<Surface, Verdict>>
+export type { Surface, CapabilityKey, Verdict, Capabilities } from './capabilities'
 
 export type ToolStep = { id: string; tool: string; label: string; startedAt: number; durationMs?: number; ok?: boolean; io?: { input: string; output?: string } }
 export type Usage = { tokens?: number; costUsd?: number }
@@ -242,7 +236,7 @@ export function buildRunModel(agents: readonly AgentRecord[], now: number, caps:
   return {
     nodes,
     roots: nodes.filter(n => n.parentId === undefined).map(n => n.id),
-    attention: [...nodes.filter(n => n.state === 'needs-you'), ...nodes.filter(n => n.state === 'failed')].map(n => n.id),
+    attention: [...nodes.filter(n => n.state === 'needs-you'), ...nodes.filter(n => n.state === 'stalled'), ...nodes.filter(n => n.state === 'failed')].map(n => n.id),
     totals: { running: nodes.filter(n => n.state === 'running').length, done: nodes.filter(n => n.state === 'done').length, of: nodes.length, partial: false },
     caps,
   }
