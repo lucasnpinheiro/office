@@ -2,7 +2,7 @@
 id: T-007
 title: Visão Worktrees com saúde por branch
 type: frontend
-status: TODO
+status: IN_PROGRESS
 progress: 0/3
 updated: 2026-11-05
 depends_on: [T-005, T-006]
