@@ -71,3 +71,15 @@ test('AC-023 worktrees: sem contagem de commits a linha base não aparece', () =
   expect(out).not.toContain('+0')
   expect(out).toContain('feat-a')
 })
+
+// Achado PR 19: branch e caminho vêm do agente/disco e podem carregar segredo; o divisor mascara os dois.
+test('divisor mascara segredo na branch e no nome do worktree vindo do caminho', () => {
+  const secret = 'sk-abcdefghijklmnopqrstuvwx1234'
+  const byBranch = [mk('s1', { cwd: `${R}/wt`, git: { branch: `fix/token=${secret}`, worktree: 'wt' } })]
+  const byPath = [mk('s2', { cwd: `${R}/token=${secret}` })]
+  for (const ag of [byBranch, byPath]) {
+    const out = txt(renderCompact(ag, T + 5000, view()))
+    expect(out).not.toContain(secret)
+  }
+  expect(txt(renderCompact(byBranch, T + 5000, view()))).toContain('⧉')
+})

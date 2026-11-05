@@ -38,14 +38,14 @@ const row = (k: string, v: string): Line => [s(k + ': ', { fg: DIM }), s(v)]
 const title = (t: string): Line => [s(t, { bold: true })]
 
 // Agente que sumiu da lista (saiu do limite, foi resetado): `back` true, a tela chama quem desenha de volta à lista com aviso.
-export function detailView(agents: AgentLike[], id: string, now: number, o: { captureIo?: boolean } = {}): DetailView {
+export function detailView(agents: AgentLike[], id: string, now: number, o: { captureIo?: boolean; ascii?: boolean } = {}): DetailView {
   const a = agents.find(x => x.id === id)
   const g = a ? buildGraph(agents, now) : undefined
   const n = g?.nodes.get(id)
   if (!a || !g || !n) return { lines: [], back: true, warning: GONE }
 
   const nm = (x: Node): string => maskText(x.name)
-  const link = (x: Node): Seg => s(`${nodeView(x.state, { ascii: false, color: true }).glyph} ${nm(x)}`, { fg: stateColor(x.state), node: x.kind === 'agent' ? x.id : undefined })
+  const link = (x: Node): Seg => s(`${nodeView(x.state, { ascii: o.ascii === true, color: true }).glyph} ${nm(x)}`, { fg: stateColor(x.state), node: x.kind === 'agent' ? x.id : undefined })
   const parent = g.nodes.get(n.parentId)
   const parentAgent = parent && parent.kind === 'agent' ? parent : undefined
   const kids = n.children.filter(k => k.kind === 'agent')
@@ -112,7 +112,7 @@ export function detailView(agents: AgentLike[], id: string, now: number, o: { ca
 
 const textOf = (l: Line): string => l.map(x => x.t).join('')
 
-export function detailScreen(agents: AgentLike[], id: string, now: number, o: { captureIo?: boolean } = {}): DetailScreen {
+export function detailScreen(agents: AgentLike[], id: string, now: number, o: { captureIo?: boolean; ascii?: boolean } = {}): DetailScreen {
   const v = detailView(agents, id, now, o)
   return { lines: v.lines.map(textOf), back: v.back, ...(v.warning ? { warning: v.warning } : {}) }
 }

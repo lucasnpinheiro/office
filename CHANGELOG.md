@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased (agent-office, PR 19 findings)
+
+- Security: `+N commits` runs only `rev-parse` / `rev-list` / `symbolic-ref` through `env GIT_CONFIG_NOSYSTEM=1 GIT_OPTIONAL_LOCKS=0
+  git -c core.fsmonitor=false -c core.hooksPath=/dev/null`, and only for the session repo or its `.claude/worktrees/<name>`
+  (textual check; a symlink inside the repo still escapes it). Other cwds omit `+N`.
+- Workflow agents: the probe (2026-11-05) shows `agent.spawn` returns the `agentId` and `SubagentStop` carries it, so the end is
+  matched; a stop that arrives before the spawn resolves is applied afterwards; a workflow agent with no `agentId` ends as
+  "Interrompido" (unknown end) instead of staying active for ever.
+- ETA is dropped when any open agent is of another or unknown model; the worktree divider masks branch, path and base; `f` and
+  `s` are hidden in Cost, Tools and Workflow; detail links honor the ASCII vocabulary.
+
 ## Unreleased (agent-office, T-007 to T-010 integration)
 
 - `agent-office`: the Cost, Tools and Workflow views are reachable with `g` (Workflow only while a workflow run exists);

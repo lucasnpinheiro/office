@@ -84,7 +84,7 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
     const n: Node = {
       id: a.id, parentId: parent.id, name: label,
       persona: p.persona.name, model: model ? modelLabel(model) : '', effort: effort ? EFFORT_DISPLAY[effort]?.label : undefined, kind: 'agent', git: a.git,
-      state: a.status === 'error' ? (isQuotaError(a.error) ? 'attention' : 'failed') : a.status === 'done' ? 'done' : stale ? 'attention' : a.active === false ? 'pending' : 'running',
+      state: a.status === 'error' ? (isQuotaError(a.error) ? 'attention' : 'failed') : a.status === 'done' ? (a.endUnknown ? 'inactive' : 'done') : stale ? 'attention' : a.active === false ? 'pending' : 'running',
       depth: parent.depth + 1, start: a.startedAt, end: a.endedAt, children: [], dependsOn: [],
     }
     if (a.status === 'error') n.error = a.error || 'falha'
@@ -153,8 +153,10 @@ export function elapsedOf(g: Graph, now: number): number {
   return Math.max(0, end - first)
 }
 
-// ETA (AC-030, T-009). Conservative: undefined unless exactly one KNOWN model has >= ETA_MIN_SAMPLES finished agents.
-// remaining = agents of THAT model still pending/running (tasks and other models are not counted; an agent whose
+// ETA (AC-030, T-009). Conservative: undefined unless exactly one KNOWN model has >= ETA_MIN_SAMPLES finished agents AND every
+// open (pending/running) agent is of that same model: an open agent of another or unknown model would run at a pace the samples
+// say nothing about, so the whole forecast is dropped (PR 19 finding) instead of ignoring it.
+// remaining = agents of THAT model still pending/running (tasks are not counted; an agent whose
 // delegate is still open is not counted twice). Parallelism comes only from the observed overlap of the finished
 // samples (max simultaneous): ETA = mean x ceil(remaining / concurrency). No overlap seen = sequential, the slower promise.
 export const ETA_MIN_SAMPLES = 3
@@ -168,13 +170,15 @@ export function etaOf(g: Graph): number | undefined {
   const spans = new Map<string, [number, number][]>()
   const open: Node[] = []
   for (const n of g.nodes.values()) {
-    if (n.kind !== 'agent' || !n.model) continue // unknown model can never be proven the same model
-    if (n.state === 'done' && n.start !== undefined && n.end !== undefined && n.end > n.start) spans.set(n.model, [...(spans.get(n.model) ?? []), [n.start, n.end]])
-    else if (n.state === 'pending' || n.state === 'running') open.push(n)
+    if (n.kind !== 'agent') continue
+    if (n.state === 'pending' || n.state === 'running') open.push(n)
+    else if (!n.model) continue // an unknown model can never be a sample of "the same model"
+    else if (n.state === 'done' && n.start !== undefined && n.end !== undefined && n.end > n.start) spans.set(n.model, [...(spans.get(n.model) ?? []), [n.start, n.end]])
   }
   const ok = [...spans].filter(([, xs]) => xs.length >= ETA_MIN_SAMPLES)
   if (ok.length !== 1) return undefined
   const [model, xs] = ok[0]!
+  if (open.some(n => n.model !== model)) return undefined // different or unknown model still open
   const remaining = open.filter(n => n.model === model && !n.children.some(c => c.kind === 'agent' && (c.state === 'pending' || c.state === 'running'))).length
   if (remaining === 0) return undefined
   const mean = xs.reduce((s, [a, b]) => s + (b - a), 0) / xs.length

@@ -63,12 +63,35 @@ export const AHEAD_TTL_MS = 30_000
 export const AHEAD_TIMEOUT_MS = 2000
 const SAFE_REF = /^[A-Za-z0-9][\w./-]*$/ // a ref nunca começa com "-" (não vira opção do git) e não tem espaço nem shell
 
-export async function aheadOf(run: ProcessRun | undefined, cwd: string, timeoutMs = AHEAD_TIMEOUT_MS): Promise<AheadInfo | undefined> {
-  if (typeof run !== 'function' || !cwd) return undefined
+// Segurança (achado PR 19): o cwd é escolhido pelo agente, que pode escrever .git/config. Defesas, nesta ordem:
+// 1. o git só roda em cwd do repo da sessão ou de um `.claude/worktrees/<nome>` dele (`trustedCwd`);
+// 2. só rev-parse / rev-list / symbolic-ref: leem refs, não leem o índice nem abrem diff, ssh, pager ou filtros;
+// 3. `-c core.fsmonitor=false -c core.hooksPath=/dev/null` por cima do config local, GIT_CONFIG_NOSYSTEM=1 e sem locks opcionais.
+// Risco residual: `trustedCwd` é textual (um symlink dentro do repo da sessão escapa); chaves de config que executam algo em
+// comando de leitura de refs não são conhecidas, mas o git muda e uma nova poderia existir. Config global do usuário vale.
+export const GIT_SAFE_PREFIX: readonly string[] = ['env', 'GIT_CONFIG_NOSYSTEM=1', 'GIT_OPTIONAL_LOCKS=0', 'git', '-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null']
+
+// `<repo>` ou `<repo>/.claude/worktrees/<nome>` para algum repo da sessão; nada de `..`, `.` nem subpasta.
+export function trustedCwd(cwd: string, repos: readonly string[]): boolean {
+  if (!cwd || !cwd.startsWith('/')) return false
+  const segs = cwd.split('/').filter(Boolean)
+  if (segs.some(x => x === '..' || x === '.')) return false
+  const path = '/' + segs.join('/')
+  return repos.some(r => {
+    if (!r || !r.startsWith('/')) return false
+    const rs = '/' + r.split('/').filter(Boolean).join('/')
+    if (path === rs) return true
+    const rest = path.startsWith(rs === '/' ? '/' : rs + '/') ? path.slice(rs === '/' ? 1 : rs.length + 1).split('/') : []
+    return rest.length === 3 && rest[0] === '.claude' && rest[1] === 'worktrees'
+  })
+}
+
+export async function aheadOf(run: ProcessRun | undefined, cwd: string, repos: readonly string[], timeoutMs = AHEAD_TIMEOUT_MS): Promise<AheadInfo | undefined> {
+  if (typeof run !== 'function' || !trustedCwd(cwd, repos)) return undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   const limit = new Promise<undefined>(r => { timer = setTimeout(() => r(undefined), timeoutMs) })
   const git = async (...args: string[]): Promise<string | undefined> => {
-    const r = await run(['git', ...args], { cwd, timeoutMs }).catch(() => undefined)
+    const r = await run([...GIT_SAFE_PREFIX, ...args], { cwd, timeoutMs }).catch(() => undefined)
     return r && r.exitCode === 0 ? String(r.stdout).trim() : undefined
   }
   const work = (async (): Promise<AheadInfo | undefined> => {

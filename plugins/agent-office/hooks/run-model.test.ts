@@ -135,9 +135,13 @@ const H = '🛠️ Pleno · 🪶 Haiku · 🟢 baixo'
 const done = (id: string, from: number, to: number, desc = S): AgentRecord => mk(id, { description: `${desc}: ${id}`, status: 'done', startedAt: T0 + from, endedAt: T0 + to })
 const run = (id: string, desc = S, over: Partial<AgentRecord> = {}): AgentRecord => mk(id, { description: `${desc}: ${id}`, ...over })
 
-test('ETA: só pendentes e rodando do MESMO modelo contam (outro modelo em andamento não entra)', () => {
-  const ag = [done('a', 0, 60_000), done('b', 100_000, 160_000), done('c', 200_000, 260_000), run('s1'), run('h1', H), run('h2', H)]
-  expect(etaOf(buildGraph(ag, T0 + 300_000))).toBe(60_000) // 1 Sonnet restante, sequencial (amostras sem sobreposição)
+test('ETA: só do mesmo modelo conta; qualquer agente aberto de outro modelo ou sem modelo = sem previsão (achado PR 19)', () => {
+  const samples = [done('a', 0, 60_000), done('b', 100_000, 160_000), done('c', 200_000, 260_000)]
+  expect(etaOf(buildGraph([...samples, run('s1')], T0 + 300_000))).toBe(60_000) // 1 Sonnet restante, sequencial (amostras sem sobreposição)
+  expect(etaOf(buildGraph([...samples, run('s1'), run('h1', H), run('h2', H)], T0 + 300_000))).toBeUndefined() // mistura: Haiku aberto
+  expect(etaOf(buildGraph([...samples, run('s1'), mk('u', { description: 'sem persona' })], T0 + 300_000))).toBeUndefined() // modelo desconhecido aberto
+  const open = (st: 'pending' | 'running') => mk('h', { description: `${H}: h`, active: st === 'running' ? undefined : false })
+  expect(etaOf(buildGraph([...samples, run('s1'), open('pending')], T0 + 300_000))).toBeUndefined()
 })
 
 test('ETA: só agentes de outro modelo restando = nada a prever', () => {

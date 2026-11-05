@@ -125,3 +125,14 @@ test('AC-027 detalhe com captura ligada mostra entrada/saída mascaradas na linh
   expect(on).toContain('saída: total 0')
   expect(detailScreen([a], 'a1', T0 + 1).lines.join('\n')).not.toContain('entrada:')
 })
+
+// Achado PR 19: os links (pai, filhos, bloqueios, irmãos) usam o glifo do vocabulário, ASCII quando pedido.
+test('detalhe: links de pai e filhos honram o vocabulário ASCII', () => {
+  const ag = [mk('p1', { agentId: 'P' }), mk('a1', { agentId: 'A', parentAgentId: 'P' }), mk('k1', { agentId: 'K', parentAgentId: 'A' })]
+  const links = (o: { ascii?: boolean }) => detailView(ag, 'a1', T0 + 1, o).lines.flat().filter(x => x.node).map(x => x.t)
+  expect(links({}).every(t => /^\S+ /.test(t))).toBe(true)
+  const asc = links({ ascii: true })
+  expect(asc.length).toBeGreaterThan(0)
+  for (const t of asc) expect(t).toMatch(/^(\.\.|\[\S+\]|\|\|) /)
+  expect(asc.join('')).not.toMatch(/[⠹○✓✗▲■]/u)
+})

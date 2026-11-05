@@ -54,7 +54,9 @@ export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
   if (s.searching) return []
   // Letras e rótulos vêm do KEY_MAP único (vocabulary.ts), não de literais por tela.
   const hk = (act: string): Hotkey => ({ key: keyOf(act) ?? '', label: labelOf(act) ?? act, act })
-  const list: Hotkey[] = [hk('group'), hk('sort'), hk('failed'), hk('search'), hk('view')]
+  // Custo, Ferramentas e Workflow não passam pelo filtro de falhas nem pela busca: f e s não são desenhados nem ligados ali.
+  const filterable = s.mode !== 'cost' && s.mode !== 'tools' && s.mode !== 'workflow'
+  const list: Hotkey[] = [hk('group'), hk('sort'), ...(filterable ? [hk('failed'), hk('search')] : []), hk('view')]
   const back: Hotkey = { ...hk('back'), label: s.attach ? 'fechar preview' : hk('back').label }
   const close = hk('close')
   const view = hk('view')
