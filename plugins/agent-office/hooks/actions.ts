@@ -1,7 +1,7 @@
 // Pure UI reducer for the pane's buttons and hotkeys, so every action is testable without a surface.
 import { DEFAULT_MODE, NEXT_MODE } from './compact'
 import type { Mode } from './compact'
-import { keyOf } from './vocabulary'
+import { keyOf, labelOf } from './vocabulary'
 
 export type Ui = {
   view: 'compact' | 'map'; mode: Mode; filter: 'all' | 'failed'; sort: 'time' | 'state' | 'name'
@@ -38,15 +38,13 @@ export function applyAction(s: Ui, a: string): { state: Ui; close?: true } {
 export type Hotkey = { key: string; label: string; act: string }
 export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
   if (s.searching) return []
-  // Letras vêm do KEY_MAP único (vocabulary.ts), não de literais por tela.
-  const k = (act: string, fallback: string): string => keyOf(act) ?? fallback
-  const list: Hotkey[] = [
-    { key: k('group', 'g'), label: 'modo', act: 'group' }, { key: 'o', label: 'ordenar', act: 'sort' }, { key: k('failed', 'f'), label: 'só falhas', act: 'failed' },
-    { key: k('search', 's'), label: 'buscar', act: 'search' }, { key: k('view', 'v'), label: 'visão', act: 'view' },
-  ]
-  const back: Hotkey = { key: k('back', 'b'), label: s.attach ? 'fechar preview' : 'voltar', act: 'back' }
-  const close: Hotkey = { key: k('close', 'q'), label: 'fechar', act: 'close' }
-  if (s.view === 'map') return s.selected ? [{ key: k('view', 'v'), label: 'visão', act: 'view' }, back, close] : [{ key: k('view', 'v'), label: 'visão', act: 'view' }, close]
+  // Letras e rótulos vêm do KEY_MAP único (vocabulary.ts), não de literais por tela.
+  const hk = (act: string): Hotkey => ({ key: keyOf(act) ?? '', label: labelOf(act) ?? act, act })
+  const list: Hotkey[] = [hk('group'), hk('sort'), hk('failed'), hk('search'), hk('view')]
+  const back: Hotkey = { ...hk('back'), label: s.attach ? 'fechar preview' : hk('back').label }
+  const close = hk('close')
+  const view = hk('view')
+  if (s.view === 'map') return s.selected ? [view, back, close] : [view, close]
   if (s.selected && !side) return [back, close]
   return s.selected ? [...list, back, close] : [...list, close]
 }

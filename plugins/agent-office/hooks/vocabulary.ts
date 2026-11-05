@@ -1,6 +1,7 @@
 // Vocabulário único do monitor: estados (Padrão, spec/05-ui-design.md), tokens de cor, glifos ASCII e o mapa de teclas.
 // Pure: sem engine, sem relógio, sem env global (o caller passa o objeto de ambiente).
-import type { RunState } from './run-model'
+import { RUN_STATE } from './run-model'
+import type { RunState, State } from './run-model'
 import { canUse } from './capabilities'
 import type { Capabilities, CapabilityKey, Surface } from './capabilities'
 
@@ -44,6 +45,15 @@ export function stateView(state: string, v: Vocab, palette: Palette): StateView 
   return { label: spec.label, glyph: v.ascii ? spec.ascii : spec.glyph, color: v.color ? spec[palette] : undefined, known: true }
 }
 
+// Estado do grafo (State, legado de monitor.ts) para a linha da tabela. Desconhecido não lança: vira `?` em muted.
+export function nodeView(state: string, v: Vocab, palette: Palette = 'dark'): StateView {
+  return stateView((RUN_STATE as Record<string, RunState | undefined>)[state] ?? state, v, palette)
+}
+// Cor de um State do grafo (paleta escura); desconhecido = muted.
+export const stateColor = (state: string): string => nodeView(state, { ascii: false, color: true }).color!
+// STATE_COLOR derivado da tabela (monitor.ts re-exporta).
+export const STATE_COLORS = Object.fromEntries((Object.keys(RUN_STATE) as State[]).map(s => [s, STATE_TABLE[RUN_STATE[s]].dark])) as Record<State, string>
+
 // Mapa de teclas único: uma letra (ou dígito) por ação, por contexto. Enter e Esc não entram (Esc nunca chega).
 // `cap` = capability que precisa ser `yes` na superfície; sem ela o controle não é desenhado nem ligado.
 export type KeyEntry = { key: string; act: string; label: string; ctx?: 'view' | 'confirm' | 'decision'; cap?: CapabilityKey }
@@ -62,7 +72,8 @@ export const KEY_MAP: KeyEntry[] = [
   { key: 'v', act: 'view', label: 'visão' },
   { key: 'f', act: 'failed', label: 'só falhas' },
   { key: 's', act: 'search', label: 'buscar' },
-  { key: 'g', act: 'group', label: 'colapsados ou todos' },
+  { key: 'g', act: 'group', label: 'modo' }, // cicla tree, grouped, cards, waterfall; colapsado/todos é um estado desse ciclo
+  { key: 'o', act: 'sort', label: 'ordenar' },
   { key: 'q', act: 'close', label: 'fechar' },
   { key: 'y', act: 'confirm', label: 'sim', ctx: 'confirm' },
   { key: 'n', act: 'cancel', label: 'não', ctx: 'confirm' },
@@ -70,6 +81,11 @@ export const KEY_MAP: KeyEntry[] = [
   { key: '2', act: 'option2', label: 'opção 2', ctx: 'decision' },
   { key: '3', act: 'option3', label: 'opção 3', ctx: 'decision' },
 ]
+
+// Rótulo de uma ação no contexto de visão.
+export function labelOf(act: string, ctx: KeyEntry['ctx'] = 'view'): string | undefined {
+  return KEY_MAP.find(e => e.act === act && (e.ctx ?? 'view') === ctx)?.label
+}
 
 // Letra de uma ação no contexto de visão (a mesma nas duas superfícies).
 export function keyOf(act: string, ctx: KeyEntry['ctx'] = 'view'): string | undefined {

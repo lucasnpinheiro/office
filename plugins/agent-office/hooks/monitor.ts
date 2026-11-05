@@ -7,6 +7,8 @@ import type { AgentRecord as AgentLike } from './office'
 import { HIDE_AFTER_MS } from './office'
 import { buildGraph, hiddenIds, hasRunningDescendant, MAX_DEPTH, isQuotaError, ATTENTION_AFTER_MS, isOpenNode, progressOf, overallProgress, durationOf, elapsedOf, etaOf, maxDepthOf } from './run-model'
 import type { Node, Graph, State, Kind, ToolNote } from './run-model'
+import { STATE_COLORS, nodeView, stateColor } from './vocabulary'
+import type { Vocab } from './vocabulary'
 
 // Provisório (T-002): as telas ainda importam daqui; T-013 remove o que ficar sem chamador.
 export { buildGraph, hiddenIds, MAX_DEPTH, isQuotaError, ATTENTION_AFTER_MS, isOpenNode, progressOf, overallProgress, durationOf, elapsedOf, etaOf, maxDepthOf }
@@ -16,9 +18,7 @@ export type { Node, Graph, State, Kind, ToolNote }
 export type Seg = { t: string; fg?: string; bold?: boolean; dim?: boolean; node?: string; toggle?: string; attach?: string; act?: string; hotkey?: string; btn?: true; variant?: 'primary' | 'secondary' } // node: click opens that agent's detail; toggle: click expands/collapses its branch
 export type Line = Seg[]
 
-export const STATE_COLOR: Record<State, string> = {
-  done: '#22c55e', running: '#3b82f6', attention: '#eab308', pending: '#e5e7eb', inactive: '#6b7280', failed: '#ef4444',
-}
+export const STATE_COLOR: Record<State, string> = STATE_COLORS // derivado de vocabulary.STATE_TABLE
 const DIM = '#9ca3af'
 const CONNECTOR = '#4b5563'
 const HEADER = '#6b7280'
@@ -125,8 +125,10 @@ export function progressBar(frac: number, cells = 10): string {
   return '▰'.repeat(f) + '▱'.repeat(cells - f)
 }
 
-export function stateIcon(s: State): string {
-  return s === 'failed' ? '✗ ' : s === 'done' ? '✓ ' : s === 'running' ? '● ' : s === 'attention' ? '! ' : s === 'inactive' ? '◌ ' : '○ '
+// Glifo da tabela única (vocabulary.STATE_TABLE) mais um espaço; coluna ASCII quando `vocab.ascii`.
+const DEFAULT_VOCAB: Vocab = { ascii: false, color: true }
+export function stateIcon(s: State, vocab: Vocab = DEFAULT_VOCAB): string {
+  return nodeView(s, vocab).glyph + ' '
 }
 
 const pctText = (f: number | undefined) => (f === undefined ? '—' : `${Math.round(f * 100)}%`)
@@ -141,6 +143,7 @@ export type View = {
   sessionId?: string
   git?: GitInfo // branch/worktree of the session's own cwd
   sessionTool?: ToolNote
+  vocab?: Vocab // glifos ASCII e cor (OFFICE_ASCII, NO_COLOR); ausente = Unicode com cor
   thumbs?: boolean // opt-in browser thumbnails; false = no change at all
 }
 
@@ -152,7 +155,7 @@ function nodeBox(c: Ctx, n: Node): { lines: Line[]; cr: number } {
   const dur = fmtMMSS(n.kind === 'session' ? elapsedOf(g, now) : durationOf(n, now))
   // done but a descendant still runs: keep the green done state, pulse the border blue/green with dashed edges
   const waiting = n.state === 'done' && hasRunningDescendant(n)
-  const color = waiting ? mixHex(STATE_COLOR.done, STATE_COLOR.running, breath(v.frame)) : STATE_COLOR[n.state]
+  const color = waiting ? mixHex(STATE_COLOR.done, STATE_COLOR.running, breath(v.frame)) : stateColor(n.state)
   const wt = n.kind === 'agent' && !!n.git?.worktree
   const edge = waiting ? '┄' : '─'
   const deps: Line[] = n.dependsOn.length
@@ -160,13 +163,13 @@ function nodeBox(c: Ctx, n: Node): { lines: Line[]; cr: number } {
     : []
 
   if (n.kind === 'task') {
-    const l1 = padLine([{ t: stateIcon(n.state), fg: color }, { t: truncRunes(n.name, boxW - 2), fg: color }], boxW)
+    const l1 = padLine([{ t: stateIcon(n.state, v.vocab), fg: color }, { t: truncRunes(n.name, boxW - 2), fg: color }], boxW)
     const who = [n.persona, n.model, n.effort].filter(Boolean).join(' · ')
     const l2 = padLine([{ t: truncRunes(`${pct}  ${dur}${who ? '  ' + who : ''}`, boxW), fg: DIM }], boxW)
     return { lines: [l1, l2, ...deps], cr: 0 }
   }
   const hidden = v.collapsed.has(n.id) && n.children.length > 0 ? ` +${n.children.length}` : ''
-  const icon = stateIcon(n.state)
+  const icon = stateIcon(n.state, v.vocab)
   const canToggle = n.children.length > 0
   const tog = canToggle ? 2 : 0
   const name = truncRunes(n.name, inner - len(icon) - len(hidden) - tog)
@@ -238,7 +241,7 @@ function connector(parentX: number, kids: { x: number; state: State }[], width: 
   }
   for (const k of kids) {
     const run = k.state === 'running'
-    bus[k.x] = { ...bus[k.x]!, fg: run ? RUN : STATE_COLOR[k.state] }
+    bus[k.x] = { ...bus[k.x]!, fg: run ? RUN : stateColor(k.state) }
     if (run) {
       for (let x = Math.min(parentX, k.x); x <= Math.max(parentX, k.x); x++) {
         const cur = bus[x]!
@@ -314,23 +317,27 @@ function levelCounts(c: Ctx, n: Node, d: number, acc: number[]): number[] {
 
 export const EMPTY_MESSAGE = 'Aguardando agentes… use o Claude normalmente'
 
-const LEGEND_ITEMS: [string, State][] = [
-  ['● Concluído', 'done'], ['┄ Concluído · aguarda filhos', 'done'], ['● Executando', 'running'], ['● Atenção', 'attention'],
-  ['● Pendente', 'pending'], ['● Inativo', 'inactive'], ['✗ Falha', 'failed'],
-]
 const WT_LEGEND = '⧉ Worktree'
-export function legendLine(): Line {
-  return [...LEGEND_ITEMS.flatMap(([t, s], i) => [...(i ? sp(2) : []), { t, fg: STATE_COLOR[s] } as Seg]), ...sp(2), { t: WT_LEGEND, fg: WORKTREE_COLOR } as Seg]
+// Legenda: glifo e rótulo da tabela única; "aguarda filhos" é o único texto próprio.
+function legendItems(vocab: Vocab): [string, State][] {
+  const item = (s: State) => { const x = nodeView(s, vocab); return `${x.glyph} ${x.label}` }
+  return [
+    [item('done'), 'done'], [`${vocab.ascii ? '.' : '┄'} ${nodeView('done', vocab).label} · aguarda filhos`, 'done'], [item('running'), 'running'],
+    [item('attention'), 'attention'], [item('pending'), 'pending'], [item('inactive'), 'inactive'], [item('failed'), 'failed'],
+  ]
+}
+export function legendLine(vocab: Vocab = DEFAULT_VOCAB): Line {
+  return [...legendItems(vocab).flatMap(([t, s], i) => [...(i ? sp(2) : []), { t, fg: stateColor(s) } as Seg]), ...sp(2), { t: WT_LEGEND, fg: WORKTREE_COLOR } as Seg]
 }
 
 // Legend + depth on one line when they fit; otherwise the legend wraps by item and depth gets its own line.
-export function footerLines(w: number, depth: Line): Line[] {
-  const one = legendLine()
+export function footerLines(w: number, depth: Line, vocab: Vocab = DEFAULT_VOCAB): Line[] {
+  const one = legendLine(vocab)
   if (lineWidth(one) + 2 + lineWidth(depth) <= w) return [spread(one, depth, w)]
   const out: Line[] = []
   let cur: Line = []
-  for (const [t, s] of LEGEND_ITEMS) {
-    const item: Seg = { t, fg: STATE_COLOR[s] }
+  for (const [t, s] of legendItems(vocab)) {
+    const item: Seg = { t, fg: stateColor(s) }
     if (cur.length && lineWidth(cur) + 2 + len(t) > w) { out.push(cur); cur = [] }
     cur = [...cur, ...(cur.length ? sp(2) : []), item]
   }
@@ -343,7 +350,7 @@ export function footerLines(w: number, depth: Line): Line[] {
 
 // Detail view of one agent: what the Office knows (persona, state, prompt, todos, activity, files).
 // Claude Code exposes no transcript API to mods, so this is the monitor's own record of the agent.
-export function detailLines(agents: AgentLike[], id: string, now: number): Line[] | undefined {
+export function detailLines(agents: AgentLike[], id: string, now: number, vocab: Vocab = DEFAULT_VOCAB): Line[] | undefined {
   const a = agents.find(x => x.id === id)
   if (!a) return undefined
   const g = buildGraph(agents, now)
@@ -351,9 +358,9 @@ export function detailLines(agents: AgentLike[], id: string, now: number): Line[
   if (!n) return undefined
   const row = (label: string, value: string): Line => [{ t: label + ': ', fg: DIM }, { t: value }]
   const out: Line[] = [
-    [{ t: stateIcon(n.state), fg: STATE_COLOR[n.state] }, { t: n.name, bold: true }],
+    [{ t: stateIcon(n.state, vocab), fg: stateColor(n.state) }, { t: n.name, bold: true }],
     [{ t: [n.persona, n.model, n.effort].filter(Boolean).join(' · '), fg: DIM }],
-    row('Estado', n.state), row('Duracao', fmtMMSS(durationOf(n, now))), row('Descricao', a.description),
+    row('Estado', nodeView(n.state, vocab).label), row('Duracao', fmtMMSS(durationOf(n, now))), row('Descricao', a.description),
   ]
   if (n.git) for (const t of gitLabel(n.git) ?? []) out.push([{ t, fg: DIM }])
   if (n.tool) out.push(row('Agora', n.tool))
@@ -392,7 +399,7 @@ export function renderMonitor(agents: AgentLike[], now: number, v: View): Frame 
     [{ t: '╰' + '─'.repeat(inner) + '╯', fg: HEADER }],
   ]
   const depth: Line = [{ t: `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, fg: DIM }]
-  const footer: Line[] = footerLines(w, depth)
+  const footer: Line[] = footerLines(w, depth, v.vocab)
 
   let body: Line[]
   if (agents.length === 0) {
@@ -422,7 +429,14 @@ export function renderMonitor(agents: AgentLike[], now: number, v: View): Frame 
     .filter(a => a.shot?.has && g.nodes.get(a.id) && ['running', 'attention'].includes(g.nodes.get(a.id)!.state) && !gone.has(a.id))
     .slice(-fit)
     .map(a => ({ id: a.id, name: g.nodes.get(a.id)!.name, host: a.shot!.host ?? '', columns: THUMB_COLS, rows: THUMB_ROWS, alt: `[tela: ${a.shot!.host ?? 'browser'}]` }))
-  return { header, body: body.map(l => truncLine(l, w)), footer, lines, thumbs, collapsible }
+  const frame: Frame = { header, body: body.map(l => truncLine(l, w)), footer, lines, thumbs, collapsible }
+  return v.vocab?.color === false ? noColor(frame) : frame
+}
+
+// NO_COLOR: nenhuma cor em nenhum trecho (estados, bordas, legenda, dicas).
+const stripLine = (l: Line): Line => l.map(s => (s.fg === undefined ? s : { ...s, fg: undefined }))
+function noColor(f: Frame): Frame {
+  return { ...f, header: f.header.map(stripLine), body: f.body.map(stripLine), footer: f.footer.map(stripLine), lines: f.lines.map(stripLine) }
 }
 
 // Size the pane's content wants: rows = rendered lines, columns = widest line (natural layout at up to 100 cols).

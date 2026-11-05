@@ -58,7 +58,8 @@ Cor clara dos estados neutros vem de `muted`; o canvas só lista a escura para e
 | `v` | visão | `a` | abrir no chat |
 | `f` | falhas | `y` | copiar; em confirmação, sim |
 | `s` | buscar (`/` é recusada) | `n` | em confirmação, não |
-| `g` | colapsados ou todos | `q` | fechar |
+| `g` | modo: cicla tree, grouped, cards, waterfall; colapsados ou todos é um estado desse ciclo | `q` | fechar |
+| `o` | ordenar: tempo, estado, nome | | |
 | `1` `2` `3` | opções na tela Decisões | | |
 
 ## Larguras (Foundations5, Responsive5)
