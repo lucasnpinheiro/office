@@ -20,7 +20,7 @@ test('failure is red and carries an explicit cross; colors per state', () => {
   const f = renderMonitor([mk('c', { status: 'error', endedAt: T0 + 9 })], T0 + 10, view())
   const seg = f.body.flat().find(s => s.t.includes('✗'))!
   expect(seg.fg).toBe(STATE_COLOR.failed)
-  expect(STATE_COLOR).toEqual({ done: '#22c55e', running: '#3b82f6', attention: '#eab308', pending: '#e5e7eb', inactive: '#6b7280', failed: '#ef4444' })
+  expect(STATE_COLOR).toEqual({ done: '#6FD08C', running: '#7FA9FF', attention: '#F2B84B', pending: '#A9ADB5', inactive: '#A9ADB5', failed: '#FF8A80' })
 })
 
 test('done card with a running descendant: dashed border pulsing blue/green, cascaded up the chain', () => {
@@ -29,7 +29,7 @@ test('done card with a running descendant: dashed border pulsing blue/green, cas
   const f0 = dashedTops(0), f1 = dashedTops(PULSE_FRAMES / 2)
   expect(f0.length).toBe(2) // a and b: done, each with a running descendant; c runs with a plain border
   expect(f0[0]!.fg).not.toBe(f1[0]!.fg)
-  expect(new Set([f0[0]!.fg, f1[0]!.fg])).toEqual(new Set([STATE_COLOR.done, STATE_COLOR.running]))
+  expect(new Set([f0[0]!.fg, f1[0]!.fg])).toEqual(new Set([STATE_COLOR.done.toLowerCase(), STATE_COLOR.running.toLowerCase()])) // mixHex devolve minúsculas
 })
 
 test('done card without running descendants keeps the plain green border', () => {
@@ -124,7 +124,7 @@ test('counters: no Estimativa 00:00:00 when nothing is left to estimate', () => 
 
 test('legend wraps instead of truncating on narrow panes', () => {
   const t = text([mk('a')], T0 + 5000, { width: 50 })
-  for (const w of ['Concluído', 'Executando', 'Atenção', 'Pendente', 'Inativo', 'Falha']) expect(t).toContain(w)
+  for (const w of ['Concluído', 'Rodando', 'Parado sem sinal', 'Na fila', 'Interrompido', 'Falhou']) expect(t).toContain(w)
 })
 
 test('depth clamps at 10 and the footer shows N/10 and the legend', () => {
@@ -133,7 +133,7 @@ test('depth clamps at 10 and the footer shows N/10 and the legend', () => {
   expect(maxDepthOf(g)).toBe(MAX_DEPTH)
   const t = text(chain, T0, { width: 300 })
   expect(t).toContain('Níveis de profundidade: 10/10')
-  expect(t).toContain('● Concluído  ┄ Concluído · aguarda filhos  ● Executando  ● Atenção  ● Pendente  ● Inativo  ✗ Falha')
+  expect(t).toContain('✓ Concluído  ┄ Concluído · aguarda filhos  ⠹ Rodando  ▲ Parado sem sinal  ○ Na fila  ■ Interrompido  ✗ Falhou')
   expect(text([mk('a')])).toContain('Níveis de profundidade: 1/10')
 })
 

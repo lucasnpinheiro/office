@@ -5,6 +5,7 @@ import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, 
   truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
+import { nodeView, stateColor, keyOf, labelOf } from './vocabulary'
 
 export { isQuotaError }
 
@@ -16,7 +17,7 @@ export function detectCaps(env: Record<string, string | undefined>, o: { isTTY?:
   const term = (env.TERM ?? '').toLowerCase()
   const loc = env.LC_ALL || env.LC_CTYPE || env.LANG || ''
   const legacy = env.OS === 'Windows_NT' && !env.WT_SESSION && !env.TERM_PROGRAM && !env.ConEmuANSI && !env.ANSICON
-  const ascii = !!o.ascii || truthy(env.OFFICE_ASCII) || term === 'linux' || term === 'dumb' || (loc !== '' && !/utf-?8/i.test(loc)) || legacy
+  const ascii = !!o.ascii || truthy(env.OFFICE_ASCII) || truthy(env.NO_COLOR) || term === 'linux' || term === 'dumb' || (loc !== '' && !/utf-?8/i.test(loc)) || legacy
   const tty = o.isTTY !== false
   const color: Caps['color'] = truthy(env.NO_COLOR) || !tty || term === 'dumb' ? 'mono'
     : /truecolor|24bit/i.test(env.COLORTERM ?? '') ? 'truecolor' : term.includes('256color') ? '256' : '16'
@@ -45,9 +46,11 @@ export const sortNodes = (ns: Node[], sort: CView['sort'] = 'time'): Node[] =>
 export const layoutLevel = (w: number): 'full' | 'abbr' | 'line' => (w >= 100 ? 'full' : w >= 50 ? 'abbr' : 'line')
 
 // ---------- glyphs ----------
-const GL_U: Record<State, string> = { running: '●', attention: '▲', failed: '✗', pending: '○', done: '✓', inactive: '◌' }
-const GL_A: Record<State, string> = { running: '*', attention: '!', failed: 'x', pending: 'o', done: 'v', inactive: '-' }
-const glyph = (c: Caps, s: State) => (c.ascii ? GL_A : GL_U)[s]
+// Glifo e rótulo vêm da tabela única (vocabulary.STATE_TABLE); estado desconhecido vira `?` em muted (AC-016).
+const vocabOf = (c: Caps) => ({ ascii: c.ascii, color: c.color !== 'mono' })
+const glyph = (c: Caps, s: string) => nodeView(s, vocabOf(c)).glyph
+export const stateGlyph = glyph
+const stateLabel = (c: Caps, s: string) => nodeView(s, vocabOf(c)).label
 type Box = { tl: string; tr: string; bl: string; br: string; v: string; h: string }
 export const boxChars = (c: Caps): Box =>
   c.numbered ? { tl: '+', tr: '+', bl: '+', br: '+', v: '|', h: '-' }
@@ -55,7 +58,6 @@ export const boxChars = (c: Caps): Box =>
       : { tl: '╭', tr: '╮', bl: '╰', br: '╯', v: '│', h: '─' }
 const BAR = (c: Caps) => (c.ascii ? ['#', '.'] : ['█', '▒']) as [string, string]
 const DIM = '#9ca3af'
-const LABEL: Record<State, string> = { running: 'Em execução', attention: 'Atenção', failed: 'Falhas', pending: 'Pendentes', done: 'Concluídos', inactive: 'Inativos' }
 
 export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall'
 export const DEFAULT_MODE: Mode = 'cards'
@@ -120,7 +122,7 @@ export function statusText(agents: AgentLike[], now: number, ascii = false): str
   const active = [...g.nodes.values()].filter(n => n.kind === 'agent' && isOpenNode(n))
   const p = overallProgress(g)
   const chip = active.length ? ` · @ ${truncRunes(active[active.length - 1]!.name, 20)}` : ''
-  const t = `${ascii ? '*' : '●'} ${active.length} ativos · ${p === undefined ? '—' : Math.round(p * 100) + '%'}${chip}`
+  const t = `${nodeView('running', { ascii, color: true }).glyph} ${active.length} ativos · ${p === undefined ? '—' : Math.round(p * 100) + '%'}${chip}`
   return ascii ? asciiText(t) : t
 }
 
@@ -185,7 +187,7 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
     seg(c, ` ${glyph(c, 'failed')} ${bad}`, STATE_COLOR.failed),
     seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}`, DIM)]
   const geral: Line = [seg(c, 'Geral '), ...segBar(g, c, layoutLevel(w) === 'full' ? 20 : 10), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'} · `),
-    seg(c, 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna agrupado', DIM)]
+    seg(c, keyOf('group') ?? 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna agrupado', DIM)]
   return [...ROUND_BOX(c, w, left, right), fit(geral, w)]
 }
 
@@ -203,10 +205,9 @@ function filterBar(g: Graph, v: CView): Line {
 function footer(g: Graph, v: CView, hint = ''): Line[] {
   const c = v.caps
   const states: State[] = ['done', 'running', 'attention', 'pending', 'failed']
-  const word: Record<State, string> = { done: 'ok', running: 'rodando', attention: 'atenção', pending: 'pendente', failed: 'falha', inactive: 'inativo' }
-  const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${word[s]}`, STATE_COLOR[s])])
+  const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${stateLabel(c, s)}`, stateColor(s))])
   const out: Line[] = []
-  if (hint) out.push(...ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, 's buscar · o ordenar', DIM)]))
+  if (hint) out.push(...ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, `${keyOf('search')} ${labelOf('search')} · ${keyOf('sort')} ${labelOf('sort')}`, DIM)]))
   out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], fit(legend, v.width))
   if (v.mode === 'cards') out.push(fit([seg(c, c.ascii ? ": |-:-: ' barramento pai-irmãos · == worktree ==" : '┊ ├┬┬ ╰ barramento pai→irmãos · ━━ worktree: nome ━━ divisor', DIM)], v.width))
   if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
@@ -219,7 +220,7 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const row = (n: Node, prefix: string, label?: { name: string; extra?: string }): Line => {
     const name = label?.name ?? nm.get(n.id) ?? n.name
     const right = n.kind === 'task' ? metric(n) : `${label?.extra ?? metric(n)}  ${fmtMMSS(durationOf(n, now))}`
-    const left: Line = [seg(c, prefix, DIM), seg(c, glyph(c, n.state) + ' ', STATE_COLOR[n.state], { node: n.kind === 'agent' ? n.id : undefined }),
+    const left: Line = [seg(c, prefix, DIM), seg(c, glyph(c, n.state) + ' ', stateColor(n.state), { node: n.kind === 'agent' ? n.id : undefined }),
       seg(c, name, undefined, { bold: n.kind === 'agent', node: n.kind === 'agent' ? n.id : undefined })]
     const meta = lvl === 'full' && n.kind === 'agent' ? [n.persona, n.model, n.effort].filter(Boolean).join('·') : ''
     const room = v.width - strWidth(right) - 2
@@ -250,8 +251,8 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
       if (it.group) {
         const gr = it.group, open = v.expanded.has(gr.key)
         const med = fmtMMSS(median(gr.ms.map(m => durationOf(m, now))))
-        out.push(fit([seg(c, pre, DIM), seg(c, glyph(c, gr.state) + ' ', STATE_COLOR[gr.state]),
-          seg(c, `${LABEL[gr.state]} ×${gr.ms.length}`, undefined, { bold: true, act: `grp:${gr.key}` }),
+        out.push(fit([seg(c, pre, DIM), seg(c, glyph(c, gr.state) + ' ', stateColor(gr.state)),
+          seg(c, `${stateLabel(c, gr.state)} ×${gr.ms.length}`, undefined, { bold: true, act: `grp:${gr.key}` }),
           seg(c, `  mediana ${med}  ${open ? '[-]' : '[+]'}`, DIM, { act: `grp:${gr.key}` })], v.width))
         if (open) gr.ms.forEach((m, j) => out.push(row(m, nxt + (j === gr.ms.length - 1 ? br.last : br.mid))))
       } else {
@@ -320,7 +321,7 @@ function spanBar(n: Node, t0: number, tot: number, now: number, cells: number, c
   const st = n.start ?? t0, en = n.end ?? now
   const e0 = Math.round(((st - t0) / tot) * cells * 8)
   const e1 = Math.max(e0 + 1, Math.round((e0 / 8 + (((en - st) / tot) * cells) * k) * 8))
-  const col_ = STATE_COLOR[n.state], run = n.state === 'running'
+  const col_ = stateColor(n.state), run = n.state === 'running'
   const out: Seg[] = []
   const runChars = (len: number) => {
     const full = Math.floor(len / 8), rem = len % 8
@@ -346,7 +347,7 @@ const timeline = (g: Graph, now: number) => {
 // Card anatomy (design): name, persona · model, tool/status row, bar + metric + time. Border by state.
 const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: STATE_COLOR.failed, attention: STATE_COLOR.attention, done: '#4b5563', pending: '#4b5563', inactive: '#4b5563' }
 function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number): Line[] {
-  const b = boxChars(c), inner = CARD_W - 2, col_ = STATE_COLOR[n.state], edge = BORDER[n.state]
+  const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
   const id = n.id
   const body = (l: Line): Line => [seg(c, b.v, edge), ...fit([...l, ...sp(inner)], inner), seg(c, b.v, edge)]
@@ -478,7 +479,7 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
     for (const k of n.children.filter(x => x.kind === 'agent' && keep.has(x.id))) {
       const grow = growth(c, k, idx++, now)
       const [ob, cb] = c.ascii ? ['|', '|'] : ['▕', '▏']
-      out.push(fit([seg(c, glyph(c, k.state) + ' ', STATE_COLOR[k.state], { node: k.id }),
+      out.push(fit([seg(c, glyph(c, k.state) + ' ', stateColor(k.state), { node: k.id }),
         seg(c, padWidth(truncRunes('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
         ...spanBar(k, tl.t0, tl.tot, now, cells, c, frame, grow), seg(c, cb + ' ' + fmtMMSS(durationOf(k, now)), DIM)], v.width))
       walk(k, d + 1)
@@ -501,7 +502,7 @@ export function renderCompact(agents: AgentLike[], now: number, v: CView): Line[
     const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
     if (v.mode === 'grouped' && bad.length) {
       out.push([seg(v.caps, `Atenção (${bad.length})`, STATE_COLOR.attention, { bold: true })])
-      for (const n of bad) out.push(fit([seg(v.caps, '  ' + glyph(v.caps, n.state) + ' ', STATE_COLOR[n.state], { node: n.id }),
+      for (const n of bad) out.push(fit([seg(v.caps, '  ' + glyph(v.caps, n.state) + ' ', stateColor(n.state), { node: n.id }),
         seg(v.caps, nm.get(n.id) ?? n.name, undefined, { bold: true, node: n.id }), seg(v.caps, n.error ? '  ' + n.error : '', DIM)], w))
     }
     if (v.mode === 'cards') {
@@ -531,7 +532,7 @@ export function detailCompact(agents: AgentLike[], id: string, now: number, caps
   if (!n) return undefined
   const nm = names(g)
   const row = (k: string, val: string): Line => [seg(caps, k + ': ', DIM), seg(caps, val)]
-  const link = (x: Node): Seg => seg(caps, `${glyph(caps, x.state)} ${nm.get(x.id) ?? x.name}`, STATE_COLOR[x.state], { node: x.kind === 'agent' ? x.id : undefined })
+  const link = (x: Node): Seg => seg(caps, `${glyph(caps, x.state)} ${nm.get(x.id) ?? x.name}`, stateColor(x.state), { node: x.kind === 'agent' ? x.id : undefined })
   const sibs = (g.nodes.get(n.parentId)?.children ?? []).filter(k => k.kind === 'agent')
   const idx = sibs.findIndex(k => k.id === id)
   const parent = g.nodes.get(n.parentId)
@@ -539,7 +540,7 @@ export function detailCompact(agents: AgentLike[], id: string, now: number, caps
   // a TodoWrite chain: each task waits on the previous one
   const blockedBy = kids.flatMap(k => k.dependsOn.map(d => g.nodes.get(d)).filter((x): x is Node => !!x && x.state !== 'done'))
   const out: Line[] = [
-    [seg(caps, glyph(caps, n.state) + ' ', STATE_COLOR[n.state]), seg(caps, nm.get(id) ?? n.name, undefined, { bold: true })],
+    [seg(caps, glyph(caps, n.state) + ' ', stateColor(n.state)), seg(caps, nm.get(id) ?? n.name, undefined, { bold: true })],
     [seg(caps, [n.persona, n.model, n.effort].filter(Boolean).join(' · '), DIM)],
     row('Estado', n.state), row('Progresso', metric(n)), row('Duração', fmtMMSS(durationOf(n, now))),
     row('Descrição', a.description),
@@ -553,8 +554,8 @@ export function detailCompact(agents: AgentLike[], id: string, now: number, caps
   out.push([seg(caps, 'Bloqueado por: ', DIM), ...(blockedBy.length ? blockedBy.slice(0, 4).flatMap((k, i) => [...sp(i ? 1 : 0), link(k)]) : [seg(caps, '—')])])
   out.push([seg(caps, 'Bloqueia: ', DIM), seg(caps, '—')])
   if (sibs.length > 1) out.push([seg(caps, `Irmãos (${idx + 1}/${sibs.length}): `, DIM),
-    ...(idx > 0 ? [seg(caps, 'p: anterior ', undefined, { node: sibs[idx - 1]!.id, hotkey: 'p' })] : []),
-    ...(idx < sibs.length - 1 ? [seg(caps, 'n: próximo', undefined, { node: sibs[idx + 1]!.id, hotkey: 'n' })] : []),
+    ...(idx > 0 ? [seg(caps, `${keyOf('prevSibling')}: anterior `, undefined, { node: sibs[idx - 1]!.id, hotkey: keyOf('prevSibling') })] : []),
+    ...(idx < sibs.length - 1 ? [seg(caps, `${keyOf('nextSibling')}: próximo`, undefined, { node: sibs[idx + 1]!.id, hotkey: keyOf('nextSibling') })] : []),
     ...sibs.filter(k => k.id !== id).slice(0, 4).flatMap(k => [...sp(1), link(k)])])
   if (a.files?.length) { out.push([], [seg(caps, 'Anexos', undefined, { bold: true })], ...a.files.map(f => [seg(caps, '  ' + f, '#60a5fa', { attach: f })] as Line)) }
   if (a.prompt) out.push([], [seg(caps, 'Prompt', undefined, { bold: true })], [seg(caps, a.prompt)])

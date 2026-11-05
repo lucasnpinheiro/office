@@ -442,7 +442,10 @@ export const register: Register = on => {
     const collapsed: string[] = await read($, collapsedAt)
     const cwd = await $.session.cwd().catch(() => '')
     const sessionId = await $.session.id().catch(() => '')
+    const capsM = await capsOf($)
+    const vocab = { ascii: capsM.ascii, color: capsM.color !== 'mono' } // OFFICE_ASCII / NO_COLOR reach the map too
     const f = renderMonitor(all, now, {
+      vocab,
       width: cols, frame: frameFor(all, now), collapsed: new Set(collapsed),
       project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId, git: sgit, sessionTool: st, thumbs,
     })
@@ -478,7 +481,7 @@ export const register: Register = on => {
       } else if (selected) compactFrame = detailCompact(all, selected, now, caps)
       else compactFrame = renderCompact(all, now, compactView)
     }
-    const detail = selected && view !== 'compact' ? detailLines(all, selected, now) : undefined
+    const detail = selected && view !== 'compact' ? detailLines(all, selected, now, vocab) : undefined
     const act = (a: string) => dispatch($, a)
     const ui = { ...(await readUi($)), selected }
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch

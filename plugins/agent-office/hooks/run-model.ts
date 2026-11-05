@@ -213,7 +213,7 @@ export type RunModel = {
   caps: Capabilities
 }
 
-const RUN_STATE: Record<State, RunState> = { pending: 'queued', running: 'running', attention: 'stalled', failed: 'failed', done: 'done', inactive: 'stopped' }
+export const RUN_STATE: Record<State, RunState> = { pending: 'queued', running: 'running', attention: 'stalled', failed: 'failed', done: 'done', inactive: 'stopped' }
 const validTime = (t?: number): number | undefined => (typeof t === 'number' && Number.isFinite(t) ? t : undefined)
 
 // Pure: same input, same model. A parent missing from the list (e.g. dropped by the 60-entry cap) makes its child a root.
