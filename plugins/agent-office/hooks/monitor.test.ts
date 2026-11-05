@@ -48,12 +48,14 @@ test('header: title, project, session, no invented progress or ETA', () => {
   expect(text([])).toContain('Decorrido —')
 })
 
-test('ETA: mean of finished durations x remaining; <2 samples unavailable', () => {
+test('ETA: mean of finished durations x remaining; <3 same-model samples unavailable (AC-030)', () => {
   const one = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b')]
   expect(etaOf(buildGraph(one, T0 + 1))).toBeUndefined()
-  const two = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b', { status: 'done', endedAt: T0 + 120_000 }), mk('c'), mk('d')]
-  expect(etaOf(buildGraph(two, T0 + 1))).toBe(90_000 * 2)
-  expect(text(two, T0 + 130_000)).toContain('Estimativa 00:03:00')
+  const two = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b', { status: 'done', endedAt: T0 + 120_000 }), mk('c')]
+  expect(etaOf(buildGraph(two, T0 + 1))).toBeUndefined()
+  const three = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b', { status: 'done', endedAt: T0 + 120_000 }), mk('c', { status: 'done', endedAt: T0 + 180_000 }), mk('d')]
+  expect(etaOf(buildGraph(three, T0 + 1))).toBe(120_000)
+  expect(text(three, T0 + 181_000)).toContain('Estimativa 00:02:00')
 })
 
 test('progress is done leaves / leaves, from todos; none without evidence', () => {
