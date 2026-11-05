@@ -2,8 +2,8 @@
 id: T-005
 title: Vocabulário de estado, tokens, fallback de glifos e mapa de teclas único
 type: frontend
-status: TODO
-progress: 0/4
+status: IN_PROGRESS
+progress: 4/4
 updated: 2026-11-05
 depends_on: [T-002]
 origin: null
@@ -45,6 +45,8 @@ integração: `tests/integration.md` (linhas de AC-014 a AC-017) · cenários: `
 
 ## Evidência
 Preencher ao concluir: comando, exit code e data. DONE sem evidência é inválido.
+- RED: `claude plugin test .` em `plugins/agent-office` com `hooks/vocabulary.test.ts` sem módulo: 160 pass, 1 fail (import), exit 1, 2026-11-05.
+- GREEN: `claude plugin test .` em `plugins/agent-office`: 170 pass, 0 fail, exit 0, 2026-11-05. Base 160 sem falha nova.
 
 ## Notas técnicas
 Arquivos prováveis: `plugins/agent-office/hooks/vocabulary.ts`, `plugins/agent-office/hooks/vocabulary.test.ts`.
