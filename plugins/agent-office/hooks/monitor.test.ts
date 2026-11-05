@@ -308,7 +308,7 @@ test('AC-011: detalhe mostra nota de captura desligada e como ligar', () => {
   const a = mk('a')
   const off = detailLines([a], 'a', T0 + 5000)!.map(lineText).join('\n')
   expect(off).toContain('OFFICE_CAPTURE_IO=1')
-  const on = detailLines([a], 'a', T0 + 5000, true)!.map(lineText).join('\n')
+  const on = detailLines([a], 'a', T0 + 5000, undefined, true)!.map(lineText).join('\n')
   expect(on).not.toContain('OFFICE_CAPTURE_IO=1')
 })
 
