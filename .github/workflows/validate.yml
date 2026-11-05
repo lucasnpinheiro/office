@@ -34,10 +34,17 @@ jobs:
         continue-on-error: true
         run: claude plugin validate --strict plugins/agent-office
       - name: Plugin tests (non-fatal)
-        # `claude plugin test` runs in a child of the claude binary and may be unavailable
-        # or need auth/runtime in CI; kept as informational.
+        # Not blocking on purpose (AC-049 unmet): whether the CI image's CLI has `claude plugin test` and the
+        # `claude-code/testing` runtime (newer than the public npm release) is unverified. When the subcommand
+        # is missing the step says SKIPPED explicitly and never prints a pass (AC-050).
         continue-on-error: true
-        run: claude plugin test plugins/agent-office
+        run: |
+          if claude plugin test --help >/dev/null 2>&1; then
+            claude plugin test plugins/agent-office
+          else
+            echo "SKIPPED: 'claude plugin test' is not available in this CLI; agent-office tests did NOT run (not a pass)."
+            echo "agent-office tests: SKIPPED (CLI has no 'plugin test')" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Shell scripts parse
         run: |
           bash -n plugins/personas/hooks/model-router.sh
