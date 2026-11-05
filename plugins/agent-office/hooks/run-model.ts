@@ -216,20 +216,30 @@ export type RunModel = {
 export const RUN_STATE: Record<State, RunState> = { pending: 'queued', running: 'running', attention: 'stalled', failed: 'failed', done: 'done', inactive: 'stopped' }
 const validTime = (t?: number): number | undefined => (typeof t === 'number' && Number.isFinite(t) ? t : undefined)
 
+// Session tokens = per-agent counts + the main session's own turn.step tokens. Undefined when nothing is known.
+// Partial (never presented as complete) when some agent is unknown or the main-session figure is not captured.
+const sumTokens = (nodes: RunNode[], sessionTokens?: number): { tokens?: number; partial: boolean } => {
+  const known = nodes.map(n => n.usage.tokens).filter((t): t is number => t !== undefined)
+  if (!known.length && sessionTokens === undefined) return { tokens: undefined, partial: false }
+  return { tokens: known.reduce((n, t) => n + t, 0) + (sessionTokens ?? 0), partial: known.length < nodes.length || sessionTokens === undefined }
+}
+
 // Pure: same input, same model. A parent missing from the list (e.g. dropped by the 60-entry cap) makes its child a root.
-export function buildRunModel(agents: readonly AgentRecord[], now: number, caps: Capabilities): RunModel {
+export function buildRunModel(agents: readonly AgentRecord[], now: number, caps: Capabilities, sessionTokens?: number): RunModel {
   const g = buildGraph(agents, now)
+  const byId = new Map(agents.map(a => [a.id, a] as const))
   const nodes: RunNode[] = []
   for (const n of g.nodes.values()) {
     if (n.kind !== 'agent') continue
     const tasks = n.children.filter(c => c.kind === 'task')
+    const rec = byId.get(n.id)
     nodes.push({
       id: n.id, parentId: n.parentId && n.parentId !== g.root.id ? n.parentId : undefined, name: n.name,
       persona: n.persona || undefined, model: n.model || undefined, effort: n.effort,
       state: RUN_STATE[n.state],
       worktree: n.git?.worktree ? { path: n.git.worktree, branch: n.git.branch } : undefined,
       startedAt: validTime(n.start), endedAt: validTime(n.end),
-      steps: [], droppedSteps: 0, usage: {}, error: n.error,
+      steps: rec?.steps ?? [], droppedSteps: rec?.droppedSteps ?? 0, usage: rec?.usage ?? {}, error: n.error,
       total: tasks.length ? { done: tasks.filter(c => c.state === 'done').length, of: tasks.length } : undefined,
     })
   }
@@ -237,7 +247,10 @@ export function buildRunModel(agents: readonly AgentRecord[], now: number, caps:
     nodes,
     roots: nodes.filter(n => n.parentId === undefined).map(n => n.id),
     attention: [...nodes.filter(n => n.state === 'needs-you'), ...nodes.filter(n => n.state === 'stalled'), ...nodes.filter(n => n.state === 'failed')].map(n => n.id),
-    totals: { running: nodes.filter(n => n.state === 'running').length, done: nodes.filter(n => n.state === 'done').length, of: nodes.length, partial: false },
+    totals: {
+      running: nodes.filter(n => n.state === 'running').length, done: nodes.filter(n => n.state === 'done').length, of: nodes.length,
+      ...sumTokens(nodes, sessionTokens),
+    },
     caps,
   }
 }
