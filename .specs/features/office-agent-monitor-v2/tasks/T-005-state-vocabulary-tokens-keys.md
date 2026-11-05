@@ -1,0 +1,51 @@
+---
+id: T-005
+title: Vocabulário de estado, tokens, fallback de glifos e mapa de teclas único
+type: frontend
+status: TODO
+progress: 0/4
+updated: 2026-11-05
+depends_on: [T-002]
+origin: null
+branch: spec/office-agent-monitor-v2
+covers: [REQ-005]
+estimate: M
+skills: []
+executor: 🛠️ Pleno · 🎼 Sonnet · 🟢 baixo
+judge: 🧪 QA · 🪶 Haiku · 🟢 baixo
+---
+# T-005 — Vocabulário de estado, tokens, fallback de glifos e mapa de teclas único
+
+Executor: 🛠️ Pleno · 🎼 Sonnet · 🟢 baixo
+Judge: 🧪 QA · 🪶 Haiku · 🟢 baixo
+
+## Objetivo
+Criar a tabela única de estados, tokens de cor e teclas, usada pelas duas superfícies.
+
+Fora: Layout de telas específicas.
+
+## Critérios de aceite
+- [ ] AC-014 — The system SHALL exibir cada estado de `RunState` com o mesmo rótulo, glifo e cor do Padrão nas duas superfícies. Cenário: S-014 @success.
+- [ ] AC-015 — WHERE `OFFICE_ASCII=1` ou `NO_COLOR` estiver definido, the system SHALL usar a coluna ASCII (`[??]`, `[!!]`, `[xx]`, `[ok]`) e conectores `+ - :` sem caracteres de cor. Cenário: S-015 @deviation.
+- [ ] AC-016 — IF um estado desconhecido chegar ao renderizador, the system SHALL desenhar o rótulo em `muted` com glifo `?` e não lançar exceção. Cenário: S-016 @error.
+- [ ] AC-017 — WHEN uma visão é desenhada, the system SHALL derivar rodapé e botões do mesmo `KEY_MAP`, com a mesma letra para a mesma ação nas duas superfícies. Cenário: S-017 @success.
+
+## Testes vinculados
+integração: `tests/integration.md` (linhas de AC-014 a AC-017) · cenários: `acceptance/foundation.feature` tag `@T-005` · demais linhas por `Covers` em `tests/`.
+
+## Dependências
+`depends_on` acima é a fonte única. Bloqueada até cada task listada estar DONE.
+
+## Validação (IMPLEMENTATION_COMPLETE)
+- [ ] Branch dedicada, nunca `main`
+- [ ] Teste RED antes do GREEN
+- [ ] `claude plugin test .` em `plugins/agent-office` sem falha nova sobre a base de 147
+- [ ] Linhas de `tests/e2e-regression.md` impactadas verdes
+- [ ] Julgada por subagente diferente do implementador
+
+## Evidência
+Preencher ao concluir: comando, exit code e data. DONE sem evidência é inválido.
+
+## Notas técnicas
+Arquivos prováveis: `plugins/agent-office/hooks/vocabulary.ts`, `plugins/agent-office/hooks/vocabulary.test.ts`.
+Tabela em `spec/05-ui-design.md`. Substitui `State` (monitor.ts:18), incluindo a saída de `inactive`. `STATE_COLOR` passa a derivar daqui.
