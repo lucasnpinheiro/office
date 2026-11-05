@@ -1,24 +1,36 @@
 // Pure UI reducer for the pane's buttons and hotkeys, so every action is testable without a surface.
-import { DEFAULT_MODE, NEXT_MODE } from './compact'
+import { DEFAULT_MODE, NEXT_MODE, TREE_ALL } from './compact'
 import type { Mode } from './compact'
 import { keyOf, labelOf } from './vocabulary'
 
 export type Ui = {
   view: 'compact' | 'map'; mode: Mode; filter: 'all' | 'failed'; sort: 'time' | 'state' | 'name'
   searching: boolean; selected: string; attach: string; query: string; expanded: string[]
+  modeChosen: boolean // the user picked the mode (g, button, /office mode): v from the map keeps it
 }
-export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [] })
+export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [], modeChosen: false })
 // Session start: every persisted view/filter/search field goes back to the default (map view; cards inside compact), so a
 // previous session's map view, filter or query never leaks into the new one.
 export const startUi = (): Ui => ({ ...initialUi() })
 
-export function applyAction(s: Ui, a: string): { state: Ui; close?: true } {
+// `ctx.collapsed` (tree only): false when the tree shows no collapsed group, so g does not waste a press opening nothing.
+export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean } = {}): { state: Ui; close?: true } {
   if (a === 'close') return { state: s, close: true }
-  if (a === 'group') return { state: { ...s, mode: NEXT_MODE[s.mode] } }
-  if (a.startsWith('mode:')) return { state: { ...s, mode: a.slice(5) as Mode, filter: 'all' } }
+  // g em árvore: primeiro abre todos os grupos colapsados (estado do mesmo ciclo), depois passa ao modo seguinte.
+  if (a === 'group') {
+    if (s.mode === 'tree' && ctx.collapsed !== false && !s.expanded.includes(TREE_ALL)) return { state: { ...s, expanded: [...s.expanded, TREE_ALL] } }
+    return { state: { ...s, mode: NEXT_MODE[s.mode], modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_ALL) } }
+  }
+  if (a.startsWith('mode:')) return { state: { ...s, mode: a.slice(5) as Mode, modeChosen: true, filter: 'all' } }
   if (a === 'failed') return { state: { ...s, filter: s.filter === 'failed' ? 'all' : 'failed' } }
   if (a === 'sort') return { state: { ...s, sort: s.sort === 'time' ? 'state' : s.sort === 'state' ? 'name' : 'time' } }
-  if (a === 'view') return { state: { ...s, view: s.view === 'map' ? 'compact' : 'map' } }
+  // v cicla mapa (inicial) -> árvore -> cards -> mapa
+  if (a === 'view') {
+    // from the map, a mode the user chose stays; otherwise the tree is the first stop of the cycle (06-gaps, decision 3)
+    if (s.view === 'map') return { state: { ...s, view: 'compact', mode: s.modeChosen ? s.mode : 'tree' } }
+    if (s.mode === 'tree') return { state: { ...s, mode: 'cards' } }
+    return { state: { ...s, view: 'map' } }
+  }
   if (a === 'search') return { state: { ...s, searching: !s.searching } }
   if (a === 'back') {
     if (s.searching) return { state: { ...s, searching: false } }
