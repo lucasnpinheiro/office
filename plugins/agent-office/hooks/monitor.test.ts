@@ -304,6 +304,14 @@ test('detailLines: persona, state, prompt, todos of one agent; undefined for unk
   expect(detailLines([a], 'session', T0)).toBeUndefined()
 })
 
+test('AC-011: detalhe mostra nota de captura desligada e como ligar', () => {
+  const a = mk('a')
+  const off = detailLines([a], 'a', T0 + 5000)!.map(lineText).join('\n')
+  expect(off).toContain('OFFICE_CAPTURE_IO=1')
+  const on = detailLines([a], 'a', T0 + 5000, true)!.map(lineText).join('\n')
+  expect(on).not.toContain('OFFICE_CAPTURE_IO=1')
+})
+
 test('task node inherits persona/model/effort from its agent', () => {
   const g = buildGraph([mk('a', { todos: [{ content: 't1', status: 'pending' }] })], T0 + 1000)
   const t = g.nodes.get('a#0')!

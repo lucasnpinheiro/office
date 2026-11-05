@@ -43,7 +43,7 @@ integração: `tests/integration.md` (linhas de AC-010 a AC-013) · cenários: `
 - [ ] Teste RED antes do GREEN
 - [ ] `claude plugin test .` em `plugins/agent-office` sem falha nova sobre a base de 147
 - [ ] Linhas de `tests/e2e-regression.md` impactadas verdes
-- [ ] Julgada por subagente diferente do implementador
+- [x] Julgada por subagente diferente do implementador: achados do juiz corrigidos (2026-11-05)
 
 ## Evidência
 Preencher ao concluir: comando, exit code e data. DONE sem evidência é inválido.

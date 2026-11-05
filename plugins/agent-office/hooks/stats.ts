@@ -4,6 +4,7 @@
 import type { AgentLike } from './office'
 import { parseDescription } from './persona'
 import { worktreeFromPath } from './git'
+import { maskText } from './mask'
 
 export type Todo = { id?: string; content: string; status: 'pending' | 'in_progress' | 'completed' }
 export type Counts = Record<string, number>
@@ -100,16 +101,16 @@ export function applyTool(a: AgentLike, tool: string, input: Record<string, unkn
   if (tool === 'TodoWrite' && Array.isArray(input.todos))
     out.todos = (input.todos as unknown[])
       .filter((t): t is { content?: unknown; status?: unknown } => !!t && typeof t === 'object')
-      .map(t => ({ content: String(t.content ?? ''), status: todoStatus(t.status) ?? 'pending' }))
+      .map(t => ({ content: maskText(String(t.content ?? '')), status: todoStatus(t.status) ?? 'pending' }))
   if (tool === 'TaskCreate' && typeof input.subject === 'string') {
     const id = (result as { task?: { id?: string } } | undefined)?.task?.id
-    out.todos = [...(a.todos ?? []), { id, content: input.subject, status: 'pending' }]
+    out.todos = [...(a.todos ?? []), { id, content: maskText(input.subject), status: 'pending' }]
   }
   if (tool === 'TaskUpdate' && typeof input.taskId === 'string') {
     const list = a.todos ?? []
     out.todos = list
       .filter(t => !(t.id === input.taskId && input.status === 'deleted'))
-      .map(t => (t.id === input.taskId ? { ...t, content: typeof input.subject === 'string' ? input.subject : t.content, status: todoStatus(input.status) ?? t.status } : t))
+      .map(t => (t.id === input.taskId ? { ...t, content: typeof input.subject === 'string' ? maskText(input.subject) : t.content, status: todoStatus(input.status) ?? t.status } : t))
   }
   return out
 }
