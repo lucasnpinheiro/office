@@ -2,8 +2,8 @@
 id: T-002
 title: Extrair o RunModel puro e unificar tipos
 type: backend
-status: TODO
-progress: 0/3
+status: IMPLEMENTATION_COMPLETE
+progress: 3/3
 updated: 2026-11-05
 depends_on: [T-001]
 origin: null
@@ -25,9 +25,9 @@ Extrair `Node`, grafo e progresso de `monitor.ts` para um modelo puro; renderiza
 Fora: Mudança visual; nenhuma saída de tela muda nesta task.
 
 ## Critérios de aceite
-- [ ] AC-004 — The system SHALL calcular a tela a partir de `buildRunModel(agents, now, caps)`, função pura sem `$`, sem relógio e sem E/S, mantendo verdes os 147 testes de base. Cenário: S-004 @success.
-- [ ] AC-005 — WHEN um agente citar um pai ausente da lista, the system SHALL tratá-lo como raiz sem perdê-lo. Cenário: S-005 @deviation.
-- [ ] AC-006 — IF um registro de agente trouxer horário inválido, the system SHALL manter o nó com tempo `—` e não lançar exceção. Cenário: S-006 @error.
+- [x] AC-004 — The system SHALL calcular a tela a partir de `buildRunModel(agents, now, caps)`, função pura sem `$`, sem relógio e sem E/S, mantendo verdes os 147 testes de base. Cenário: S-004 @success.
+- [x] AC-005 — WHEN um agente citar um pai ausente da lista, the system SHALL tratá-lo como raiz sem perdê-lo. Cenário: S-005 @deviation.
+- [x] AC-006 — IF um registro de agente trouxer horário inválido, the system SHALL manter o nó com tempo `—` e não lançar exceção. Cenário: S-006 @error.
 
 ## Testes vinculados
 integração: `tests/integration.md` (linhas de AC-004 a AC-006) · cenários: `acceptance/foundation.feature` tag `@T-002` · demais linhas por `Covers` em `tests/`.
@@ -36,14 +36,14 @@ integração: `tests/integration.md` (linhas de AC-004 a AC-006) · cenários: `
 `depends_on` acima é a fonte única. Bloqueada até cada task listada estar DONE.
 
 ## Validação (IMPLEMENTATION_COMPLETE)
-- [ ] Branch dedicada, nunca `main`
-- [ ] Teste RED antes do GREEN
-- [ ] `claude plugin test .` em `plugins/agent-office` sem falha nova sobre a base de 147
-- [ ] Linhas de `tests/e2e-regression.md` impactadas verdes
+- [x] Branch dedicada, nunca `main`
+- [x] Teste RED antes do GREEN
+- [x] `claude plugin test .` em `plugins/agent-office` sem falha nova sobre a base de 147
+- [x] Linhas de `tests/e2e-regression.md` impactadas verdes
 - [ ] Julgada por subagente diferente do implementador
 
 ## Evidência
-Preencher ao concluir: comando, exit code e data. DONE sem evidência é inválido.
+`claude plugin test .` em plugins/agent-office: 153 pass, 0 fail (base 147 + 6 novos em run-model.test.ts), exit 0, 2026-11-05. RED: run-model.test.ts falhou com "cannot import ./run-model" antes da implementação. Julgamento por subagente diferente: pendente.
 
 ## Notas técnicas
 Arquivos prováveis: `plugins/agent-office/hooks/run-model.ts`, `plugins/agent-office/hooks/run-model.test.ts`.

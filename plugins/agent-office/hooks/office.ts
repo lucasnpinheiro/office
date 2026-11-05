@@ -1,10 +1,12 @@
 // Pure helpers of the monitor: command parsing and redraw timing. No engine APIs here, so it is unit-testable.
 export type Status = 'working' | 'done' | 'error'
-export type AgentLike = {
+// Tipo único (T-002): une o antigo OfficeAgent (types/index.d.ts) e o AgentLike.
+export type AgentRecord = {
   id: string
   agentId?: string
   parentAgentId?: string
   description: string
+  subagentType?: string
   status: Status
   startedAt: number
   endedAt?: number
@@ -26,6 +28,7 @@ export type AgentLike = {
   git?: { branch?: string; worktree?: string; repo?: string } // resolved from cwd, never stored
   todos?: { id?: string; content: string; status: 'pending' | 'in_progress' | 'completed' }[]
 }
+export type AgentLike = AgentRecord // alias provisório até as telas migrarem
 
 export type Sub = 'start' | 'stop' | 'toggle' | 'help' | 'collapse' | 'expand' | 'status' | 'reset'
 
