@@ -239,7 +239,7 @@ export function buildRunModel(agents: readonly AgentRecord[], now: number, caps:
       state: RUN_STATE[n.state],
       worktree: n.git?.worktree ? { path: n.git.worktree, branch: n.git.branch } : undefined,
       startedAt: validTime(n.start), endedAt: validTime(n.end),
-      steps: rec?.steps ?? [], droppedSteps: rec?.droppedSteps ?? 0, usage: rec?.usage ?? {}, error: n.error,
+      steps: rec?.steps ?? [], droppedSteps: rec?.droppedSteps ?? 0, usage: rec?.usage ?? {}, promptMasked: rec?.prompt, error: n.error, // rec.prompt is stored already masked (mask.ts)
       total: tasks.length ? { done: tasks.filter(c => c.state === 'done').length, of: tasks.length } : undefined,
     })
   }

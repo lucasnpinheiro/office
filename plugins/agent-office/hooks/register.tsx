@@ -3,13 +3,14 @@ import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
 import { renderMonitor, inlineSize, detailLines } from './monitor'
-import { renderCompact, detailCompact, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE } from './compact'
+import { renderCompact, treeHasCollapsed, detailCompact, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE } from './compact'
 import { applyAction, FOOTER_SEP, footerTail, hotkeysFor, startUi } from './actions'
 import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf, isolatedCall } from './stats'
-import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf } from './capture'
+import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf, errorText, toolArgs } from './capture'
+import { captureIoOn, maskText } from './mask'
 import { resolveGit } from './git'
 import { statusLines } from './status'
 import type { GitInfo } from './git'
@@ -29,8 +30,12 @@ const colsAt = atom({ plugin: 'agent-office', key: 'cols' } as const, 0)
 const sidAt = atom({ plugin: 'agent-office', key: 'sid' } as const, '')
 const searchingAt = atom({ plugin: 'agent-office', key: 'searching' } as const, false)
 const queryAt = atom({ plugin: 'agent-office', key: 'query' } as const, '')
+const modeChosenAt = atom({ plugin: 'agent-office', key: 'modeChosen' } as const, false)
 const expandedAt = atom({ plugin: 'agent-office', key: 'expanded' } as const, [])
 const attachAt = atom({ plugin: 'agent-office', key: 'attach' } as const, '')
+
+// OFFICE_CAPTURE_IO=1 (exactly) turns on masked tool input/output capture; read fresh, any failure means off.
+const captureIoOf = async ($: EngineInterface): Promise<boolean> => captureIoOn(await Promise.resolve($.env.get('OFFICE_CAPTURE_IO')).catch(() => undefined))
 
 // Terminal capabilities from the environment (ASCII, color depth, reduced motion). Cached for the session.
 let capsCache: Caps | undefined
@@ -56,7 +61,7 @@ async function capsOf($: EngineInterface): Promise<Caps> {
 }
 
 const HELP =
-  'Uso: /office start | stop | (alterna). /office view [map|compact] (sem valor alterna); /office mode tree|grouped|cards|waterfall (ou g); /office search <texto> (vazio limpa); /office sort time|state|name; /office filter failed|all; /office width <colunas>; /office open <id> (detalhe). Teclas (com o painel focado: ctrl+x tab ou clique): v mapa/cards, g modo, o ordenar, f só falhas, s buscar, Enter detalhe, b voltar, p/n irmaos no detalhe, q fechar. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
+  'Uso: /office start | stop | (alterna). /office view [map|compact] (sem valor alterna); /office mode tree|grouped|cards|waterfall (tree = árvore com conectores; ou g); /office search <texto> (vazio limpa); /office sort time|state|name; /office filter failed|all; /office width <colunas>; /office open <id> (detalhe). Teclas (com o painel focado: ctrl+x tab ou clique): v cicla mapa > árvore > cards (um modo escolhido com g é mantido ao sair do mapa), g modo (na árvore, g abre os grupos recolhidos antes de passar ao modo seguinte), o ordenar, f só falhas, s buscar, Enter detalhe, b voltar, p/n irmaos no detalhe, q fechar. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
 
 // Fire-and-forget engine calls (status line, redraw timer, resize, focus) never surface as unhandled rejections.
 const bg = (p: unknown): void => { void Promise.resolve(p).catch(() => undefined) }
@@ -100,10 +105,7 @@ const withGit = (list: OfficeAgent[], sessionCwd: string): OfficeAgent[] =>
     return info ? { ...a, git: info } : a
   })
 
-const errText = (res: unknown): string => {
-  const t = (res as { text?: string; content?: unknown })?.text ?? JSON.stringify((res as { content?: unknown })?.content ?? '')
-  return String(t).slice(0, 200)
-}
+const errText = errorText // masked, then cut to 200 (capture.ts)
 // Agent calls with isolation: "worktree", by tool_use_id, from tool.call until the call answers
 const isolatedCalls = new Set<string>()
 let timer: { cancel: () => void } | undefined
@@ -201,17 +203,24 @@ async function readUi($: EngineInterface): Promise<Ui> {
     view: (await read($, viewAt)) === 'map' ? 'map' : 'compact', mode: (await read($, modeAt)) as Mode,
     filter: (await read($, filterAt)) === 'failed' ? 'failed' : 'all', sort: (await read($, sortAt)) as Ui['sort'],
     searching: await read($, searchingAt), selected: await read($, selectedAt), attach: await read($, attachAt),
-    query: await read($, queryAt), expanded: await read($, expandedAt),
+    query: await read($, queryAt), expanded: await read($, expandedAt), modeChosen: await read($, modeChosenAt),
   }
 }
 async function writeUi($: EngineInterface, n: Ui) {
   await update($, viewAt, () => n.view); await update($, modeAt, () => n.mode); await update($, filterAt, () => n.filter)
   await update($, sortAt, () => n.sort); await update($, searchingAt, () => n.searching); await update($, selectedAt, () => n.selected)
   await update($, attachAt, () => n.attach); await update($, queryAt, () => n.query); await update($, expandedAt, () => n.expanded)
+  await update($, modeChosenAt, () => n.modeChosen)
 }
 // one entry for every button and hotkey: pure reducer, then persist, redraw, keep the keys on the pane
+// whether the tree shows a collapsed group right now (decides if g has something to open)
+async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolean }> {
+  const list = (await read($, office)) as OfficeAgent[]
+  return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter }) }
+}
 async function dispatch($: EngineInterface, a: string) {
-  const r = applyAction(await readUi($), a)
+  const ui = await readUi($)
+  const r = applyAction(ui, a, a === 'group' ? await groupCtx($, ui) : {})
   if (r.close) return closeOffice($)
   await writeUi($, r.state)
   $.ui.invalidate('ui.render')
@@ -241,8 +250,9 @@ export const register: Register = on => {
     await update($, selectedAt, () => start.selected)
     await update($, attachAt, () => start.attach)
     await update($, expandedAt, () => start.expanded)
+    await update($, modeChosenAt, () => start.modeChosen)
     const m = ((await $.env.get('OFFICE_MODE').catch(() => undefined)) ?? '').trim().toLowerCase()
-    if (['tree', 'grouped', 'cards', 'waterfall'].includes(m)) await update($, modeAt, () => m)
+    if (['tree', 'grouped', 'cards', 'waterfall'].includes(m)) { await update($, modeAt, () => m); await update($, modeChosenAt, () => true) }
     const vw = ((await $.env.get('OFFICE_VIEW').catch(() => undefined)) ?? '').trim().toLowerCase()
     if (vw === 'map' || vw === 'compact') await update($, viewAt, () => vw)
     const w = parseInt((await $.env.get('OFFICE_WIDTH').catch(() => undefined)) ?? '', 10)
@@ -267,8 +277,8 @@ export const register: Register = on => {
     }
     if (w0 === 'mode' || w0 === 'g') {
       const cur = (await read($, modeAt)) as Mode
-      const m = (['tree', 'grouped', 'cards', 'waterfall'] as Mode[]).includes(arg as Mode) ? (arg as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group').state.mode
-      await update($, modeAt, () => m); $.ui.invalidate('ui.render'); return { text: `Modo: ${m}.` }
+      const m = (['tree', 'grouped', 'cards', 'waterfall'] as Mode[]).includes(arg as Mode) ? (arg as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group', await groupCtx($, await readUi($))).state.mode
+      await update($, modeAt, () => m); await update($, modeChosenAt, () => true); $.ui.invalidate('ui.render'); return { text: `Modo: ${m}.` }
     }
     if (w0 === 'search' || w0 === 'buscar') { await update($, queryAt, () => arg); $.ui.invalidate('ui.render'); return { text: arg ? `Busca: ${arg}` : 'Busca limpa.' } }
     if (w0 === 'open' || w0 === 'detalhe') { await update($, selectedAt, () => arg); await update($, attachAt, () => ''); $.ui.invalidate('ui.render'); return { text: arg ? `Detalhe: ${arg}` : 'Detalhe fechado.' } }
@@ -329,8 +339,8 @@ export const register: Register = on => {
       isolated: isolated && !spawnCwd ? true : undefined,
       id: e.tool_use_id || `${Date.now()}-${Math.random()}`,
       parentAgentId: e.parentAgentId,
-      description: e.description,
-      prompt: firstLine(e.prompt, 300),
+      description: maskText(e.description ?? ''), // masked before it reaches the state (T-004)
+      prompt: firstLine(maskText(e.prompt ?? ''), 300), // masked before it reaches the state (T-004)
       subagentType: e.subagentType,
       status: 'working',
       active: false,
@@ -348,7 +358,7 @@ export const register: Register = on => {
       return res
     } catch (err) {
       await update($, office, list =>
-        list.map(a => (a.id === entry.id ? { ...a, status: 'error' as Status, endedAt: Date.now(), error: String((err as Error)?.message ?? err).slice(0, 200) } : a)),
+        list.map(a => (a.id === entry.id ? { ...a, status: 'error' as Status, endedAt: Date.now(), error: errorText(err instanceof Error ? err : new Error(String(err))) } : a)),
       )
       bg(schedule($))
       throw err
@@ -408,11 +418,12 @@ export const register: Register = on => {
       }
     }
     if (aid) {
+      const ioOn = await captureIoOf($)
       await update($, office, list =>
         list.map(a =>
           a.agentId === aid
             ? (recordSafely({ ...(applyTool(a, e.tool, input, res) as OfficeAgent), seenAt: Date.now() }, () =>
-                toolStep((e as { tool_use_id?: string }).tool_use_id ?? `${e.tool}@${startedAt}`, e.tool, input, startedAt, durationMs, res),
+                toolStep((e as { tool_use_id?: string }).tool_use_id ?? `${e.tool}@${startedAt}`, e.tool, toolArgs(input), startedAt, durationMs, res, ioOn),
               ) as OfficeAgent)
             : a,
         ),
@@ -498,15 +509,16 @@ export const register: Register = on => {
       maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 12,
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
     }
+    const ioFlag = await captureIoOf($)
     let compactFrame: typeof f.lines | undefined
     if (view === 'compact') {
       if (selected && attach) {
         const text = await Promise.resolve($.fs.read(attach)).then(r => (typeof r === 'string' ? r : '[binário]')).catch(() => '[não foi possível ler o arquivo]')
         compactFrame = [[{ t: attach, bold: true, attach: '' }], ...previewLines(text, attach, 40)]
-      } else if (selected) compactFrame = detailCompact(all, selected, now, caps)
+      } else if (selected) compactFrame = detailCompact(all, selected, now, caps, ioFlag)
       else compactFrame = renderCompact(all, now, compactView)
     }
-    const detail = selected && view !== 'compact' ? detailLines(all, selected, now, vocab) : undefined
+    const detail = selected && view !== 'compact' ? detailLines(all, selected, now, vocab, ioFlag) : undefined
     const act = (a: string) => dispatch($, a)
     const ui = { ...(await readUi($)), selected }
     // card segments are clickable: node -> open that agent's detail, toggle -> expand/collapse its branch
@@ -552,7 +564,7 @@ export const register: Register = on => {
         return (
           <Box flexDirection="row">
             <Box flexDirection="column" width={cols - 49}>{field}{left.map(draw)}{keysRow}</Box>
-            <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{backBtn}{(detailCompact(all, selected, now, caps) ?? []).map(draw)}</Box>
+            <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{backBtn}{(detailCompact(all, selected, now, caps, ioFlag) ?? []).map(draw)}</Box>
           </Box>
         )
       }

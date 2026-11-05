@@ -60,7 +60,7 @@ Probe feita em 2026-11-05 com mod descartável em scratch (fora do repo), carreg
 ## Total da sessão (T-003)
 - `SessionCost` (`index.d.ts:10904`) é só `usd`: não traz tokens, então não serve de total de tokens. O total real vem de somar os `turn.step` com `agentId` (por agente) e os sem `agentId` (sessão principal), ambos provados na repetição da Probe 2 (`TURNSTEP agentId=- idx=0 usage={...}` e `TURNSTEP agentId=afaa7f... idx=0 usage={...}`).
 - Regra: `totals.tokens` = soma por agente + tokens do turno principal (átomo `sessionTokens`, `register.tsx`). Se a figura do turno principal não foi capturada, ou algum agente é desconhecido, `totals.partial = true`: nunca se apresenta como completo.
-- Limite: a soma conta `cache_read_input_tokens` a cada passo, então o total é de tokens processados, não de tokens novos. Não verificado: comparar com `/cost` em sessão interativa.
+- Decisão (T-004): o total conta tokens novos = `input_tokens` + `output_tokens` + `cache_creation_input_tokens`. `cache_read_input_tokens` fica de fora: o mesmo contexto em cache é relido a cada passo e inflava o total (ex.: 8252 lidos para 2 de entrada na Probe 2). Não verificado: comparar com `/cost` em sessão interativa.
 - AC-009 (memória): a captura grava só via `update($, atom, ...)` (átomos de estado do plugin, `register.tsx`) e `capture.ts` não importa `$.fs`, `$.store` nem `$.net`; não há escrita em disco nem rede no caminho. Não verificado: se o engine persiste átomos por conta própria (comportamento interno do engine, não observado).
 
 ## Decisões do usuário (2026-11-05, finais)

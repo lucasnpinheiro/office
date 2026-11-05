@@ -18,11 +18,24 @@ test('g cycles mode, f toggles failed, o cycles sort', async () => {
   expect(applyAction(s0, 'sort').state.sort).toBe('state')
 })
 
-test('v toggles map to cards and back (never stuck)', async () => {
-  const c = applyAction(s0, 'view').state
-  expect(c.view).toBe('compact')
-  expect(c.mode).toBe('cards')
+// T-006: v cycles map -> árvore -> cards -> map; the map stays the initial view and v never gets stuck.
+test('v cycles map, árvore, cards and back to map', async () => {
+  const t = applyAction(s0, 'view').state
+  expect(t).toMatchObject({ view: 'compact', mode: 'tree' })
+  const c = applyAction(t, 'view').state
+  expect(c).toMatchObject({ view: 'compact', mode: 'cards' })
   expect(applyAction(c, 'view').state.view).toBe('map')
+})
+
+// T-006 / AC-019: g in árvore first opens every collapsed group (tree:all), then moves to the next mode.
+test('g in árvore: opens all groups first, then the next mode', async () => {
+  const t = { ...s0, view: 'compact' as const, mode: 'tree' as const }
+  const a = applyAction(t, 'group').state
+  expect(a).toMatchObject({ mode: 'tree' })
+  expect(a.expanded).toContain('tree:all')
+  const b = applyAction(a, 'group').state
+  expect(b.mode).toBe('grouped')
+  expect(b.expanded).not.toContain('tree:all')
 })
 
 test('s toggles search, back closes search, then attach, then detail', async () => {
@@ -87,4 +100,22 @@ test('footer: hotkeys separated by " · " and tail hint set off, never glued', a
   const searching = { ...c0, searching: true }
   expect(hotkeysFor(searching, false)).toEqual([])
   expect(footerTail(searching)).toBe('Enter aplica a busca (vazio limpa)')
+})
+
+// Judge findings 10 and 11
+test('g em árvore sem grupos colapsados pula direto ao próximo modo', async () => {
+  const t = { ...s0, view: 'compact' as const, mode: 'tree' as const }
+  const r = applyAction(t, 'group', { collapsed: false }).state
+  expect(r.mode).toBe('grouped')
+  expect(r.expanded).not.toContain('tree:all')
+  expect(applyAction(t, 'group', { collapsed: true }).state.expanded).toContain('tree:all')
+})
+
+test('v do mapa mantém o modo que o usuário escolheu; sem escolha entra na árvore', async () => {
+  const chosen = applyAction(applyAction(s0, 'mode:grouped').state, 'view').state
+  expect(chosen).toMatchObject({ view: 'compact', mode: 'grouped' })
+  const viaG = applyAction(s0, 'group').state // g escolhe waterfall
+  expect(applyAction(viaG, 'view').state).toMatchObject({ view: 'compact', mode: 'waterfall' })
+  expect(applyAction(s0, 'view').state).toMatchObject({ view: 'compact', mode: 'tree' })
+  expect(startUi().modeChosen).toBe(false)
 })

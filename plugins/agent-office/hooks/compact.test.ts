@@ -157,14 +157,14 @@ test('header: rounded box, Office - project - #sid left, colored counts + elapse
   const ls = cardsOut(ag, { project: 'megabor', sessionId: 'c716af99' })
   const t0 = txt(ls)
   expect(ls[0]![0]!.t).toMatch(/^╭─+╮$/)
-  expect(t0).toMatch(/│Office · megabor · #c716af/); expect(t0).toMatch(/⠹ 1 ativos ✓ 1 ✗ 1 · 00:00:09 · ETA/)
+  expect(t0).toMatch(/│Office · megabor · #c716af/); expect(t0).toMatch(/⠹ 1 ativos ✓ 1 ✗ 1 · 00:00:09 · custo — · ETA/)
   expect(t0).not.toContain('⇄'); expect(statusText([mk('a')], T + 1)).not.toContain('⇄')
   const counts = ls[1]!.filter(s => /ativos|✓|✗/.test(s.t)).map(s => s.fg)
   expect(counts).toContain('#7FA9FF'); expect(counts).toContain('#6FD08C'); expect(counts).toContain('#FF8A80')
 })
 test('Geral row: hatched segmented bar, percent, g toggles', () => {
   const t0 = txt(cardsOut([mk('a', { status: 'done', endedAt: T + 100 }), mk('b')]))
-  expect(t0).toMatch(/Geral [█▒]+ \d+% · g alterna agrupado/)
+  expect(t0).toMatch(/Geral [█▒]+ \d+% · g alterna modo/)
 })
 test('no slanted parallelogram glyphs anywhere (render badly in terminals)', () => {
   expect(txt(cardsOut([mk('a'), mk('b', { status: 'done', endedAt: T + 100 })]))).not.toMatch(/[▰▱]/)
@@ -255,4 +255,10 @@ test('cards cut: nested child rows use their absolute line, never a dangling bus
   const o = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 14 }))
   expect(o).not.toContain('+0 cards')
   expect(o).toContain('+1 cards ocultos')
+})
+
+test('detail: nota de captura desligada também no detalhe compacto', () => {
+  const ag = [mk('p', { agentId: 'P' })]
+  expect(txt(detailCompact(ag, 'p', T + 1000, caps)!)).toContain('OFFICE_CAPTURE_IO=1')
+  expect(txt(detailCompact(ag, 'p', T + 1000, caps, true)!)).not.toContain('OFFICE_CAPTURE_IO=1')
 })
