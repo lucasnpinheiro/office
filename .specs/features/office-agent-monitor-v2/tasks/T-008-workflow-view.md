@@ -2,7 +2,7 @@
 id: T-008
 title: Visão Workflow com fases reais
 type: frontend
-status: TODO
+status: IN_PROGRESS
 progress: 0/3
 updated: 2026-11-05
 depends_on: [T-001, T-006]
