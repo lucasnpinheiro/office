@@ -2,7 +2,7 @@
 id: T-002
 title: Extrair o RunModel puro e unificar tipos
 type: backend
-status: IMPLEMENTATION_COMPLETE
+status: IN_PROGRESS
 progress: 3/3
 updated: 2026-11-05
 depends_on: [T-001]
