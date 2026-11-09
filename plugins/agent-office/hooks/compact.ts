@@ -15,7 +15,7 @@ import { buildRunModel, RUN_STATE } from './run-model'
 import type { RunModel } from './run-model'
 import { costLines, fmtTokens, fmtUsd } from './view-cost'
 import { toolLines } from './view-tools'
-import { workflowLines } from './view-workflow'
+import { workflowView } from './view-workflow'
 import { detailView } from './view-detail'
 import { termLevel, effectiveCols, appColumns, rowStyle, fitAgora } from './layout'
 
@@ -625,8 +625,8 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))
     else if (v.mode === 'tools') out.push(...toolLines(model, now, { width: w, caps: v.caps }, v.captureIo === true))
     else if (v.mode === 'workflow') {
-      const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? a.description, state: nodeView(RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], vocabOf(v.caps)).label, workflow: a.workflow }))
-      out.push(...workflowLines(wf).map((t): Line => [seg(v.caps, t, undefined, { bold: !t.startsWith('  ') })]))
+      const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? a.description, state: RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], workflow: a.workflow }))
+      out.push(...workflowView(wf, vocabOf(v.caps)))
     } else if (v.mode === 'grouped') out.push(...groupedLines(g, agents, nm, keep, now, v))
     else out.push(...treeLines(g, nm, keep, now, v))
   }
