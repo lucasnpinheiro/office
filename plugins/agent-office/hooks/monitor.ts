@@ -19,11 +19,8 @@ export type Seg = { t: string; fg?: string; bold?: boolean; dim?: boolean; node?
 export type Line = Seg[]
 
 export const STATE_COLOR: Record<State, string> = STATE_COLORS // derivado de vocabulary.STATE_TABLE
-const DIM = '#9ca3af'
-const CONNECTOR = '#4b5563'
-const HEADER = '#6b7280'
-const PULSE = '#60a5fa'
-export const WORKTREE_COLOR = '#a855f7' // linked git worktree: purple, apart from every state color
+const DIM = '#A9ADB5'
+export const WORKTREE_COLOR = '#BD9BFF' // linked git worktree: purple, apart from every state color
 export const PULSE_FRAMES = 12 // one full blue<->green breath
 
 const hex2 = (n: number) => Math.round(n).toString(16).padStart(2, '0')
@@ -76,7 +73,6 @@ export const padWidth = (s: string, w: number): string => s + ' '.repeat(Math.ma
 const len = strWidth
 export const lineWidth = (l: Line) => l.reduce((n, s) => n + len(s.t), 0)
 export const lineText = (l: Line) => l.map(s => s.t).join('')
-const sp = (n: number): Line => (n > 0 ? [{ t: ' '.repeat(n) }] : [])
 
 export function truncRunes(s: string, max: number): string {
   if (max <= 0) return ''
@@ -96,18 +92,6 @@ export function truncLine(l: Line, w: number): Line {
     if (piece !== s) break
   }
   return out
-}
-const padLine = (l: Line, w: number): Line => {
-  const t = truncLine(l, w)
-  return [...t, ...sp(w - lineWidth(t))]
-}
-
-function spread(left: Line, right: Line, w: number): Line {
-  const gap = w - lineWidth(left) - lineWidth(right)
-  if (gap >= 1) return [...left, ...sp(gap), ...right]
-  const room = w - lineWidth(right) - 1
-  if (room < 0) return truncLine(right, w)
-  return [...truncLine(left, room), ...sp(1), ...right]
 }
 
 export function fmtHMS(ms: number): string {
@@ -131,10 +115,8 @@ export function stateIcon(s: State, vocab: Vocab = DEFAULT_VOCAB): string {
   return nodeView(s, vocab).glyph + ' '
 }
 
-const pctText = (f: number | undefined) => (f === undefined ? '—' : `${Math.round(f * 100)}%`)
-const padEnd = (s: string, n: number) => s + ' '.repeat(Math.max(0, n - len(s)))
 
-// ---------- mind map ----------
+// ---------- árvore (Rodada 5): sem caixas, uma linha por agente ----------
 export type View = {
   width: number
   frame: number
@@ -147,255 +129,122 @@ export type View = {
   thumbs?: boolean // opt-in browser thumbnails; false = no change at all
 }
 
-function nodeBox(c: Ctx, n: Node): { lines: Line[]; cr: number } {
-  const { g, now, v, inner } = c
-  const boxW = inner + 2
-  const frac = progressOf(n)
-  const pct = pctText(frac)
-  const dur = fmtMMSS(n.kind === 'session' ? elapsedOf(g, now) : durationOf(n, now))
-  // done but a descendant still runs: keep the green done state, pulse the border blue/green with dashed edges
-  const waiting = n.state === 'done' && hasRunningDescendant(n)
-  const color = waiting ? mixHex(STATE_COLOR.done, STATE_COLOR.running, breath(v.frame)) : stateColor(n.state)
-  const wt = n.kind === 'agent' && !!n.git?.worktree
-  const edge = waiting ? '┄' : '─'
-  const deps: Line[] = n.dependsOn.length
-    ? [padLine([{ t: '┄▶ depende de ' + truncRunes(n.dependsOn.map(id => g.nodes.get(id)?.name ?? id).join(', '), boxW - 14), fg: DIM }], boxW)]
-    : []
-
-  if (n.kind === 'task') {
-    const l1 = padLine([{ t: stateIcon(n.state, v.vocab), fg: color }, { t: truncRunes(n.name, boxW - 2), fg: color }], boxW)
-    const who = [n.persona, n.model, n.effort].filter(Boolean).join(' · ')
-    const l2 = padLine([{ t: truncRunes(`${pct}  ${dur}${who ? '  ' + who : ''}`, boxW), fg: DIM }], boxW)
-    return { lines: [l1, l2, ...deps], cr: 0 }
-  }
-  const hidden = v.collapsed.has(n.id) && n.children.length > 0 ? ` +${n.children.length}` : ''
-  const icon = stateIcon(n.state, v.vocab)
-  const canToggle = n.children.length > 0
-  const tog = canToggle ? 2 : 0
-  const name = truncRunes(n.name, inner - len(icon) - len(hidden) - tog)
-  const click = n.kind === 'agent' ? n.id : undefined
-  const line1: Line = [
-    { t: icon, fg: color, node: click }, { t: name, bold: true, node: click, fg: n.kind === 'agent' && n.git?.worktree ? WORKTREE_COLOR : undefined }, { t: hidden, fg: DIM, node: click },
-    ...(canToggle ? [{ t: ' ' + (v.collapsed.has(n.id) ? '▸' : '▾'), fg: DIM, toggle: n.id } as Seg] : []),
-  ]
-  const persona = [n.persona, n.model, n.effort].filter(Boolean).join(' · ')
-  const line2: Line = [{ t: truncRunes(persona, inner), fg: DIM, node: click }]
-  const cells = Math.max(4, Math.min(10, inner - 14))
-  const line3: Line = [{ t: progressBar(frac ?? 0, cells), fg: color }, { t: ` ${padEnd(pct, 4)} ${dur}` }]
-  const side: Seg = { t: waiting ? '┆' : '│', fg: color }
-  const gl = gitLabel(n.git, v.git?.repo)
-  const shotLine: Line[] = v.thumbs && n.shot?.host ? [[{ t: truncRunes('▣ ' + n.shot.host, inner), fg: DIM }]] : []
-  const line4: Line[] = (gl ?? []).map(t => [{ t: truncRunes(t, inner), fg: wt && t.startsWith('⧉') ? WORKTREE_COLOR : DIM, bold: wt && t.startsWith('⧉') }])
-  // current tool + trail (newest first), only while running; one line, truncated
-  const trail = n.tool && (n.state === 'running' || n.state === 'attention')
-    ? [n.tool, ...[...(n.recent ?? [])].reverse().filter((x, i) => !(i === 0 && x === n.tool))].join(' ‹ ') : ''
-  const toolLine: Line[] = trail ? [[{ t: truncRunes('▸ ' + trail, inner), fg: PULSE }]] : []
-  const card: Line[] = [
-    wt
-      ? [{ t: '╭', fg: color }, { t: '⧉ worktree', fg: WORKTREE_COLOR, bold: true }, { t: edge.repeat(Math.max(0, inner - 10)) + '╮', fg: color }]
-      : [{ t: '╭' + edge.repeat(inner) + '╮', fg: color }],
-    ...[line1, line2, ...line4, ...shotLine, ...toolLine, line3].map(l => [side, ...padLine(l, inner), side]),
-    [{ t: '╰' + edge.repeat(inner) + '╯', fg: color }],
-  ]
-  return { lines: [...card, ...deps], cr: 2 }
-}
-
-const GAP = 2
-
-type Block = { lines: Line[]; cx: number; w: number }
-type Ctx = { g: Graph; now: number; v: View; inner: number; hidden: Set<string>; avail: number }
-
-const visibleKids = (c: Ctx, n: Node): Node[] =>
-  c.v.collapsed.has(n.id) ? [] : n.children.filter(k => !c.hidden.has(k.id))
-
-type Cell = { ch: string; fg: string }
-const RUN = STATE_COLOR.running
-const glyph = (u: boolean, d: boolean, l: boolean, r: boolean): string => {
-  if (u && d) return l && r ? '┼' : r ? '├' : l ? '┤' : '│'
-  if (u) return l && r ? '┴' : r ? '╰' : l ? '╯' : '│'
-  if (d) return l && r ? '┬' : r ? '╭' : l ? '╮' : '│'
-  return l || r ? '─' : ' '
-}
-const cellsLine = (cells: Cell[]): Line => {
-  const out: Line = []
-  for (const c of cells) {
-    const last = out[out.length - 1]
-    if (last && last.fg === c.fg) last.t += c.ch
-    else out.push({ t: c.ch, fg: c.fg })
-  }
-  return out
-}
-
-// Trunk + bus + drops between a parent column and its children's columns (one row of siblings).
-function connector(parentX: number, kids: { x: number; state: State }[], width: number, frame: number): Line[] {
-  const xs = [parentX, ...kids.map(k => k.x)]
-  const lo = Math.min(...xs), hi = Math.max(...xs)
-  const blank = (): Cell[] => Array.from({ length: width }, () => ({ ch: ' ', fg: CONNECTOR }))
-  const trunk = blank(), bus = blank()
-  const heavy = kids.some(k => k.state === 'running')
-  trunk[parentX] = { ch: heavy ? '┃' : '│', fg: heavy ? RUN : CONNECTOR }
-  for (let x = lo; x <= hi; x++) {
-    const isKid = kids.some(k => k.x === x)
-    const ch = glyph(x === parentX, isKid, x > lo, x < hi)
-    bus[x] = { ch, fg: CONNECTOR }
-  }
-  for (const k of kids) {
-    const run = k.state === 'running'
-    bus[k.x] = { ...bus[k.x]!, fg: run ? RUN : stateColor(k.state) }
-    if (run) {
-      for (let x = Math.min(parentX, k.x); x <= Math.max(parentX, k.x); x++) {
-        const cur = bus[x]!
-        bus[x] = { ch: cur.ch === '─' ? '━' : cur.ch, fg: RUN }
-      }
-    }
-  }
-  // moving glyph along the path to each running child
-  for (const k of kids) {
-    if (k.state !== 'running') continue
-    const step = k.x >= parentX ? 1 : -1
-    const path: [Cell[], number][] = [[trunk, parentX]]
-    for (let x = parentX; ; x += step) { path.push([bus, x]); if (x === k.x) break }
-    const [row, x] = path[((frame % path.length) + path.length) % path.length]!
-    row[x] = { ch: '•', fg: PULSE }
-  }
-  return [cellsLine(trunk), cellsLine(bus)]
-}
-
-function layoutNode(c: Ctx, n: Node): Block {
-  const boxW = c.inner + 2
-  const own = nodeBox(c, n)
-  const ownCx = Math.floor(boxW / 2)
-  const kids = visibleKids(c, n)
-  if (kids.length === 0) return { lines: own.lines, cx: ownCx, w: boxW }
-
-  const blocks = kids.map(k => ({ b: layoutNode(c, k), n: k }))
-  // rows of siblings that fit the pane
-  const rows: (typeof blocks)[] = []
-  let cur: typeof blocks = [], curW = 0
-  for (const x of blocks) {
-    const add = (cur.length ? GAP : 0) + x.b.w
-    if (cur.length && curW + add > c.avail) { rows.push(cur); cur = []; curW = 0 }
-    curW += (cur.length ? GAP : 0) + x.b.w
-    cur.push(x)
-  }
-  if (cur.length) rows.push(cur)
-
-  const place = rows.map(row => {
-    let off = 0
-    return row.map(x => { const at = off; off += x.b.w + GAP; return { ...x, at, cx: at + x.b.cx } })
-  })
-  const first = place[0]!
-  let pcx = Math.floor((first[0]!.cx + first[first.length - 1]!.cx) / 2)
-  const shift = Math.max(0, ownCx - pcx)
-  pcx += shift
-  const rowW = place.map(r => shift + r[r.length - 1]!.at + r[r.length - 1]!.b.w)
-  const W = Math.max(boxW + (pcx - ownCx), ...rowW)
-  const left = pcx - ownCx
-  const fit = (l: Line) => padLine(l, W)
-
-  const lines: Line[] = own.lines.map(l => fit([...sp(left), ...l]))
-  place.forEach(row => {
-    lines.push(...connector(pcx, row.map(x => ({ x: shift + x.cx, state: x.n.state })), W, c.v.frame).map(fit))
-    const h = Math.max(...row.map(x => x.b.lines.length))
-    for (let r = 0; r < h; r++) {
-      const parts: Line = [...sp(shift)]
-      row.forEach((x, i) => {
-        if (i) parts.push(...sp(GAP))
-        parts.push(...padLine(x.b.lines[r] ?? [], x.b.w))
-      })
-      lines.push(fit(parts))
-    }
-  })
-  return { lines, cx: pcx, w: W }
-}
-
-function levelCounts(c: Ctx, n: Node, d: number, acc: number[]): number[] {
-  acc[d] = (acc[d] ?? 0) + 1
-  for (const k of visibleKids(c, n)) levelCounts(c, k, d + 1, acc)
-  return acc
-}
-
 export const EMPTY_MESSAGE = 'Aguardando agentes… use o Claude normalmente'
+const WIDE_MIN = 100 // abaixo disso: forma compacta de 60 colunas
+const MINI_CELLS = 4
+const KEYS_WIDE = 'j k mover · ⏎ abrir · v visão · f falhas · s buscar · d decidir · r repetir · x parar · q fechar'
+const KEYS_NARROW = 'j k · ⏎ · v · f · d · r · x · q'
 
-const WT_LEGEND = '⧉ Worktree'
-// Legenda: glifo e rótulo da tabela única; "aguarda filhos" é o único texto próprio.
-function legendItems(vocab: Vocab): [string, State][] {
-  const item = (s: State) => { const x = nodeView(s, vocab); return `${x.glyph} ${x.label}` }
+type TreeCtx = { g: Graph; now: number; v: View; gone: Set<string>; wide: boolean; ascii: boolean }
+
+/** Agentes (não tarefas) visíveis na árvore, sem os já ocultos e sem os recolhidos. */
+function visibleKids(c: TreeCtx, n: Node): Node[] {
+  return c.v.collapsed.has(n.id) ? [] : n.children.filter(k => k.kind === 'agent' && !c.gone.has(k.id))
+}
+
+/** Barra mini de progresso do agente: ▬ preenchido, ╌ vazio; "—" sem dado. */
+function miniBar(frac: number | undefined, color: string | undefined, ascii: boolean): Seg {
+  if (frac === undefined) return { t: '—', fg: DIM }
+  const f = Math.min(MINI_CELLS, Math.max(0, Math.round(frac * MINI_CELLS)))
+  return { t: (ascii ? '=' : '▬').repeat(f) + (ascii ? '-' : '╌').repeat(MINI_CELLS - f), fg: color }
+}
+
+/** Uma linha de agente: conector, ícone do estado, nome, persona · modelo, worktree, barra, ferramenta, custo e tempo. */
+function agentRow(c: TreeCtx, n: Node, conn: string, folded: number): Line {
+  const view = nodeView(n.state, c.v.vocab ?? DEFAULT_VOCAB)
+  const color = view.color
+  const wt = (gitLabel(n.git, c.v.git?.repo) ?? []).find(t => t.startsWith('⧉'))
+  const dur = fmtMMSS(durationOf(n, c.now))
+  const fold: Line = folded ? [{ t: ` +${folded}`, fg: DIM }] : []
+  const head: Line = [
+    { t: conn, fg: DIM },
+    { t: view.glyph + ' ', fg: color, node: n.id },
+    { t: n.name, bold: true, node: n.id, fg: wt ? WORKTREE_COLOR : undefined },
+    ...fold,
+    ...(n.children.some(k => k.kind === 'agent') ? [{ t: c.v.collapsed.has(n.id) ? ' ▸' : ' ▾', fg: DIM, toggle: n.id } as Seg] : []),
+  ]
+  if (!c.wide) return [...head, { t: '  ' + dur, fg: DIM }]
+  const persona = [n.persona, n.model].filter(Boolean).join(' · ')
+  const tool = n.tool && n.state === 'running' ? [{ t: `  ▸ ${n.tool}`, fg: color }] : []
   return [
-    [item('done'), 'done'], [`${vocab.ascii ? '.' : '┄'} ${nodeView('done', vocab).label} · aguarda filhos`, 'done'], [item('running'), 'running'],
-    [item('attention'), 'attention'], [item('pending'), 'pending'], [item('inactive'), 'inactive'], [item('failed'), 'failed'],
+    ...head,
+    ...(persona ? [{ t: ` · ${persona}`, fg: DIM }] : []),
+    ...(wt ? [{ t: ` ${wt}`, fg: WORKTREE_COLOR }] : []),
+    { t: '  ', fg: DIM }, miniBar(progressOf(n), color, c.ascii),
+    ...tool,
+    { t: '  ~$ —', fg: DIM },
+    { t: '  ' + dur, fg: DIM },
   ]
 }
-export function legendLine(vocab: Vocab = DEFAULT_VOCAB): Line {
-  return [...legendItems(vocab).flatMap(([t, s], i) => [...(i ? sp(2) : []), { t, fg: stateColor(s) } as Seg]), ...sp(2), { t: WT_LEGEND, fg: WORKTREE_COLOR } as Seg]
+
+/** Desenha a árvore recursiva com ├─ │ └─ (ou +- | em ASCII); a raiz da sessão não aparece. */
+function treeRows(c: TreeCtx, nodes: Node[], base: string, top: boolean, out: Line[]): void {
+  nodes.forEach((n, i) => {
+    const last = i === nodes.length - 1
+    const conn = top ? '' : base + (c.ascii ? '+- ' : last ? '└─ ' : '├─ ')
+    const folded = c.v.collapsed.has(n.id) ? n.children.filter(k => k.kind === 'agent').length : 0
+    out.push(agentRow(c, n, conn, folded))
+    const childBase = top ? '' : base + (last ? '   ' : c.ascii ? '|  ' : '│  ')
+    treeRows(c, visibleKids(c, n), childBase, false, out)
+  })
 }
 
-// Legend + depth on one line when they fit; otherwise the legend wraps by item and depth gets its own line.
-export function footerLines(w: number, depth: Line, vocab: Vocab = DEFAULT_VOCAB): Line[] {
-  const one = legendLine(vocab)
-  if (lineWidth(one) + 2 + lineWidth(depth) <= w) return [spread(one, depth, w)]
-  const out: Line[] = []
-  let cur: Line = []
-  for (const [t, s] of legendItems(vocab)) {
-    const item: Seg = { t, fg: stateColor(s) }
-    if (cur.length && lineWidth(cur) + 2 + len(t) > w) { out.push(cur); cur = [] }
-    cur = [...cur, ...(cur.length ? sp(2) : []), item]
-  }
-  const wtSeg: Seg = { t: WT_LEGEND, fg: WORKTREE_COLOR }
-  if (cur.length && lineWidth(cur) + 2 + len(WT_LEGEND) > w) { out.push(cur); cur = [] }
-  cur = [...cur, ...(cur.length ? sp(2) : []), wtSeg]
-  if (cur.length) out.push(cur)
-  return [...out, depth]
+/** Cabeçalho sem moldura: título, projeto, branch, tempo, contagens e custo (sempre "~$ —", sem dado). */
+function headerLine(c: TreeCtx, agents: Node[]): Line {
+  const running = agents.filter(n => n.state === 'running').length
+  const done = agents.filter(n => n.state === 'done').length
+  const elapsed = agents.length ? fmtMMSS(elapsedOf(c.g, c.now)) : '—'
+  const branch = c.v.git?.branch ? [{ t: ` · ⎇ ${c.v.git.branch}`, fg: DIM }] : []
+  const project = c.v.project ? ` · ${c.v.project}` : ''
+  const sep: Seg = { t: ' · ', fg: DIM }
+  if (!c.wide) return [{ t: `Office · ${elapsed} · ${running} rodando · ${done}/${agents.length} · ~$ —`, bold: false }]
+  return [
+    { t: 'Office', bold: true }, { t: project, fg: DIM }, ...branch, sep,
+    { t: `${elapsed} · ${running} rodando · ${done} concluídos · ~$ —`, fg: DIM },
+  ]
 }
 
-// The detail screen of an agent is view-detail.ts (T-009); the map and the compact view both draw it.
+/** Linha de barras segmentadas (━━━━ por agente, na cor do estado) e "X/Y agentes". */
+function barLine(c: TreeCtx, agents: Node[]): Line {
+  const segs: Line = agents.map(n => ({ t: (c.ascii ? '====' : '━━━━') + ' ', fg: nodeView(n.state, c.v.vocab ?? DEFAULT_VOCAB).color }))
+  const done = agents.filter(n => n.state === 'done').length
+  return [...segs, { t: `${done}/${agents.length} agentes`, fg: DIM }]
+}
 
-export const THUMB_COLS = 12
-export const THUMB_ROWS = 5
-export type Thumb = { id: string; name: string; host: string; columns: number; rows: number; alt: string }
+/** Alertas no topo: falhas (✗) e agentes parados (▲), com o nome do agente. */
+function alertLines(c: TreeCtx, agents: Node[]): Line[] {
+  const vocab = c.v.vocab ?? DEFAULT_VOCAB
+  return agents.flatMap(n => {
+    if (n.state === 'failed') { const v = nodeView('failed', vocab); return [[{ t: `${v.glyph} ${n.name} falhou: ${n.error ?? '—'}`, fg: v.color }]] }
+    if (n.state === 'attention') { const v = nodeView('attention', vocab); return [[{ t: `${v.glyph} ${n.name} parado sem sinal`, fg: v.color }]] }
+    return []
+  })
+}
+
+/** Um quadro do monitor: cabeçalho, alertas, árvore e rodapé de teclas, na largura pedida. */
 export type Frame = { header: Line[]; body: Line[]; footer: Line[]; lines: Line[]; thumbs: Thumb[]; collapsible: { id: string; name: string; hidden: number }[] }
 
+/** Monta o quadro completo do monitor (árvore sem caixas, forma de 60 colunas abaixo de 100). */
 export function renderMonitor(agents: AgentLike[], now: number, v: View): Frame {
   const w = Math.max(20, v.width)
   const g = buildGraph(agents, now, v.git, v.sessionTool)
-  const inner = w - 2
-
-  const prog = overallProgress(g)
-  const eta = etaOf(g)
-  const progSegs: Line = prog === undefined
-    ? [{ t: 'Progresso Geral —' }]
-    : [{ t: `Progresso Geral ${pctText(prog)} ` }, { t: progressBar(prog), fg: STATE_COLOR.running }]
-  const elapsed = agents.length ? fmtHMS(elapsedOf(g, now)) : '—'
-  const stats: Line = [{ t: `Decorrido ${elapsed}   ${eta === undefined ? 'ETA indisponível' : 'Estimativa ' + fmtHMS(eta)}` }]
-  const sid = (v.sessionId ?? '').slice(0, 6) || '—'
-  const sub: Line = [{ t: `Claude Code · Projeto: ${v.project || '—'} · Sessão: #${sid}`, fg: DIM }]
-  // plain lines, no box-drawing frame: the desktop pane uses a proportional font, so borders misalign
-  const header: Line[] = [
-    spread([{ t: 'Office Agent Monitor', bold: true }], progSegs, w),
-    sub,
-    stats,
-  ]
-  const depth: Line = [{ t: `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, fg: DIM }]
-  const footer: Line[] = footerLines(w, depth, v.vocab)
-
+  const gone = agents.length ? hiddenIds(g, now) : new Set<string>()
+  const c: TreeCtx = { g, now, v, gone, wide: w >= WIDE_MIN, ascii: !!v.vocab?.ascii }
+  const all = [...g.nodes.values()].filter(n => n.kind === 'agent' && !gone.has(n.id))
+  const visibleAgents = all
+  const head: Line[] = [headerLine(c, visibleAgents)]
+  if (c.wide && visibleAgents.length) head.push(barLine(c, visibleAgents))
+  const alerts = alertLines(c, visibleAgents)
   let body: Line[]
   if (agents.length === 0) {
-    body = [[], [{ t: truncRunes(EMPTY_MESSAGE, w), fg: DIM }]]
+    body = [[{ t: truncRunes(EMPTY_MESSAGE, w), fg: DIM }]]
   } else {
-    const hidden = hiddenIds(g, now)
-    const probe: Ctx = { g, now, v, inner: 12, hidden, avail: w }
-    const widest = Math.max(...levelCounts(probe, g.root, 0, []).map(x => x ?? 0))
-    const perRow = Math.max(1, Math.min(widest, Math.floor(w / 16)))
-    const boxW = Math.floor((w - GAP * (perRow - 1)) / perRow)
-    const c: Ctx = { ...probe, inner: Math.max(12, Math.min(24, boxW - 2)) }
-    // center the whole tree in the pane; every line shares the same left pad, so connectors stay aligned
-    const tree = layoutNode(c, g.root).lines
-    const treeW = Math.max(0, ...tree.map(lineWidth))
-    const pad = Math.max(0, Math.floor((w - treeW) / 2))
-    body = tree.map(l => [...sp(pad), ...l])
-    if (c.hidden.size && g.root.children.every(k => c.hidden.has(k.id))) body = [...body, [{ t: truncRunes('Tudo concluído — agentes ocultos após 30s', w), fg: DIM }]]
+    body = []
+    treeRows(c, visibleKids(c, g.root), '', true, body)
+    if (c.gone.size && g.root.children.every(k => c.gone.has(k.id))) body.push([{ t: truncRunes('Tudo concluído — agentes ocultos após 30s', w), fg: DIM }])
   }
-  const gone = agents.length ? hiddenIds(g, now) : new Set<string>()
+  const footer: Line[] = [[{ t: c.wide ? KEYS_WIDE : KEYS_NARROW, fg: DIM }]]
+  const header = [...head, ...alerts]
   const collapsible = [...g.nodes.values()]
     .filter(n => n.kind !== 'task' && n.children.length > 0 && !gone.has(n.id))
     .map(n => ({ id: n.id, name: n.kind === 'session' ? 'Claude Code' : n.name, hidden: v.collapsed.has(n.id) ? n.children.length : 0 }))
@@ -406,9 +255,14 @@ export function renderMonitor(agents: AgentLike[], now: number, v: View): Frame 
     .filter(a => a.shot?.has && g.nodes.get(a.id) && ['running', 'attention'].includes(g.nodes.get(a.id)!.state) && !gone.has(a.id))
     .slice(-fit)
     .map(a => ({ id: a.id, name: g.nodes.get(a.id)!.name, host: a.shot!.host ?? '', columns: THUMB_COLS, rows: THUMB_ROWS, alt: `[tela: ${a.shot!.host ?? 'browser'}]` }))
-  const frame: Frame = { header, body: body.map(l => truncLine(l, w)), footer, lines, thumbs, collapsible }
+  const frame: Frame = { header: header.map(l => truncLine(l, w)), body: body.map(l => truncLine(l, w)), footer, lines, thumbs, collapsible }
   return v.vocab?.color === false ? noColor(frame) : frame
 }
+
+export const THUMB_COLS = 12
+export const THUMB_ROWS = 5
+/** Miniatura de tela de um agente de navegador, desenhada ao lado da linha. */
+export type Thumb = { id: string; name: string; host: string; columns: number; rows: number; alt: string }
 
 // NO_COLOR: nenhuma cor em nenhum trecho (estados, bordas, legenda, dicas).
 const stripLine = (l: Line): Line => l.map(s => (s.fg === undefined ? s : { ...s, fg: undefined }))
