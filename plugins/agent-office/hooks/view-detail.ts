@@ -32,10 +32,16 @@ export type DetailView = { lines: Line[]; back: boolean; warning?: string }
 export const GONE = 'O agente saiu da lista; voltando à lista.'
 export const IO_OFF = 'Entrada/saída das ferramentas: desligado. Defina OFFICE_CAPTURE_IO=1 para ligar.'
 
+const MUTED = '#A9ADB5' // cor "muted" do desenho: células vazias da mini-barra
 const s = (t: string, extra: Partial<Seg> = {}): Seg => ({ t, ...extra })
 const sp = (n: number): Seg[] => (n > 0 ? [s(' '.repeat(n))] : [])
-const row = (k: string, v: string): Line => [s(k + ': ', { fg: DIM }), s(v)]
 const title = (t: string): Line => [s(t, { bold: true })]
+
+/** Mini-barra ▬ de BAR_CELLS células: preenche a proporção feita/total na cor do estado; sem total, tudo vazio (muted). */
+export function miniBar(done: number, total: number | undefined, color: string): Line {
+  const filled = total && total > 0 ? Math.min(BAR_CELLS, Math.max(0, Math.round((done / total) * BAR_CELLS))) : 0
+  return [s('▬'.repeat(filled), { fg: color }), s('▬'.repeat(BAR_CELLS - filled), { fg: MUTED })]
+}
 
 // Agente que sumiu da lista (saiu do limite, foi resetado): `back` true, a tela chama quem desenha de volta à lista com aviso.
 export function detailView(agents: AgentLike[], id: string, now: number, o: { captureIo?: boolean; ascii?: boolean } = {}): DetailView {
@@ -51,40 +57,41 @@ export function detailView(agents: AgentLike[], id: string, now: number, o: { ca
   const kids = n.children.filter(k => k.kind === 'agent')
   const sibs = (parent?.children ?? []).filter(k => k.kind === 'agent')
   const idx = sibs.findIndex(k => k.id === id)
-  const persona = [n.persona, n.model, n.effort].filter(Boolean).join(' · ')
+  const persona = [n.persona, n.model, n.effort].map(v => dash(v ? maskText(v) : undefined))
   const total = a.todos?.length ? a.todos.length : undefined
   const done = a.todos?.length ? a.todos.filter(t => t.status === 'completed').length : kids.filter(k => k.state === 'done').length
   const wt = n.git?.worktree ? maskText(n.git.worktree) : undefined
   const br = n.git?.branch ? maskText(n.git.branch) : undefined
   const blocked = n.children.flatMap(k => k.dependsOn).map(d => g.nodes.get(d)).filter((x): x is Node => !!x && x.state !== 'done')
+  const gv = nodeView(n.state, { ascii: o.ascii === true, color: true })
+  const tokens = a.usage?.tokens !== undefined ? String(a.usage.tokens) : '—'
 
   const out: Line[] = [
-    [s(`Office › ${parentAgent ? nm(parentAgent) + ' › ' : ''}${nm(n)}`)],
-    row('Estado', nodeView(n.state, { ascii: true, color: false }).label),
-    row('Descrição', maskText(a.description)),
-    ...(n.tool ? [row('Agora', maskText(n.tool))] : []),
-    row('Progresso', progressText(done, total)),
-    row('Persona e modelo', dash(persona)),
-    row('Worktree', wt ? `⧉ ${wt}${br && br !== wt ? ' · ⎇ ' + br : ''}` : br ? `⎇ ${br}` : '—'),
-    row('Tempo', fmt(durationOf(n, now))),
-    row('Tokens', a.usage?.tokens !== undefined ? String(a.usage.tokens) : '—'),
-    row('Custo', '—'),
-    row('Erro', n.error ? maskText(n.error) : '—'),
+    // breadcrumb com `b voltar` à direita, sem caixas
+    [s(`Office › ${parentAgent ? nm(parentAgent) + ' › ' : ''}${nm(n)}`), s('  b voltar', { fg: DIM })],
+    // linha de estado: ✗ Falhou · Persona · Modelo · esforço · ⧉ branch · mm:ss · tokens · ~$
+    [s(`${gv.glyph.trim()} ${nodeView(n.state, { ascii: true, color: false }).label}`, { fg: stateColor(n.state) }),
+      s(` · ${persona.join(' · ')} · ⧉ ${br ?? wt ?? '—'} · ${fmt(durationOf(n, now))} · ${tokens} · ~$ —`, { fg: DIM })],
+    miniBar(done, total, stateColor(n.state)),
+    [s(n.error ? maskText(n.error) : '—', { fg: stateColor(n.state) })],
     [],
     title('Linha do tempo'),
   ]
   const steps = a.steps ?? []
   if (steps.length) {
     for (const st of steps) {
-      out.push([s(`  ${maskText(st.tool)} ${maskText(st.label)}${st.durationMs !== undefined ? ' ' + Math.round(st.durationMs / 1000) + 's' : ''}`)])
+      const at = fmt(Math.max(0, st.startedAt - a.startedAt))
+      const dur = st.durationMs !== undefined ? `${Math.round(st.durationMs / 1000)}s` : '—'
+      out.push([s(`${at}  ${maskText(st.tool)}  ${maskText(st.label)}  ${dur}`)])
       if (o.captureIo && st.io) {
         out.push([s(`    entrada: ${maskText(st.io.input)}`, { fg: DIM })])
         if (st.io.output !== undefined) out.push([s(`    saída: ${maskText(st.io.output)}`, { fg: DIM })])
       }
     }
-  } else if (a.recent?.length) for (const r of [...a.recent].reverse()) out.push([s(`  ${maskText(r)}`)])
-  else out.push([s('  —')])
+  } else if (a.recent?.length) for (const r of [...a.recent].reverse()) out.push([s(`—  ${maskText(r)}`)])
+  else out.push([s('—')])
 
+  out.push([], title('Prompt · segredos mascarados'), [s(a.prompt ? maskText(a.prompt) : '—')])
   out.push([], title('Dependências'))
   out.push([s('  Pai: ', { fg: DIM }), parentAgent ? link(parentAgent) : s('sessão')])
   out.push([s('  Filhos: ', { fg: DIM }), ...(kids.length ? kids.slice(0, 6).flatMap((k, i) => [...sp(i ? 1 : 0), link(k)]) : [s('—')])])
@@ -104,9 +111,7 @@ export function detailView(agents: AgentLike[], id: string, now: number, o: { ca
     out.push([], title('Anexos'))
     for (const f of a.files) out.push([s('  ' + maskText(f), { fg: '#60a5fa', attach: f })]) // `attach` keeps the real path for the preview; only the text is masked
   }
-  out.push([], title('Prompt · segredos mascarados'), [s(a.prompt ? maskText(a.prompt) : '—')])
   if (!o.captureIo) out.push([], [s(IO_OFF, { fg: DIM })])
-  out.push([], [s('b voltar')])
   return { lines: out, back: false }
 }
 

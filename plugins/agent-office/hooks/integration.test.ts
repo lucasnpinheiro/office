@@ -147,7 +147,7 @@ test('T-009 detalhe: ordem do Padrão, nota de captura desligada, e o segredo nu
   await $.command.run({ command: 'office', args: 'open tu1' } as any)
   const ui = await mount($)
   const out = await texts(ui)
-  const order = ['Estado', 'Tempo', 'Tokens', 'Custo', 'Erro', 'Linha do tempo', 'Dependências', 'Prompt']
+  const order = ['Linha do tempo', 'Prompt · segredos mascarados', 'Dependências']
   const pos = order.map(k => out.indexOf(k))
   expect(pos.every(p => p >= 0)).toBe(true)
   expect([...pos].sort((a, b) => a - b)).toEqual(pos)
