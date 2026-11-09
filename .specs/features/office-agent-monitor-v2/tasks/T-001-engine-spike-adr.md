@@ -43,8 +43,8 @@ integração: `tests/integration.md` (linhas de AC-001 a AC-003) · cenários: `
 - [x] Julgada por subagente diferente do implementador: achados do juiz corrigidos (2026-11-05)
 
 ## Evidência
-- 2026-11-05, `claude plugin test .` em `plugins/agent-office`: 147 pass, 0 fail, 12 arquivos, exit 0 (log em `~/.agents/.t001-test.log`).
-- 2026-11-05, leitura de tipos: `index.d.ts` de 2.1.292 em `~/.agents/mods/agent-office-marketplace/plugins/agent-office/.claude-plugin/types/claude-code/`, grep e leitura por `python3 -I`; cada linha da matriz em ADR 0002 tem `arquivo:linha`.
+- 2026-11-05, `claude plugin test .` em `plugins/agent-office`: 147 pass, 0 fail, 12 arquivos, exit 0 (log em `<agents-home>/.t001-test.log`).
+- 2026-11-05, leitura de tipos: `index.d.ts` de 2.1.292 em `<agents-home>/mods/agent-office-marketplace/plugins/agent-office/.claude-plugin/types/claude-code/`, grep e leitura por `python3 -I`; cada linha da matriz em ADR 0002 tem `arquivo:linha`.
 - Probes em `claude -p` (2026-11-05, mod descartável via `--plugin-dir`, fora do repo): retry por modelo, allow/deny por `tool.check`, e Probe 2 (toolTiming, tokensPerAgent, permissionEvent). Probe 3: mod chamando `$.session.send` não entregou; Retry via mod `not-verified`, T-012 não renderiza Retry até prova. containerWidth, Stop, diálogo humano e Superfície App: não executados, `not-verified` (AC-003). Trechos na ADR 0002.
 - AC-002: `plugins/agent-office/hooks/capabilities.ts` + `capabilities.test.ts` (RED visto antes do GREEN); `claude plugin test .` 150 pass, 0 fail.
 

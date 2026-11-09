@@ -6,7 +6,7 @@ Status: proposta por T-001. Cada linha traz evidência de tipo (`arquivo:linha`)
 O usuário decidiu por controles completos, sem fingir: controle sem suporte não aparece, e a lacuna vai ao usuário.
 
 ## Fontes e versões observadas
-- Tipos gerados do engine: `/Users/lucasnpinheiro/.agents/mods/agent-office-marketplace/plugins/agent-office/.claude-plugin/types/claude-code/index.d.ts`, cabeçalho "Written by Claude Code 2.1.292", 15776 linhas. Citações abaixo usam este arquivo.
+- Tipos gerados do engine: `<marketplace>/plugins/agent-office/.claude-plugin/types/claude-code/index.d.ts`, cabeçalho "Written by Claude Code 2.1.292", 15776 linhas. Citações abaixo usam este arquivo.
 - CLI instalado: `claude --version` = `2.1.311 (Claude Code)`.
 - Referências do skill mod-builder (`~/.claude/plugins/marketplaces/claude-code-mods/plugins/mod-builder/skills/mod-builder/`): `data/api-map.json` marca versão `2.1.287`; `references/events.md`, `nouns.md`, `limits.md`. Versão do mapa é anterior ao tipo; divergência registrada.
 - Caminho anotado em `spec/02-research.md` (`.claude-plugin/types`, `$.agent` em `:3252`, `:566`) não bate com o arquivo acima: as linhas citadas em 02-research são de outra build. Este ADR usa só as linhas de 2.1.292 deste arquivo.

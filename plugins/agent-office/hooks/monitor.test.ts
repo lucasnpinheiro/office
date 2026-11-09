@@ -2,6 +2,7 @@ import { test, expect } from 'claude-code/testing'
 import { buildGraph, contentSize, inlineSize, MAX_INLINE_ROWS, renderMonitor, etaOf, overallProgress, maxDepthOf, STATE_COLOR, lineText, lineWidth, MAX_DEPTH, progressBar, mixHex, breath, PULSE_FRAMES, WORKTREE_COLOR } from './monitor'
 import { detailScreen } from './view-detail'
 import type { AgentLike } from './office'
+import { STATE_TABLE } from './vocabulary'
 
 const T0 = 1_700_000_000_000
 const D = '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo'
@@ -24,67 +25,9 @@ test('failure is red and carries an explicit cross; colors per state', () => {
   expect(STATE_COLOR).toEqual({ done: '#6FD08C', running: '#7FA9FF', attention: '#F2B84B', pending: '#A9ADB5', inactive: '#A9ADB5', failed: '#FF8A80' })
 })
 
-test('done card with a running descendant: dashed border pulsing blue/green, cascaded up the chain', () => {
-  const agents = [mk('a', { status: 'done', endedAt: T0 + 1000 }), mk('b', { status: 'done', endedAt: T0 + 1000, parentAgentId: 'g-a' }), mk('c', { parentAgentId: 'g-b' })]
-  const dashedTops = (frame: number) => renderMonitor(agents, T0 + 5000, view({ frame })).body.flat().filter(s => s.t.startsWith('╭') && s.t.includes('┄'))
-  const f0 = dashedTops(0), f1 = dashedTops(PULSE_FRAMES / 2)
-  expect(f0.length).toBe(2) // a and b: done, each with a running descendant; c runs with a plain border
-  expect(f0[0]!.fg).not.toBe(f1[0]!.fg)
-  expect(new Set([f0[0]!.fg, f1[0]!.fg])).toEqual(new Set([STATE_COLOR.done.toLowerCase(), STATE_COLOR.running.toLowerCase()])) // mixHex devolve minúsculas
-})
-
 test('done card without running descendants keeps the plain green border', () => {
   const f = renderMonitor([mk('a', { status: 'done', endedAt: T0 + 1000 })], T0 + 5000, view({ frame: 1 }))
   expect(f.body.flat().some(s => s.t.includes('┄'))).toBe(false)
-})
-
-test('header: title, project, session, no invented progress or ETA', () => {
-  const t = text([mk('a')])
-  expect(t).toContain('Progresso Geral 0%') // one leaf agent, 0 of 1 done (as the Go reference)
-  expect(text([])).toContain('Progresso Geral —')
-  expect(t).toContain('Office Agent Monitor')
-  expect(t).toContain('Claude Code · Projeto: meuapp · Sessão: #abcdef')
-  expect(t).toContain('Decorrido 00:00:05')
-  expect(t).toContain('ETA indisponível')
-  expect(text([])).toContain('Decorrido —')
-})
-
-test('ETA: mean of finished durations x remaining; <3 same-model samples unavailable (AC-030)', () => {
-  const one = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b')]
-  expect(etaOf(buildGraph(one, T0 + 1))).toBeUndefined()
-  const two = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b', { status: 'done', endedAt: T0 + 120_000 }), mk('c')]
-  expect(etaOf(buildGraph(two, T0 + 1))).toBeUndefined()
-  const three = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b', { status: 'done', endedAt: T0 + 120_000 }), mk('c', { status: 'done', endedAt: T0 + 180_000 }), mk('d')]
-  expect(etaOf(buildGraph(three, T0 + 1))).toBe(120_000)
-  expect(text(three, T0 + 181_000)).toContain('Estimativa 00:02:00')
-})
-
-test('progress is done leaves / leaves, from todos; none without evidence', () => {
-  expect(overallProgress(buildGraph([], T0))).toBeUndefined()
-  expect(overallProgress(buildGraph([mk('a'), mk('b', { status: 'done', endedAt: T0 + 1 })], T0))).toBe(0.5)
-  const a = mk('a', { todos: [{ content: 'x', status: 'completed' }, { content: 'y', status: 'in_progress' }, { content: 'z', status: 'pending' }, { content: 'w', status: 'pending' }] })
-  const g = buildGraph([a], T0)
-  expect(overallProgress(g)).toBe(0.25)
-  const t = text([a])
-  expect(t).toContain('Progresso Geral 25%')
-  expect(t).toContain('┄▶ depende de x') // todo order dependency
-})
-
-test('mind map: top-down tree, root above, siblings on one row, card shows task and persona', () => {
-  const rows = text([mk('a'), mk('b')]).split('\n')
-  const rRoot = rows.findIndex(l => l.includes('Claude Code') && !l.includes('Projeto'))
-  const rA = rows.findIndex(l => l.includes('tarefa a'))
-  const rB = rows.findIndex(l => l.includes('tarefa b'))
-  expect(rRoot).toBeGreaterThan(-1)
-  expect(rA).toBeGreaterThan(rRoot)
-  expect(rB).toBe(rA)
-  expect(rows[rA]!.indexOf('tarefa a')).toBeLessThan(rows[rA]!.indexOf('tarefa b'))
-  const t = rows.join('\n')
-  expect(t).toContain('Orquestrador')
-  expect(t).toContain('Pleno · Sonnet')
-  expect(t).toMatch(/╭━*┴━*╮/) // fan-out bus: trunk meets the bus, drops at each child
-  const nested = text([mk('a'), mk('b', { parentAgentId: 'g-a' })]).split('\n')
-  expect(nested.findIndex(l => l.includes('tarefa b'))).toBeGreaterThan(nested.findIndex(l => l.includes('tarefa a')))
 })
 
 test('completed agents hide 30s after they finish; running ones stay', () => {
@@ -99,45 +42,16 @@ test('completed agents hide 30s after they finish; running ones stay', () => {
   expect(text([p, mk('c', { parentAgentId: 'g-p' })], T0 + 60_000)).toContain('tarefa p')
 })
 
-test('counters: finished leaf shows 100% and real duration; running leaf 0%', () => {
-  const t = text([mk('a', { status: 'done', endedAt: T0 + 12_000 }), mk('b')], T0 + 20_000)
-  expect(t).toContain('100% 00:12')
-  expect(t).not.toContain('—')
-  expect(t).toContain('0%  ')
-})
-
 test('counters: overall is not 100% while an agent still runs', () => {
   const agents = [mk('a', { status: 'done', endedAt: T0 + 1000 }), mk('p'), mk('c', { parentAgentId: 'g-p', status: 'done', endedAt: T0 + 2000 })]
   const g = buildGraph(agents, T0 + 5000)
   expect(overallProgress(g)).toBeLessThan(1)
 })
 
-test('counters: orchestrator clock equals header Decorrido', () => {
-  const t = text([mk('a', { status: 'done', endedAt: T0 + 33_000 }), mk('b', { startedAt: T0 + 1000 })], T0 + 46_000)
-  expect(t).toContain('Decorrido 00:00:46')
-  const row = t.split('\n').find(l => l.includes('00:46') && l.includes('%'))
-  expect(row).toBeDefined()
-})
-
 test('counters: no Estimativa 00:00:00 when nothing is left to estimate', () => {
   const all = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b', { status: 'done', endedAt: T0 + 120_000 })]
   expect(etaOf(buildGraph(all, T0 + 130_000))).toBeUndefined()
   expect(text(all, T0 + 130_000)).not.toContain('Estimativa 00:00:00')
-})
-
-test('legend wraps instead of truncating on narrow panes', () => {
-  const t = text([mk('a')], T0 + 5000, { width: 50 })
-  for (const w of ['Concluído', 'Rodando', 'Parado sem sinal', 'Na fila', 'Interrompido', 'Falhou']) expect(t).toContain(w)
-})
-
-test('depth clamps at 10 and the footer shows N/10 and the legend', () => {
-  const chain = Array.from({ length: 14 }, (_, i) => mk(`n${i}`, { parentAgentId: i ? `g-n${i - 1}` : undefined }))
-  const g = buildGraph(chain, T0)
-  expect(maxDepthOf(g)).toBe(MAX_DEPTH)
-  const t = text(chain, T0, { width: 300 })
-  expect(t).toContain('Níveis de profundidade: 10/10')
-  expect(t).toContain('✓ Concluído  ┄ Concluído · aguarda filhos  ⠹ Rodando  ▲ Parado sem sinal  ○ Na fila  ■ Interrompido  ✗ Falhou')
-  expect(text([mk('a')])).toContain('Níveis de profundidade: 1/10')
 })
 
 test('collapse hides the branch and shows +N', () => {
@@ -154,23 +68,6 @@ test('width clamp: no line exceeds the pane, narrow panes still render', () => {
     const f = renderMonitor(agents, T0 + 5000, view({ width }))
     for (const l of f.lines) expect(lineWidth(l)).toBeLessThanOrEqual(width)
   }
-})
-
-test('animation: moving glyph changes with the frame only when something runs', () => {
-  const running = [mk('a'), mk('b', { parentAgentId: 'g-a' }), mk('c', { parentAgentId: 'g-a' })]
-  const frames = new Set([0, 1, 2, 3].map(f => renderMonitor(running, T0 + 5000, view({ frame: f })).lines.map(lineText).join('\n')))
-  expect(frames.size).toBeGreaterThan(1)
-  const done = running.map(a => ({ ...a, status: 'done' as const, endedAt: T0 + 1000 }))
-  const still = new Set([0, 1, 2, 3].map(f => renderMonitor(done, T0 + 5000, view({ frame: f })).lines.map(lineText).join('\n')))
-  expect(still.size).toBe(1)
-})
-
-test('flow: bus sits right under the trunk, no empty drop row before the child cards', () => {
-  const rows = text([mk('a'), mk('b')]).split('\n')
-  const bus = rows.findIndex(l => /╭━*┴━*╮|╭─*┴─*╮/.test(l))
-  expect(bus).toBeGreaterThan(-1)
-  expect(rows[bus + 1]).toContain('╭──') // child card top border directly below the bus
-  expect(rows[bus - 1]!.trim()).toMatch(/^[┃│•]$/) // single trunk glyph above
 })
 
 test('contentSize: rows = rendered lines, columns = widest line, within bounds', () => {
@@ -196,33 +93,10 @@ test('inlineSize: rows capped at MAX_INLINE_ROWS, columns within bounds', () => 
   expect(Number.isInteger(small.rows) && small.rows > 0).toBe(true)
 })
 
-test('card: persona line carries model and effort chips; label falls back to prompt', () => {
-  const t = text([mk('a'), mk('b', { description: '🧭 Squad Leader · 🎼 Sonnet · 🟡 médio:', prompt: 'Executar SPEC-025' })])
-  expect(t).toContain('Pleno · Sonnet · baixo')
-  expect(t).toContain('Squad Leader')
-  expect(t).toContain('Executar SPEC-025')
-})
-
 test('blue-box bug: a running background agent stays on the map past 30s', () => {
   const a = mk('a', { description: `${D}: Checking StoreContextCache` })
   expect(text([a], T0 + 120_000)).toContain('Checking StoreContext')
   expect(text([a], T0 + 120_000)).not.toContain('agentes ocultos')
-})
-
-test('git: card shows branch; worktree marker; other repo prefixed; long names truncated', () => {
-  const main = { branch: 'main', repo: '/r/app' }
-  const t = text([
-    mk('a', { git: main }),
-    mk('b', { git: { branch: 'feat/spec-025-close', worktree: 'wt-1', repo: '/r/app' } }),
-    mk('c', { git: { branch: 'dev', repo: '/r/other' } }),
-  ], T0 + 5000, { git: main })
-  expect(t).toContain('⎇ main')
-  expect(t).toContain('⧉ wt-1')
-  expect(t).toContain('other:dev')
-  const lines = t.split('\n')
-  expect(lines.every(l => [...l].length <= 120)).toBe(true)
-  const none = text([mk('a')])
-  expect(none).not.toContain('⎇')
 })
 
 test('git: session card carries the session branch, worktree in the same repo is not a new project', () => {
@@ -231,67 +105,12 @@ test('git: session card carries the session branch, worktree in the same repo is
   expect(g.nodes.get('a')!.git?.repo).toBe('/r/app')
 })
 
-test('tool line: running card shows current tool and trail; done card hides it; session card too', () => {
-  const run = mk('a', { tool: 'docker', recent: ['Read x.ts', 'ls', 'docker'] })
-  const t = text([run])
-  expect(t).toContain('▸ docker')
-  expect(t).toContain('ls')
-  const done = text([mk('a', { status: 'done', endedAt: T0 + 1, tool: 'docker', recent: ['docker'] })])
-  expect(done).not.toContain('▸ docker')
-  expect(text([mk('b')])).not.toContain('▸')
-  expect(text([mk('b')], T0 + 5000, { sessionTool: { tool: 'Read', recent: ['Read'] } })).toContain('▸ Read')
-  expect(text([run], T0 + 5000).split('\n').every(l => [...l].length <= 120)).toBe(true)
-})
-
 test('thumbs OFF (default): no shot line, no thumbs, size unchanged', () => {
   const a = mk('a', { shot: { host: 'shop.example.com', has: true } })
   const f = renderMonitor([a], T0 + 5000, view())
   expect(f.lines.map(lineText).join('\n')).not.toContain('▣')
   expect(f.thumbs).toEqual([])
   expect(inlineSize([a], T0 + 5000, view()).rows).toBe(inlineSize([mk('a')], T0 + 5000, view()).rows)
-})
-
-test('thumbs ON: running browser card gets host line and a thumb slot; rows counted; done hides it', () => {
-  const a = mk('a', { shot: { host: 'shop.example.com', has: true } })
-  const on = view({ thumbs: true })
-  const f = renderMonitor([a], T0 + 5000, on)
-  expect(f.lines.map(lineText).join('\n')).toContain('▣ shop.example.com')
-  expect(f.thumbs.length).toBe(1)
-  expect(f.thumbs[0]!.columns).toBe(12)
-  expect(f.thumbs[0]!.rows).toBe(5)
-  expect(f.thumbs[0]!.alt).toBe('[tela: shop.example.com]')
-  expect(inlineSize([a], T0 + 5000, on).rows).toBe(inlineSize([mk('a')], T0 + 5000, on).rows + 1 + 1 + 5)
-  // host only (no bytes): text line, no thumb slot
-  const t = renderMonitor([mk('a', { shot: { host: 'h.io' } })], T0 + 5000, on)
-  expect(t.thumbs.length).toBe(0)
-  expect(t.lines.map(lineText).join('\n')).toContain('▣ h.io')
-  const d = renderMonitor([mk('a', { status: 'done', endedAt: T0 + 1, shot: { host: 'h.io', has: true } })], T0 + 5000, on)
-  expect(d.thumbs.length).toBe(0)
-  expect(d.lines.map(lineText).join('\n')).not.toContain('▣')
-})
-
-test('tree is centered in a wide pane: equal left/right margin around the card', () => {
-  const f = renderMonitor([mk('a')], T0 + 5000, view({ width: 80 }))
-  const top = f.body.map(lineText).find(t => t.includes('╭'))!
-  const left = [...top].findIndex(ch => ch === '╭')
-  const cardW = [...top.trimEnd()].length - left
-  const right = 80 - left - cardW
-  expect(Math.abs(left - right)).toBeLessThanOrEqual(1)
-})
-
-test('tree keeps left alignment when the pane is narrower than the content', () => {
-  const f = renderMonitor([mk('a')], T0 + 5000, view({ width: 20 }))
-  const top = f.body.map(lineText).find(t => t.includes('╭'))!
-  expect([...top].findIndex(ch => ch === '╭')).toBe(0)
-})
-
-test('card name and persona segments carry the node id (clickable); branch toggle only with children', () => {
-  const f = renderMonitor([mk('a'), mk('b', { parentAgentId: 'g-a' })], T0 + 5000, view())
-  const segs = f.body.flat()
-  expect(segs.some(s => s.node === 'a' && s.t.includes('tarefa a'))).toBe(true)
-  expect(segs.some(s => s.node === 'b' && s.t.includes('Pleno'))).toBe(true)
-  expect(segs.filter(s => s.toggle === 'a').length).toBe(1)
-  expect(segs.filter(s => s.toggle === 'b').length).toBe(0)
 })
 
 test('detalhe (view-detail): persona, estado, prompt, tarefas e arquivos de um agente; sem agente = volta à lista', () => {
@@ -320,28 +139,6 @@ test('task node inherits persona/model/effort from its agent', () => {
   expect(t.model).toBe(g.nodes.get('a')!.model)
 })
 
-test('border pulse is a smooth gradient, not on/off', () => {
-  const cols = new Set(Array.from({ length: PULSE_FRAMES }, (_, f) => mixHex(STATE_COLOR.done, STATE_COLOR.running, breath(f))))
-  expect(cols.size).toBeGreaterThan(4)
-  expect(mixHex('#000000', '#ffffff', 0.5)).toBe('#808080')
-  const a = [mk('a', { status: 'done', endedAt: T0 + 1 }), mk('b', { parentAgentId: 'g-a' })]
-  const tops = (frame: number) => renderMonitor(a, T0 + 5000, view({ frame })).body.flat().find(s => s.t.startsWith('╭') && s.t.includes('┄'))!.fg
-  expect(tops(1)).not.toBe(tops(0))
-  expect(tops(1)).not.toBe(STATE_COLOR.running)
-})
-
-test('worktree card: purple tag, purple worktree line, legend item; plain repo card has none', () => {
-  const wt = mk('a', { git: { branch: 'feat/x', worktree: 'wt-1', repo: '/r' } })
-  const f = renderMonitor([wt], T0 + 5000, view())
-  const segs = f.body.flat()
-  expect(segs.some(s => s.t.includes('⧉ worktree') && s.fg === WORKTREE_COLOR)).toBe(true)
-  expect(segs.some(s => s.t.includes('⧉ wt-1') && s.fg === WORKTREE_COLOR)).toBe(true)
-  expect(f.footer.map(lineText).join('\n')).toContain('⧉ Worktree')
-  const plain = renderMonitor([mk('b', { git: { branch: 'main', repo: '/r' } })], T0 + 5000, view())
-  expect(plain.body.flat().some(s => s.t.includes('⧉'))).toBe(false)
-  expect(Object.values(STATE_COLOR)).not.toContain(WORKTREE_COLOR)
-})
-
 test('progressBar: ▰ filled / ▱ empty, fixed width, whole-cell steps', () => {
   expect(progressBar(0, 10)).toBe('▱'.repeat(10))
   expect(progressBar(1, 10)).toBe('▰'.repeat(10))
@@ -352,4 +149,90 @@ test('progressBar: ▰ filled / ▱ empty, fixed width, whole-cell steps', () =>
   const bars = Array.from({ length: 11 }, (_, i) => progressBar(i / 10, 10))
   expect(new Set(bars).size).toBe(11)
   expect(bars.every(b => [...b].length === 10)).toBe(true)
+})
+
+// ---- Rodada 5: árvore sem caixas, cabeçalho sem moldura, números honestos ----
+test('header: Office · projeto · ⎇ branch · tempo · rodando · concluídos · ~$ — (sem moldura, sem %, sem ETA)', () => {
+  const f = renderMonitor([mk('a'), mk('b', { status: 'done', endedAt: T0 + 1000 })], T0 + 5000, view({ git: { branch: 'main', repo: '/r' } }))
+  expect(lineText(f.header[0]!)).toBe('Office · meuapp · ⎇ main · 00:05 · 1 rodando · 1 concluídos · ~$ —')
+  expect(f.header.map(lineText).join('\n')).not.toMatch(/[╭╮╰╯│─%]|ETA|Progresso/)
+})
+test('barra segmentada: um ━━━━ por agente na cor do estado e X/Y agentes', () => {
+  const f = renderMonitor([mk('a'), mk('b', { status: 'done', endedAt: T0 + 1000 })], T0 + 5000, view())
+  const bar = lineText(f.header[1]!)
+  expect(bar.startsWith('━━━━ ━━━━ ')).toBe(true)
+  expect(bar.endsWith('1/2 agentes')).toBe(true)
+  expect(f.header[1]![0]!.fg).toBe(STATE_TABLE.running.dark)
+  expect(f.header[1]![1]!.fg).toBe(STATE_TABLE.done.dark)
+})
+test('alerta no topo: falha com ✗ e erro', () => {
+  const f = renderMonitor([mk('a', { status: 'error', endedAt: T0 + 1, error: 'cupom não aplicado' }), mk('b')], T0 + 5000, view())
+  expect(f.header.map(lineText)).toContain('✗ tarefa a falhou: cupom não aplicado')
+})
+test('árvore: conectores ├─ e └─, filho aninhado com │, uma linha por agente', () => {
+  const rows = renderMonitor([mk('a'), mk('b'), mk('c', { parentAgentId: 'g-a' })], T0 + 5000, view()).body.map(lineText)
+  expect(rows.length).toBe(3)
+  expect(rows[0]!.startsWith('⠹ tarefa a')).toBe(true)
+  expect(rows.some(r => r.startsWith('└─ ') && r.includes('tarefa c'))).toBe(true)
+  expect(rows.some(r => r.includes('tarefa b') && !r.includes('├─') && !r.includes('└─'))).toBe(true)
+})
+test('linha do agente: persona · modelo, worktree, barra, custo honesto e tempo mm:ss', () => {
+  const f = renderMonitor([mk('a', { git: { branch: 'x', worktree: 'wt-1', repo: '/r' }, tool: 'Bash' })], T0 + 12_000, view({ width: 120 }))
+  const row = lineText(f.body[0]!)
+  expect(row).toContain('Pleno · Sonnet')
+  expect(row).toContain('⧉ wt-1')
+  expect(row).toContain('▸ Bash')
+  expect(row).toContain('~$ —')
+  expect(row.endsWith('00:12')).toBe(true)
+  expect(row).not.toMatch(/%|\$0/)
+})
+test('abaixo de 100 colunas: forma de 60 com cabeçalho curto, sem barra e rodapé curto', () => {
+  const f = renderMonitor([mk('a'), mk('b', { status: 'done', endedAt: T0 + 1000 })], T0 + 5000, view({ width: 60 }))
+  expect(f.header.length).toBe(1)
+  expect(lineText(f.header[0]!)).toBe('Office · 00:05 · 1 rodando · 1/2 · ~$ —')
+  expect(lineText(f.footer[0]!)).toBe('j k · ⏎ · v · f · d · r · x · q')
+  for (const l of f.lines) expect(lineWidth(l)).toBeLessThanOrEqual(60)
+})
+test('ASCII (OFFICE_ASCII): glifos [xx] [ok] .. e conectores +- ', () => {
+  const agents = [mk('a', { status: 'error', endedAt: T0 + 1, error: 'boom' }), mk('b', { status: 'done', endedAt: T0 + 1 }), mk('c', { parentAgentId: 'g-b' })]
+  const f = renderMonitor(agents, T0 + 5000, view({ vocab: { ascii: true, color: true } }))
+  const t = f.lines.map(lineText).join('\n')
+  expect(t).toContain('[xx] tarefa a falhou: boom')
+  expect(t).toContain('[ok]')
+  expect(t).toContain('+- ..')
+  expect(t).not.toMatch(/[├└│✗✓⠹]/)
+})
+test('rodapé de teclas: frase fixa da Rodada 5 na forma larga', () => {
+  const f = renderMonitor([mk('a')], T0 + 5000, view())
+  expect(lineText(f.footer[0]!)).toBe('j k mover · ⏎ abrir · v visão · f falhas · s buscar · d decidir · r repetir · x parar · q fechar')
+})
+test('sem frame de caixa em nenhuma linha (fonte proporcional do painel)', () => {
+  const f = renderMonitor([mk('a'), mk('b', { parentAgentId: 'g-a' })], T0 + 5000, view())
+  for (const l of f.lines) expect(lineText(l)).not.toMatch(/[╭╮╰╯┆]/)
+})
+test('ícone e nome do agente são clicáveis; alternar só com filhos', () => {
+  const f = renderMonitor([mk('a'), mk('b', { parentAgentId: 'g-a' })], T0 + 5000, view())
+  const segs = f.body.flat()
+  expect(segs.some(s => s.node === 'a' && s.t === 'tarefa a')).toBe(true)
+  expect(segs.some(s => s.node === 'b' && s.t === 'tarefa b')).toBe(true)
+  expect(segs.filter(s => s.toggle === 'a').length).toBe(1)
+})
+test('ETA só com amostra suficiente (sem texto no cabeçalho)', () => {
+  const three = [mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b', { status: 'done', endedAt: T0 + 120_000 }), mk('c', { status: 'done', endedAt: T0 + 180_000 }), mk('d')]
+  expect(etaOf(buildGraph(three, T0 + 1))).toBe(120_000)
+  expect(etaOf(buildGraph([mk('a', { status: 'done', endedAt: T0 + 60_000 }), mk('b')], T0 + 1))).toBeUndefined()
+})
+test('worktree: nome do agente e tag ⧉ na cor do worktree; repo comum sem tag', () => {
+  const f = renderMonitor([mk('a', { git: { branch: 'feat/x', worktree: 'wt-1', repo: '/r' } })], T0 + 5000, view())
+  const segs = f.body.flat()
+  expect(segs.some(s => s.t === 'tarefa a' && s.fg === WORKTREE_COLOR)).toBe(true)
+  expect(segs.some(s => s.t.includes('⧉ wt-1') && s.fg === WORKTREE_COLOR)).toBe(true)
+  expect(WORKTREE_COLOR).toBe('#BD9BFF')
+  expect(renderMonitor([mk('b', { git: { branch: 'main', repo: '/r' } })], T0 + 5000, view()).body.flat().some(s => s.t.includes('⧉'))).toBe(false)
+})
+test('estado concluído usa ✓ e a cor da tabela', () => {
+  const f = renderMonitor([mk('a', { status: 'done', endedAt: T0 + 1000 })], T0 + 5000, view())
+  const icon = f.body[0]!.find(s => s.t.startsWith('✓'))!
+  expect(icon.t).toBe('✓ ')
+  expect(icon.fg).toBe(STATE_TABLE.done.dark)
 })

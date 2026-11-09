@@ -20,10 +20,10 @@ test('AC-014 render: legenda compacta usa rótulo e glifo da tabela', () => {
     expect(out).toContain(`${STATE_TABLE[s].glyph} ${STATE_TABLE[s].label}`)
   }
 })
-test('AC-014 render: legenda do mapa usa rótulo e glifo da tabela, cor do token', () => {
+test('AC-014 render: mapa usa o glifo da tabela e a cor do token', () => {
   const f = renderMonitor(agents, T + 5000, mview())
   const t = f.lines.map(lineText).join('\n')
-  for (const s of ['done', 'running', 'stalled', 'queued', 'stopped', 'failed'] as const) expect(t).toContain(`${STATE_TABLE[s].glyph} ${STATE_TABLE[s].label}`)
+  for (const s of ['done', 'running', 'failed'] as const) expect(t).toContain(STATE_TABLE[s].glyph)
   expect(STATE_COLOR.done).toBe(STATE_TABLE.done.dark)
   expect(STATE_COLOR.failed).toBe(STATE_TABLE.failed.dark)
   expect(f.lines.flat().some(s => s.fg === STATE_TABLE.done.dark)).toBe(true)
