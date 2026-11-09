@@ -12,7 +12,8 @@ const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, agentId
 const txt = (ls: { t: string }[][]) => ls.map(l => l.map(s => s.t).join('')).join('\n')
 const caps = detectCaps({ LANG: 'pt_BR.UTF-8' })
 const model = (agents: AgentLike[], sessionTokens?: number) => buildRunModel(agents, T + 5000, CAPABILITIES, sessionTokens)
-const view = () => ({ width: 100, caps })
+// Estas ACs cobrem a forma de 60 colunas (mil, "total"); a forma larga (>= 100) tem os testes "custo largo" no fim.
+const view = () => ({ width: 80, caps })
 
 const known = [
   mk('a', { usage: { tokens: 12_300 }, status: 'done', endedAt: T + 3000 }),
@@ -45,4 +46,50 @@ test('AC-033 custo: sem nenhum dado, total em traço e nunca ~$0,00', () => {
 test('AC-031 custo: tokens da sessão principal entram no total', () => {
   const out = txt(costLines(model(known, 500), T + 5000, view()))
   expect(out.split('\n')[0]).toMatch(/16,8 mil/)
+})
+
+// Custo largo (>= 100 colunas): cabeçalho `Custo ~$X · N tokens · mais caro: <agente>`, árvore ├ └ │, barra █ com offset.
+const wide = () => ({ width: 100, caps })
+const tree = [
+  mk('a', { usage: { tokens: 27_000 }, status: 'done', endedAt: T + 4000 }),
+  mk('b', { usage: { tokens: 10_900 }, status: 'done', endedAt: T + 2000, parentAgentId: 'g-a' } as any),
+  mk('d', { usage: { tokens: 18_300 }, status: 'done', startedAt: T + 1000, endedAt: T + 3000, parentAgentId: 'g-a' } as any),
+]
+
+// RED: formato largo do cabeçalho com tokens em pt-BR (k) e agente mais caro
+test('custo largo: cabeçalho com ~$ —, tokens em k com vírgula e mais caro', () => {
+  const lines = txt(costLines(model(tree), T + 5000, wide())).split('\n')
+  expect(lines[0]).toMatch(/^Custo ~\$ — · 56,2k (parcial )?tokens · mais caro: Dev: a/) // parcial: sem tokens da sessão principal
+})
+
+// RED: árvore com conectores e uma linha por agente com tokens, custo "—" e tempo
+test('custo largo: árvore com ├ e └ e colunas tokens, custo e tempo', () => {
+  const lines = txt(costLines(model(tree), T + 5000, wide())).split('\n')
+  expect(lines.some(l => l.includes('├'))).toBe(true)
+  expect(lines.some(l => l.includes('└'))).toBe(true)
+  expect(lines.slice(2).find(l => l.includes('Dev: a'))).toMatch(/27,0k\s+~\$ —\s+00:04/)
+})
+
+// RED: barra da linha do tempo em █ e deslocada pelo início do agente
+test('custo largo: barra █ deslocada pelo início do agente', () => {
+  const ls = costLines(model(tree), T + 5000, wide()).map(l => l.map(s => s.t).join(''))
+  const a = ls.slice(2).find(l => l.includes('Dev: a'))!
+  const d = ls.slice(2).find(l => l.includes('Dev: d'))!
+  expect(a).toContain('█')
+  expect(d.indexOf('█')).toBeGreaterThan(a.indexOf('█'))
+})
+
+// RED: sem dado de tokens mostra — (nunca 0) e rodapé explicativo
+test('custo largo: sem tokens mostra — e rodapé de sem dado', () => {
+  const ls = costLines(model([mk('x', { status: 'done', endedAt: T + 1000 })]), T + 5000, wide()).map(l => l.map(s => s.t).join(''))
+  const row = ls.slice(2).find(l => l.includes('Dev: x'))!
+  expect(row).toMatch(/—\s+~\$ —/)
+  expect(row).not.toMatch(/\b0\b/)
+  expect(ls[ls.length - 1]).toBe('Sem dado de tokens na superfície: mostra — e nunca zero.')
+})
+
+// 60 colunas continuam no formato antigo
+test('custo 60 colunas: mantém o cabeçalho antigo', () => {
+  const out = txt(costLines(model(known), T + 5000, { width: 80, caps }))
+  expect(out.split('\n')[0]).toMatch(/Custo · total/)
 })
