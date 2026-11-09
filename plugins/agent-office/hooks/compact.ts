@@ -9,7 +9,7 @@ import { spinnerGlyph } from './motion'
 import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
-import { worktreePartition, groupDivider, restDivider } from './view-worktrees'
+import { worktreePartition, groupDivider, restDivider, agentsLine } from './view-worktrees'
 import type { AheadInfo } from './git'
 import { buildRunModel, RUN_STATE } from './run-model'
 import type { RunModel } from './run-model'
@@ -342,7 +342,7 @@ function groupedLines(g: Graph, agents: AgentLike[], nm: Map<string, string>, ke
     return treeLines(g, nm, mine, now, v, { ...g.root, id: `wt:${tag}`, children: top }) // the id keys the `Rodando ×N` groups: one set per worktree
   }
   const out: Line[] = []
-  for (const grp of part.groups) out.push(...groupDivider(grp, v.ahead?.[grp.key]), ...sub(grp.agents, grp.key))
+  for (const grp of part.groups) out.push(...groupDivider(grp, v.ahead?.[grp.key], { width: v.width, ascii: v.caps.ascii }), agentsLine(grp.agents, v.caps.ascii))
   if (part.rest.length) out.push(...restDivider(part.rest.length), ...sub(part.rest, 'rest'))
   return out
 }

@@ -2,6 +2,8 @@ import { test, expect } from 'claude-code/testing'
 import { renderCompact, detectCaps } from './compact'
 import type { CView } from './compact'
 import type { AgentLike } from './office'
+import { groupDivider, worktreeGroups, agentsLine } from './view-worktrees'
+import { WORKTREE_COLOR } from './monitor'
 
 // T-007 (Visão Worktrees). Rendered output is tested as text; ACs from tasks/T-007-worktree-view.md.
 const T = 1_000_000
@@ -9,6 +11,7 @@ const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, agentId
 const txt = (ls: { t: string }[][]) => ls.map(l => l.map(s => s.t).join('')).join('\n')
 const view = (over: Partial<CView> = {}): CView => ({ width: 120, caps: detectCaps({ LANG: 'pt_BR.UTF-8' }), mode: 'grouped', query: '', expanded: new Set<string>(), maxCardRows: 4, ...over })
 const R = '/repo/.claude/worktrees'
+const strW = (l: { t: string }[]) => [...l.map(s => s.t).join('')].length
 
 // two worktrees and the main branch: feat-a has 2 agents (1 failed, 2 files), feat-b has 1 done
 const wtAgents: AgentLike[] = [
@@ -25,7 +28,8 @@ test('AC-021 worktrees: divisor de cada branch com quantidade e falhas', () => {
   expect(div).toBeDefined()
   expect(div!).toContain('2 agentes')
   expect(div!).toContain('1 falha')
-  expect(div!).toContain('2 arquivos')
+  expect(div!).not.toContain('arquivo')
+  expect(div!).toContain('⧉')
   expect(out).toContain('feat-b')
   expect(out).toContain('main')
 })
@@ -38,15 +42,45 @@ test('AC-021 worktrees: base real +N commits quando a contagem existe (chave = r
   expect(out.match(/commits/g)).toHaveLength(1) // só o grupo com contagem
 })
 
-test('AC-021 worktrees: cada agente aparece uma só vez, aninhado sob o divisor do seu worktree', () => {
+test('AC-021 worktrees: cada agente aparece uma só vez, em linha recuada sob o divisor do seu worktree', () => {
   const lines = txt(renderCompact(wtAgents, T + 5000, view())).split('\n')
   const at = (re: RegExp) => lines.findIndex(l => re.test(l))
-  for (const n of ['Dev: a1', 'Dev: a2', 'Dev: b1', 'Dev: m1']) expect([n, lines.filter(l => l.includes(n) && /[├└]─/.test(l)).length]).toEqual([n, 1])
+  // a2 (falhou) também aparece no bloco "Atenção", fora dos grupos: só a linha do grupo conta aqui
+  for (const n of ['Dev: a1', 'Dev: b1', 'Dev: m1']) expect([n, lines.filter(l => l.includes(n)).length]).toEqual([n, 1])
+  expect(lines.filter(l => l.includes('Dev: a2') && !l.includes('boom')).length).toBe(1)
   const dA = at(/━.*feat-a.*━/), dB = at(/━.*feat-b.*━/), dM = at(/━.*main.*━/)
-  expect(at(/─.*Dev: a1/)).toBeGreaterThan(dA); expect(at(/─.*Dev: a2/)).toBeGreaterThan(dA)
-  expect(at(/─.*Dev: a1/)).toBeLessThan(dB)
-  expect(at(/─.*Dev: b1/)).toBeGreaterThan(dB); expect(at(/─.*Dev: b1/)).toBeLessThan(dM)
-  expect(at(/─.*Dev: m1/)).toBeGreaterThan(dM)
+  const grpA = at(/^ {2}⠹ Dev: a1 {2}✗ Dev: a2/) // linha de agentes do feat-a (o bloco Atenção fica antes)
+  expect(grpA).toBeGreaterThan(dA); expect(grpA).toBeLessThan(dB)
+  expect(at(/^\s+.*✓ Dev: b1/)).toBeGreaterThan(dB); expect(at(/^\s+.*✓ Dev: b1/)).toBeLessThan(dM)
+  expect(at(/^\s+.*Dev: m1/)).toBeGreaterThan(dM)
+})
+
+test('ramo principal usa ⎇ e worktree usa ⧉, ambos na cor WORKTREE_COLOR', () => {
+  expect(WORKTREE_COLOR).toBe('#BD9BFF')
+  const out = txt(renderCompact(wtAgents, T + 5000, view()))
+  expect(out).toMatch(/━━ ⎇ main · 1 agente/)
+  expect(out).toMatch(/━━ ⧉ feat-a · 2 agentes · 1 falha/)
+})
+
+test('divisor preenche a largura com ━ e a linha de agentes vem recuada', () => {
+  const g = worktreeGroups(wtAgents).find(x => x.name === 'feat-a')!
+  const [div, ags] = groupDivider(g, undefined, { width: 60 })
+  expect(strW(div)).toBe(60)
+  expect(div.map(s => s.t).join('')).toMatch(/━━━$/)
+  expect(div[0].fg).toBe(WORKTREE_COLOR)
+  expect(ags).toBeUndefined()
+  const line = agentsLine(g.agents)
+  expect(line.map(s => s.t).join('').startsWith('  ')).toBe(true)
+})
+
+test('ASCII: divisor com == e wt:, sem glifos Unicode', () => {
+  const g = worktreeGroups(wtAgents).find(x => x.name === 'feat-a')!
+  const txtA = groupDivider(g, undefined, { width: 60, ascii: true }).map(l => l.map(s => s.t).join('')).join('\n')
+  expect(txtA).toContain('== wt: feat-a')
+  expect(txtA).toMatch(/^== /m)
+  expect(txtA).not.toMatch(/[━⧉]/)
+  const agTxt = agentsLine(g.agents, true).map(s => s.t).join('')
+  expect(agTxt).not.toMatch(/[✓✗⠹]/)
 })
 
 test('AC-021 worktrees: agente sem worktree conhecido continua visível, sob o aviso próprio', () => {
