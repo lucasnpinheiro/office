@@ -22,12 +22,14 @@
     "bin",
     ".claude-plugin",
     "plugins",
-    "docs",
+    "docs/*.md",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
     "!**/*.test.ts",
-    "!**/*.test.tsx"
+    "!**/*.test.tsx",
+    "!**/__pycache__/**",
+    "!**/*.pyc"
   ],
   "engines": {
     "node": ">=18"
