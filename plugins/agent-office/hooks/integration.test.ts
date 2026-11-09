@@ -102,8 +102,8 @@ test('T-010 g alcança Custo e Ferramentas; tokens por agente + sessão, parcial
   let ui = await mount($)
   ui = await press($, ui, 'h-g') // waterfall -> cost
   const cost = await texts(ui)
-  expect(cost).toContain('Custo · total')
-  expect(cost).toContain('1,5 mil parcial') // 1000 do alfa + 500 da sessão, beta desconhecido
+  expect(cost).toContain('Custo ~$ —')
+  expect(cost).toContain('1,5k parcial tokens') // 1000 do alfa + 500 da sessão, beta desconhecido
   expect(cost).toContain('~$ —')
   expect(cost).not.toMatch(/~\$\s*\d/)
   ui = await press($, ui, 'h-g') // cost -> tools
@@ -306,7 +306,7 @@ test('T-010 cabeçalho e Custo mostram o USD da sessão só quando o engine o en
   await ui.unmount()
   await $.command.run({ command: 'office', args: 'mode cost' } as any)
   ui = await mount($)
-  expect(await texts(ui)).toContain('sessão ~$0,05')
+  expect(await texts(ui)).toContain('Custo ~$0,05')
   await ui.unmount()
 })
 
