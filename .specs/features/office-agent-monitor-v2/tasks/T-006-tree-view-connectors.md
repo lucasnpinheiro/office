@@ -46,7 +46,7 @@ integração: `tests/integration.md` (linhas de AC-018 a AC-020) · cenários: `
 ## Evidência
 Preencher ao concluir: comando, exit code e data. DONE sem evidência é inválido.
 - 2026-11-05: `claude plugin test .` em `plugins/agent-office` → 193 pass, 0 fail (base 179 pass, 0 fail). Exit 0.
-- 2026-11-05: `python3 ~/.agents/skills/tlc-spec-driven/scripts/check_bundle.py .specs/features/office-agent-monitor-v2` → exit 0.
+- 2026-11-05: `python3 <agents-home>/skills/tlc-spec-driven/scripts/check_bundle.py .specs/features/office-agent-monitor-v2` → exit 0.
 
 - 2026-11-05 (achados do juiz): `claude plugin test .` em `plugins/agent-office` → 199 pass, 0 fail. Exit 0.
 

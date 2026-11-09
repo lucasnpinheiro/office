@@ -14,6 +14,6 @@ test('isolation: the Agent call input says worktree; the spawn input does not ca
 })
 
 test('isolated agent takes its cwd from the first worktree file it touches, not the session cwd', () => {
-  const a = applyTool(mk({ isolated: true }), 'Edit', { file_path: '/Users/x/PhpstormProjects/zenpilot/.claude/worktrees/agent-aa55/README.md' })
-  expect(a.cwd).toBe('/Users/x/PhpstormProjects/zenpilot/.claude/worktrees/agent-aa55')
+  const a = applyTool(mk({ isolated: true }), 'Edit', { file_path: '/work/app/.claude/worktrees/agent-aa55/README.md' })
+  expect(a.cwd).toBe('/work/app/.claude/worktrees/agent-aa55')
 })
