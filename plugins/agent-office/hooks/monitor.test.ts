@@ -353,3 +353,12 @@ test('progressBar: ▰ filled / ▱ empty, fixed width, whole-cell steps', () =>
   expect(new Set(bars).size).toBe(11)
   expect(bars.every(b => [...b].length === 10)).toBe(true)
 })
+
+test('header: no box-drawing frame (proportional pane font breaks it)', () => {
+  const f = renderMonitor([mk('a')], T0 + 5000, view())
+  const head = f.header.map(lineText).join('\n')
+  expect(head).not.toMatch(/[╭╮╰╯│─]/)
+  expect(head).toContain('Office Agent Monitor')
+  expect(head).toContain('Progresso Geral 0%')
+  expect(head).toContain('ETA indisponível')
+})

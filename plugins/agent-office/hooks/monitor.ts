@@ -369,12 +369,11 @@ export function renderMonitor(agents: AgentLike[], now: number, v: View): Frame 
   const stats: Line = [{ t: `Decorrido ${elapsed}   ${eta === undefined ? 'ETA indisponível' : 'Estimativa ' + fmtHMS(eta)}` }]
   const sid = (v.sessionId ?? '').slice(0, 6) || '—'
   const sub: Line = [{ t: `Claude Code · Projeto: ${v.project || '—'} · Sessão: #${sid}`, fg: DIM }]
-  const side: Seg = { t: '│', fg: HEADER }
+  // plain lines, no box-drawing frame: the desktop pane uses a proportional font, so borders misalign
   const header: Line[] = [
-    [{ t: '╭' + '─'.repeat(inner) + '╮', fg: HEADER }],
-    [side, ...spread([{ t: 'Office Agent Monitor', bold: true }], progSegs, inner), side],
-    [side, ...spread(sub, stats, inner), side],
-    [{ t: '╰' + '─'.repeat(inner) + '╯', fg: HEADER }],
+    spread([{ t: 'Office Agent Monitor', bold: true }], progSegs, w),
+    sub,
+    stats,
   ]
   const depth: Line = [{ t: `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, fg: DIM }]
   const footer: Line[] = footerLines(w, depth, v.vocab)
