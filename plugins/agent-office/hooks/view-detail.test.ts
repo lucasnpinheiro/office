@@ -10,27 +10,47 @@ const T0 = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, agentId: `g-${id}`, description: `Dev: ${id}`, status: 'working', startedAt: T0, seenAt: T0, ...o })
 const text = (ls: string[]) => ls.join('\n')
 
-// AC-027: order of the Padrão: trilha, estado, persona e modelo, worktree, tempo, tokens, custo, erro, linha do tempo, dependências, prompt
-test('AC-027 detalhe: ordem do Padrão, b voltar, sem controles sem capacidade', () => {
+// AC-027 (desenho sem caixas): breadcrumb com b voltar à direita, linha de estado, mini-barra, resultado, linha do tempo, prompt
+test('AC-027 detalhe: breadcrumb, linha de estado, resultado e linha do tempo na ordem do desenho', () => {
   const a = mk('a1', {
     description: 'Tester',
     status: 'error', endedAt: T0 + 7000, error: '2 de 14 testes falham: cupom não aplicado',
     model: 'haiku', effort: 'low', git: { worktree: 'spec/checkout-api', branch: 'spec/checkout-api' },
     recent: ['Read tests/checkout', 'Bash npm test'], prompt: 'Rodar os testes de checkout.',
   })
-  const r = detailScreen([a], 'a1', T0 + 8000)
-  const out = text(r.lines)
-  const order = ['Estado', 'Haiku', 'spec/checkout-api', 'Tempo', 'Tokens', 'Custo', 'Erro', 'Linha do tempo', 'Dependências', 'Prompt']
+  const lines = detailScreen([a], 'a1', T0 + 8000).lines
+  expect(lines[0]).toMatch(/^Office › .*Tester {2,}b voltar$/)
+  expect(lines[1]).toBe('✗ Falhou · Agente · Haiku · baixo · ⧉ spec/checkout-api · 00:07 · — · ~$ —')
+  expect(lines[2]).toMatch(/^▬{10}$/)
+  expect(lines[3]).toBe('2 de 14 testes falham: cupom não aplicado')
+  const out = lines.join('\n')
+  const order = ['Linha do tempo', '—  Bash npm test', 'Prompt · segredos mascarados']
   const pos = order.map(k => out.indexOf(k))
   expect(pos.every(p => p >= 0)).toBe(true)
   expect([...pos].sort((x, y) => x - y)).toEqual(pos)
-  expect(out).toContain('Tokens: —') // no usage data: dash, never zero
-  expect(out).toContain('Custo: —')
-  expect(out).toContain('b voltar')
-  expect(out).not.toContain('Esc')
-  // no action capability is yes today: no control shown
+  // sem dado, traço; nunca zero nem rótulos antigos
+  expect(out).not.toMatch(/Tokens:|Custo:|Estado:|Descrição:/)
+  // nenhum controle sem capacidade: parar, repetir, copiar e confirmação
   expect(canUse(CAPABILITIES, 'stop', 'terminal')).toBe(false)
-  expect(out).not.toMatch(/x parar|r repetir|a abrir no chat|y copiar/)
+  expect(canUse(CAPABILITIES, 'retry', 'terminal')).toBe(false)
+  expect(out).not.toMatch(/x parar|r repetir|y copiar|y\/n/)
+})
+
+// AC-027: linha do tempo mm:ss  Tool  argumento  duração, relativa ao início do agente
+test('AC-027 linha do tempo: mm:ss, ferramenta, argumento e duração', () => {
+  const a = mk('a1', { steps: [{ id: 's1', tool: 'Read', label: 'tests/checkout', startedAt: T0, durationMs: 2000 }, { id: 's2', tool: 'Bash', label: 'npm test', startedAt: T0 + 2000, durationMs: 5000 }] })
+  const out = text(detailScreen([a], 'a1', T0 + 7000).lines)
+  expect(out).toContain('00:00  Read  tests/checkout  2s')
+  expect(out).toContain('00:02  Bash  npm test  5s')
+})
+
+// AC-027: mini-barra com total conhecido preenche proporcionalmente; sem total fica vazia
+test('AC-027 mini-barra: proporção só com total conhecido', () => {
+  const a = mk('a1', { todos: [{ content: 'a', status: 'completed' }, { content: 'b', status: 'completed' }, { content: 'c', status: 'completed' }, { content: 'd', status: 'pending' }, { content: 'e', status: 'pending' }] })
+  const bar = detailScreen([a], 'a1', T0 + 1).lines[2]
+  expect(bar).toMatch(/^▬{10}$/)
+  const filled = detailView([a], 'a1', T0 + 1).lines[2]!.filter(x => x.fg !== '#A9ADB5').map(x => x.t).join('')
+  expect(filled.length).toBe(6)
 })
 
 // AC-027: prompt is masked before it is shown
