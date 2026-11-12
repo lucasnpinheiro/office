@@ -36,8 +36,7 @@
   },
   "scripts": {
     "validate": "claude plugin validate --strict . && for p in plugins/*; do claude plugin validate --strict \"$p\" || exit 1; done",
-    "test": "claude plugin test plugins/agent-office",
-    "sync": "bash scripts/sync-from-agents.sh"
+    "test": "claude plugin test plugins/agent-office"
   },
   "publishConfig": {
     "access": "public"
