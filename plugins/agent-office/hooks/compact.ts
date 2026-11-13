@@ -367,10 +367,10 @@ const fromCells = (cs: Cell[]): Line => {
   return out
 }
 // Put `ch` at column `col` if it is blank (or past the end); never overwrites a card.
-function putCol(l: Line, col: number, ch: string, fg: string | undefined): Line {
+function putCol(l: Line, col: number, ch: string, fg: string | undefined, c: Caps): Line {
   const cs = toCells(l)
   while (cs.length <= col) cs.push({ ch: ' ', s: { t: ' ' } })
-  if (cs[col]!.ch === ' ') cs[col] = { ch, s: { t: ch, fg } }
+  if (cs[col]!.ch === ' ') cs[col] = { ch, s: { t: ch, fg: quantize(fg, c.color) } }
   return fromCells(cs)
 }
 
@@ -543,22 +543,16 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
       tops.push({ at: base + out.length + (block.length - CARD_H), n: ns.length })
       if (row.kind === 'branch') block.push(...layoutChildren(row.n, x, false, flowOf(row.n), base + out.length + block.length))
       // dotted vertical in the parent's column while more rows follow
-      out.push(...block.map(l => (!virtual && more ? putCol(l, px + 1, V, DIM) : l)))
+      out.push(...block.map(l => (!virtual && more ? putCol(l, px + 1, V, DIM, c) : l)))
     })
     return out
   }
   const top = agentKids(g.root)
-  const groups = new Map<string, Node[]>()
-  for (const n of top) { const f = flowOf(n); groups.set(f, [...(groups.get(f) ?? []), n]) }
-  const virtualRoot = g.root
-  for (const [f, ns] of [...groups.entries()].sort((a, b) => Number(!!a[0]) - Number(!!b[0]))) {
-    if (anyWt) lines.push(divider(f || 'principal', ns))
-    // reuse layoutChildren with a synthetic parent holding only this flow's top-level agents
-    const syn: Node = { ...virtualRoot, children: ns }
-    const before = tops.length
-    const body = layoutChildren(syn, -CARD_INDENT, true, f, lines.length)
-    lines.push(...body)
-    void before
+  // the main session is the parent card; its direct agents hang from it on the dotted bus (design: TermCards)
+  if (top.length) {
+    if (anyWt) lines.push(divider(flowOf(g.root) || 'principal', top))
+    lines.push(...card(g.root, nm, c, now, frame, idx++))
+    lines.push(...layoutChildren(g.root, 0, false, flowOf(g.root), lines.length))
   }
   return { lines, tops }
 }

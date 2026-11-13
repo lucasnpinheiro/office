@@ -7,18 +7,19 @@ const T = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o })
 const txt = (ls: { t: string }[][]) => ls.map(l => l.map(s => s.t).join('')).join('\n')
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
-const base = { width: 110, caps, mode: 'cards' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
+const base = { width: 120, caps, mode: 'cards' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
 
 test('session start opens the boxed cards view, not the one-line map', () => {
   expect(startUi().view).toBe('compact'); expect(startUi().mode).toBe('cards'); expect(initialUi().view).toBe('compact')
 })
-test('cards at 110 cols: 3 sibling boxes per row, 34 cols wide, 7 lines, 4th card on the next row', () => {
+test('cards at 120 cols: parent card, then 3 sibling boxes per row, 34 cols wide, 4th card on the next row', () => {
   const ag = ['a', 'b', 'c', 'd'].map(id => mk(id))
   const lines = txt(renderCompact(ag, T + 5000, base)).split('\n')
   const tops = lines.filter(l => (l.match(/╭─{32}╮/g) ?? []).length === 3)
   expect(tops.length).toBe(1)
-  expect(lines.filter(l => (l.match(/╭─{32}╮/g) ?? []).length === 1).length).toBe(1)
-  expect(lines.filter(l => (l.match(/╰─{32}╯/g) ?? []).length).length).toBe(2)
+  expect(lines.filter(l => (l.match(/╭─{32}╮/g) ?? []).length === 1).length).toBe(2) // parent card + the 4th sibling
+  expect(lines.filter(l => (l.match(/╰─{32}╯/g) ?? []).length).length).toBe(3)
+  expect(lines.some(l => /^ ├┄+┬/.test(l) || /^ ╰┄+┬/.test(l))).toBe(true) // bus from the parent card
 })
 test('cards: failed and needs-you alerts are pinned above the boxes, with the retry hint on failure', () => {
   const ag = [mk('a'), mk('b'), mk('f', { status: 'error', error: 'boom' })]
