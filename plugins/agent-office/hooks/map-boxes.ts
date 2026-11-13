@@ -9,7 +9,11 @@ import { appMap } from './app-cards'
 import type { AppMapNode } from './app-cards'
 import { asciiText } from './compact'
 
-export const BOX_W = 38 // even: the connector column is bx + BOX_W / 2, the same for the stub above and below
+export const BOX_W = 38 // even: the connector column is bx + BW / 2, the same for the stub above and below
+export const MIN_BOX_W = 24
+// a narrow side pane shrinks the boxes (even width, the 2-col trunk and 2 cols of slack kept) before giving up on boxes
+export const boxWidth = (cols: number): number => Math.max(MIN_BOX_W, Math.min(BOX_W, (cols - 4) - ((cols - 4) % 2)))
+const WAITING = 'Aguardando agentes… use o Claude normalmente'
 const BOX_H = 6
 const GAP = 2
 const LINE = '#4a4e55'
@@ -22,9 +26,11 @@ const fitW = (s: string, w: number): string => (strWidth(s) <= w ? s : `${takeWi
 const stripIcon = (s: string): string => (/^\S+\s/.test(s) && /[^\x00-\x7f]/.test(s.split(' ')[0]!) ? s.replace(/^\S+\s/, '') : s)
 
 export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line[] | null {
-  if (agents.length === 0 || o.width < BOX_W + 2) return null
+  // no agents yet (fresh session, right after a reload) still draws the map: header, root box, a waiting line
+  if (o.width < MIN_BOX_W + 2) return null
+  const BW = boxWidth(o.width)
   const root = appMap(agents, now, { query: o.query, filter: o.filter, git: o.git })
-  if (root.children.length === 0) return null
+  const empty = root.children.length === 0
   const g = buildGraph(agents, now, o.git)
   const grid: Cell[][] = []
   const put = (x: number, y: number, c: string, st: Omit<Cell, 'c'> = {}) => {
@@ -56,7 +62,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     const rowW = rows.map(r => r.reduce((a, k, i) => a + measure(k).w + (i ? GAP : 0), 0))
     const rowH = rows.map(r => Math.max(...r.map(k => measure(k).h)))
     const tm = rows.length > 1 ? 2 : 0
-    const m = { w: Math.max(BOX_W, tm + Math.max(0, ...rowW)), h: BOX_H + rows.reduce((a, _, i) => a + 1 + rowH[i]!, 0), rows, ws }
+    const m = { w: Math.max(BW, tm + Math.max(0, ...rowW)), h: BOX_H + rows.reduce((a, _, i) => a + 1 + rowH[i]!, 0), rows, ws }
     memo.set(n, m); return m
   }
 
@@ -64,11 +70,11 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
   const box = (n: AppMapNode, bx: number, y: number) => {
     const c = n.card, fg = col(STATE_COLOR[c.state]), nd = c.id === 'session' ? undefined : c.id
     const st: Omit<Cell, 'c'> = { fg, node: nd }
-    const x1 = bx + BOX_W - 1
+    const x1 = bx + BW - 1
     for (let x = bx + 1; x < x1; x++) { put(x, y, sym.h, st); put(x, y + BOX_H - 1, sym.h, st) }
     put(bx, y, sym.tl, st); put(x1, y, sym.tr, st); put(bx, y + BOX_H - 1, sym.bl, st); put(x1, y + BOX_H - 1, sym.br, st)
     for (let r = 1; r < BOX_H - 1; r++) { put(bx, y + r, sym.v, st); put(x1, y + r, sym.v, st) }
-    const tx = bx + 2, tw = BOX_W - 4
+    const tx = bx + 2, tw = BW - 4
     const glyph = T(c.glyph), kid = c.hasKids ? ' ▾' : ''
     text(tx, y + 1, glyph, { fg, node: nd })
     const nameRoom = tw - strWidth(glyph) - 1 - strWidth(T(kid))
@@ -88,7 +94,9 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
   }
   const draw = (n: AppMapNode, x0: number, y0: number, blockW: number) => {
     const m = measure(n)
-    const bx = x0 + Math.floor((blockW - BOX_W) / 2), pcx = bx + BOX_W / 2
+    // wrapped rows hang off a left trunk: the parent sits over the first column so its stub meets the first child's centre
+    const wrapped = m.rows.length > 1 && m.rows.every(r => r.length === 1)
+    const bx = wrapped ? x0 + 2 + Math.floor((measure(m.rows[0]![0]!).w - BW) / 2) : x0 + Math.floor((blockW - BW) / 2), pcx = bx + BW / 2
     box(n, bx, y0)
     if (!m.rows.length) return
     put(pcx, y0 + BOX_H - 1, sym.d, { fg: col(STATE_COLOR[n.card.state]), node: n.card.id === 'session' ? undefined : n.card.id })
@@ -109,7 +117,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
         cxs.forEach((cx, i) => line(sym.d, cx, STATE_COLOR[row[i]!.card.state]))
         if (cxs.includes(lo) && lo !== hi) line(sym.tl, lo, STATE_COLOR[row[cxs.indexOf(lo)]!.card.state])
         if (cxs.includes(hi) && lo !== hi) line(sym.tr, hi, STATE_COLOR[row[cxs.indexOf(hi)]!.card.state])
-        if (ri === 0) line(cxs.includes(pcx) ? sym.x : pcx === lo ? sym.l : pcx === hi ? sym.r : sym.u, pcx)
+        if (ri === 0) line(cxs.includes(pcx) ? (pcx === hi && lo < pcx ? sym.r : pcx === lo && hi > pcx ? sym.l : sym.x) : pcx === lo ? sym.l : pcx === hi ? sym.r : sym.u, pcx)
         if (tm) line(ri === 0 ? sym.tl : ri === m.rows.length - 1 ? sym.bl : sym.l, x0)
       }
       const rh = Math.max(...row.map(k => measure(k).h))
@@ -149,5 +157,6 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     }
     lines.push(segs)
   }
-  return [head(left1, right1), head(left2, right2), [], ...lines]
+  const tail: Line[] = empty ? [[], [{ t: T(agents.length === 0 ? WAITING : 'Nenhum agente corresponde ao filtro'), fg: col(DIM) }]] : []
+  return [head(left1, right1), head(left2, right2), [], ...lines, ...tail]
 }

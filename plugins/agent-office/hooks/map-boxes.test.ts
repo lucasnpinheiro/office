@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { renderBoxMap, BOX_W } from './map-boxes'
+import { renderBoxMap, BOX_W, MIN_BOX_W, boxWidth } from './map-boxes'
 import { strWidth } from './monitor'
 import type { Line } from './monitor'
 import type { AgentLike } from './office'
@@ -60,9 +60,9 @@ test('map boxes: ASCII mode uses + - | and drops the icons; NO_COLOR drops colou
   expect(renderBoxMap(agents, T + 9000, { ...base, width: 130, color: false })!.flat().every(s => !s.fg)).toBe(true)
 })
 
-test('map boxes: null when the pane is narrower than a box or there are no agents (text map is the fallback)', () => {
-  expect(renderBoxMap(agents, T, { ...base, width: BOX_W })).toBeNull()
-  expect(renderBoxMap([], T, { ...base, width: 130 })).toBeNull()
+test('map boxes: null only when the pane is narrower than the smallest box (text map is the fallback)', () => {
+  expect(renderBoxMap(agents, T, { ...base, width: MIN_BOX_W + 1 })).toBeNull()
+  expect(renderBoxMap([], T, { ...base, width: 130 })).not.toBeNull()
 })
 
 // structure: every connector touches what it joins, in the same display column
@@ -82,7 +82,7 @@ for (const width of [120, 70]) test(`map boxes @${width}: connectors meet boxes 
     const cells = [...l]
     cells.forEach((ch, i) => {
       const col = colOf(l, i)
-      if (ch === '┬') { const below = charsAt(t[y + 1], col); expect(['┴', '│', '┬', '┼']).toContain(below) } // bus or box bottom: touches below
+      if (ch === '┬') { const below = charsAt(t[y + 1], col); expect(['┴', '│', '┬', '┼', '┤', '├']).toContain(below) } // bus or box bottom: touches below
       if (ch === '┴' && y > 0) { const above = charsAt(t[y - 1], col); expect(['│', '┬', '┼', '─', '┌', '┐', '├', '┤', '┴']).toContain(above) }
       if (ch === '┐' && /^\s*[┌│]|^[┌│]/.test(l) === false) { /* bus corner */ }
     })
@@ -94,4 +94,24 @@ for (const width of [120, 70]) test(`map boxes @${width}: connectors meet boxes 
       expect(charsAt(t[y + 5], lc + BOX_W - 1)).toBe('┘')
     }
   }
+})
+
+test('map boxes: no agents yet still draws the map (header + root box + waiting line), never the old text map', () => {
+  const out = renderBoxMap([], T, { ...base, width: 100 })
+  expect(out).not.toBeNull()
+  const t = txt(out!)
+  expect(t[0]).toContain('Office Agent Monitor')
+  expect(t.some(l => l.includes('Claude Code'))).toBe(true)
+  expect(t.some(l => l.includes('┌' + '─'.repeat(BOX_W - 2) + '┐'))).toBe(true)
+  expect(t.some(l => l.includes('Aguardando agentes'))).toBe(true)
+})
+
+test('map boxes: a narrow side pane (34 cols) shrinks the boxes instead of falling back to text', () => {
+  const w = boxWidth(34)
+  expect(w).toBeLessThan(BOX_W); expect(w % 2).toBe(0); expect(w).toBeGreaterThanOrEqual(MIN_BOX_W)
+  const out = renderBoxMap(agents, T + 9000, { ...base, width: 34 })
+  expect(out).not.toBeNull()
+  const t = txt(out!).slice(3)
+  expect(t.some(l => l.includes('┌' + '─'.repeat(w - 2) + '┐'))).toBe(true)
+  for (const l of t) expect(strWidth(l)).toBeLessThanOrEqual(34)
 })
