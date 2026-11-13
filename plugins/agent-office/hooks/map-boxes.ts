@@ -9,7 +9,7 @@ import { appMap } from './app-cards'
 import type { AppMapNode } from './app-cards'
 import { asciiText } from './compact'
 
-export const BOX_W = 38 // even: the connector column is bx + BW / 2, the same for the stub above and below
+export const BOX_W = 30 // even: the connector column is bx + BW / 2, the same for the stub above and below
 export const MIN_BOX_W = 24
 // a narrow side pane shrinks the boxes (even width, the 2-col trunk and 2 cols of slack kept) before giving up on boxes
 export const boxWidth = (cols: number): number => Math.max(MIN_BOX_W, Math.min(BOX_W, (cols - 4) - ((cols - 4) % 2)))
@@ -30,7 +30,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
   if (o.width < MIN_BOX_W + 2) return null
   const BW = boxWidth(o.width)
   const root = appMap(agents, now, { query: o.query, filter: o.filter, git: o.git })
-  const empty = root.children.length === 0
+  const empty = root.card.id === 'session' && root.children.length === 0
   const g = buildGraph(agents, now, o.git)
   const grid: Cell[][] = []
   const put = (x: number, y: number, c: string, st: Omit<Cell, 'c'> = {}) => {
@@ -81,7 +81,11 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     const name = fitW(T(c.title), nameRoom)
     text(tx + strWidth(glyph) + 1, y + 1, name, { bold: true, node: nd })
     if (kid) text(tx + strWidth(glyph) + 1 + strWidth(name), y + 1, T(kid), { fg: col(DIM), node: nd })
-    const chips = o.ascii ? c.chips.map(stripIcon).join(' · ') : c.chips.join(' ')
+    // line 2 (design): persona · model; the effort rides on the progress line, so nothing is cut at this width
+    const [pChip, mChip, eChip] = c.id === 'session' ? [c.chips[0], undefined, undefined] : [c.chips[0], c.chips[1], c.chips[2]]
+    const who = [pChip, mChip].filter((x): x is string => !!x)
+    const parts = o.ascii ? who.map(stripIcon) : who
+    const chips = strWidth(T(parts.join(' · '))) <= tw ? parts.join(' · ') : parts.join(' ') // long persona names drop the dot before cutting
     text(tx, y + 2, fitW(T(chips), tw), { fg: col(DIM), node: nd })
     // line 3 is never blank: branch or worktree, else the tool / error, else the state in words
     const gl = c.git?.length ? c.git : o.git?.branch ? [`⎇ ${o.git.branch}`] : undefined
@@ -90,7 +94,10 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     text(tx, y + 3, fitW(T(l3.t), tw), { fg: l3.fg, node: nd })
     const bar = T(progressBar(c.pct ?? 0, 6))
     text(tx, y + 4, bar, { fg, node: nd })
-    text(tx + 6, y + 4, `${c.pctText.padStart(5)}  ${c.time}`, { fg: col(DIM), node: nd })
+    const pt = `${c.pctText.padStart(5)} ${c.time}`
+    text(tx + 6, y + 4, pt, { fg: col(DIM), node: nd })
+    const eff = eChip ? (o.ascii ? stripIcon(eChip) : eChip) : ''
+    if (eff && 6 + strWidth(pt) + 1 + strWidth(T(eff)) <= tw) text(tx + 6 + strWidth(pt) + 1, y + 4, T(eff), { fg: col(DIM), node: nd })
   }
   const draw = (n: AppMapNode, x0: number, y0: number, blockW: number) => {
     const m = measure(n)

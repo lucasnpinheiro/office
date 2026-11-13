@@ -76,7 +76,7 @@ test('hotkeys are unique per view and off while searching', async () => {
   expect(hotkeysFor(c0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q'])
   expect(hotkeysFor({ ...c0, selected: 'a' }, false).map(h => h.key)).toEqual(['b', 'q'])
   expect(hotkeysFor({ ...c0, selected: 'a' }, true).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'b', 'q'])
-  expect(hotkeysFor(s0, false).map(h => h.key)).toEqual(['v', 'q'])
+  expect(hotkeysFor(s0, false).map(h => h.key)).toEqual(['v', 'f', 'q']) // map footer: visão · falhas · fechar
   expect(hotkeysFor({ ...s0, selected: 'a' }, false).map(h => h.key)).toEqual(['v', 'b', 'q'])
 })
 

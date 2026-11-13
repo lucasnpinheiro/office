@@ -58,7 +58,12 @@ test('appMap: session root, agents under their parent, tones and pct never inven
 
 test('appMap: query prunes branches', () => {
   const m = appMap([mk('alfa'), mk('beta')], T + 1000, { query: 'beta' })
-  expect(m.children.map(n => n.card.id)).toEqual(['beta'])
+  expect(m.card.id).toBe('beta') // one visible top-level agent: it is the root box (design), no session box above it
+})
+
+test('appMap: several top-level agents keep the Claude Code session box as their parent', () => {
+  const m = appMap([mk('alfa'), mk('beta')], T + 1000, {})
+  expect(m.card.title).toBe('Claude Code'); expect(m.children.map(n => n.card.id)).toEqual(['alfa', 'beta'])
 })
 
 test('app card: one segment per tool step when the timeline exists, else none', () => {

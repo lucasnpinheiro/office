@@ -63,7 +63,9 @@ export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
   const back: Hotkey = { ...hk('back'), label: s.attach ? 'fechar preview' : hk('back').label }
   const close = hk('close')
   const view = hk('view')
-  if (s.view === 'map') return s.selected ? [view, back, close] : [view, close]
+  // map footer (design Term5): v visão (mapa › árvore › cards) · f falhas · q fechar
+  const mapView: Hotkey = { ...view, label: 'visão (mapa › árvore › cards)' }
+  if (s.view === 'map') return s.selected ? [mapView, back, close] : [mapView, hk('failed'), close]
   if (s.selected && !side) return [back, close]
   return s.selected ? [...list, back, close] : [...list, close]
 }
@@ -75,5 +77,6 @@ export function footerText(s: Ui, side: boolean): string {
 }
 export function footerTail(s: Ui): string {
   if (s.searching) return 'Enter aplica a busca (vazio limpa)'
+  if (s.view === 'map' && !s.selected) return `${FOOTER_SEP}Tab mover · Enter abrir · ctrl+x tab foca o painel`
   return `${FOOTER_SEP}Tab entre cards · Enter detalhe · ctrl+x tab foca o painel`
 }
