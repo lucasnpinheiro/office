@@ -1,9 +1,13 @@
 import { atom, read, update } from 'claude-code'
-import { isAppSurface, appCards } from './app-cards'
+import { isAppSurface, appCards, appMap } from './app-cards'
+import type { AppCard, AppMapNode } from './app-cards'
+import { renderBoxMap } from './map-boxes'
+import { detailData } from './view-detail'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
-import { renderMonitor, inlineSize } from './monitor'
+import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS } from './monitor'
+import { TONE as TONE_OF } from './app-cards'
 import { renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
 import { buildRunModel } from './run-model'
@@ -32,7 +36,7 @@ const sessionUsdAt = atom({ plugin: 'agent-office', key: 'sessionUsd' } as const
 const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as const, {})
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
-const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'compact')
+const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'map')
 const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, DEFAULT_MODE as string)
 const filterAt = atom({ plugin: 'agent-office', key: 'filter' } as const, 'all')
 const sortAt = atom({ plugin: 'agent-office', key: 'sort' } as const, 'time')
@@ -210,6 +214,11 @@ async function gitView($: EngineInterface) {
 // seat by itself (no flag forces inline); a request only, and the person's own drag wins.
 // compact view: size by its own rendered lines (not the old mind map), 80 columns, capped like the inline pane
 async function wantSize($: EngineInterface, list: OfficeAgent[], collapsed: string[], sgit: GitInfo | undefined, st: { tool?: string; recent?: string[] }, thumbs: boolean) {
+  if ((await read($, viewAt)) === 'map') {
+    const mcols = (await read($, colsAt)) || 110
+    const box = renderBoxMap(list, Date.now(), { width: mcols, project: '', ascii: (await capsOf($)).ascii, color: true, query: await read($, queryAt), filter: await read($, filterAt), git: sgit })
+    if (box) return { rows: Math.min(40, Math.max(8, box.length + 3)), columns: mcols }
+  }
   if ((await read($, viewAt)) !== 'compact') return inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
   const caps = await capsOf($)
   const wcols = (await read($, colsAt)) || 80
@@ -644,32 +653,160 @@ export const register: Register = on => {
       ...hotkeysFor(ui, side).flatMap((h, i) => [...(i ? [{ t: FOOTER_SEP }] : []), { t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }]),
       { t: footerTail(ui), fg: '#9ca3af' },
     ])
+    // one app card (design Chips5): glyph + title, chips, git, status, progress bar, % and time; border and bar carry the state tone
+    const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
+    const appCardBox = (c: AppCard, kids = false) => (
+      <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} paddingX="sm" width={34}>
+        <Box flexDirection="row" justifyContent="space-between">
+          {c.id === 'session' ? <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
+            <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
+              <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text>
+            </Button>
+          )}
+          <Text color={c.tone}>{PILL[c.state] ?? ''}</Text>
+        </Box>
+        <Text dimColor>{c.chips.join(' · ')}</Text>
+        {c.git?.length ? <Text color={WORKTREE_COLOR}>{c.git.join(' ')}</Text> : <Text dimColor>{' '}</Text>}
+        {c.steps ? (
+          <Box flexDirection="row" height={1} gap="xs">
+            {c.steps.map((sg, i) => <Box key={`st-${c.id}-${i}`} flexGrow={sg.weight} height={1} backgroundColor={sg.tone} />)}
+          </Box>
+        ) : (
+          <Box flexDirection="row" height={1} backgroundColor="subtle">
+            <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
+          </Box>
+        )}
+        <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.status ?? ' '}</Text><Text dimColor>{`${c.pctText}  ${c.time}`}</Text></Box>
+      </Box>
+    )
+    // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
+    // Connectors are Boxes (a 1-cell bar), tone `suggestion` into a running child, `subtle` otherwise.
+    const mapTree = (n: AppMapNode, key: string): any => (
+      <Box key={key} flexDirection="column" alignItems="center">
+        {appCardBox(n.card, n.children.length > 0)}
+        {n.children.length ? (
+          <>
+            <Box width={1} height={1} backgroundColor="subtle" />
+            <Box flexDirection="row" flexWrap="wrap" justifyContent="center" gap="sm">
+              {n.children.map((k, i) => {
+                const tone = k.card.state === 'running' ? 'suggestion' : 'subtle'
+                return (
+                  <Box key={`mk-${k.card.id}`} flexDirection="column" alignItems="center">
+                    <Box flexDirection="row" height={1} width="100%">
+                      <Box width="50%" height={1} backgroundColor={i === 0 ? undefined : 'subtle'} />
+                      <Box width="50%" height={1} backgroundColor={i === n.children.length - 1 ? undefined : 'subtle'} />
+                    </Box>
+                    <Box width={1} height={1} backgroundColor={tone} />
+                    {mapTree(k, `mt-${k.card.id}`)}
+                  </Box>
+                )
+              })}
+            </Box>
+          </>
+        ) : null}
+      </Box>
+    )
+    // side detail (Proto5 aside): crumb, name, pills, segments, Tempo/Tokens/Custo, error, timeline, masked prompt
+    const asideOf = (id: string) => {
+      const d = detailData(all, id, now)
+      if (!d) return null
+      const tone = TONE_OF[d.state]
+      const seg = d.total ? Array.from({ length: d.total }, (_, i) => i < d.done) : undefined
+      return (
+        <Box flexDirection="column" gap="xs">
+          <Text dimColor>{d.crumb}</Text>
+          <Text bold>{d.name}</Text>
+          <Box flexDirection="row" flexWrap="wrap" gap="xs">
+            {[d.stateLabel, ...d.chips, ...(d.branch ? [d.branch] : [])].map((t, i) => (
+              <Box key={`pill-${i}`} borderStyle="round" borderColor={i === 0 ? tone : 'subtle'} paddingX="xs"><Text color={i === 0 ? tone : undefined}>{t}</Text></Box>
+            ))}
+          </Box>
+          <Box flexDirection="row" height={1} gap="xs">
+            {(seg ?? [d.state === "done"]).map((lit, i) => <Box key={`ds-${i}`} flexGrow={1} height={1} backgroundColor={lit ? tone : 'subtle'} />)}
+          </Box>
+          <Box flexDirection="row" justifyContent="space-between">
+            {[['Tempo', d.time], ['Tokens', d.tokens], ['Custo', d.cost]].map(([k, v]) => (
+              <Box key={`kv-${k}`} flexDirection="column"><Text dimColor>{k}</Text><Text bold>{v}</Text></Box>
+            ))}
+          </Box>
+          {d.error ? <Box borderStyle="round" borderColor="error" paddingX="xs"><Text color="error">{d.error}</Text></Box> : null}
+          <Text bold>Linha do tempo</Text>
+          {d.steps.length === 0 ? <Text dimColor>—</Text> : d.steps.map((st, i) => (
+            <Box key={`tl-${i}`} flexDirection="row" gap="sm">
+              <Text dimColor>{st.at}</Text><Text color={st.ok === false ? 'error' : undefined} bold>{st.tool}</Text><Text>{st.label}</Text><Text dimColor>{st.dur}</Text>
+            </Box>
+          ))}
+          <Text bold>Prompt · segredos mascarados</Text>
+          <Text dimColor>{d.prompt}</Text>
+        </Box>
+      )
+    }
+    // app pane chrome (design Proto5): header, one segment per agent, failure banners, tab row
+    const onApp = isAppSurface((e as { surface?: string }).surface)
+    const TABS: [string, string, string][] = [['map', 'Mapa', 'tab:map'], ['tree', 'Árvore', 'tab:tree'], ['grouped', 'Worktrees', 'tab:grouped'], ['workflow', 'Workflow', 'tab:workflow'], ['cost', 'Custo', 'tab:cost'], ['tools', 'Ferramentas', 'tab:tools']]
+    const curTab = view === 'map' ? 'map' : (await read($, modeAt)) as string
+    const appChrome = () => {
+      const g = buildGraph(all, now, sgit)
+      const ags = [...g.nodes.values()].filter(n => n.kind === 'agent')
+      const cnt = (st: string) => ags.filter(n => n.state === st).length
+      const proj = cwd.split('/').filter(Boolean).pop() ?? ''
+      const failed = appCards(all, now, {}).filter(c => c.state === 'failed')
+      return (
+        <Box flexDirection="column" gap="xs">
+          <Box flexDirection="row" flexWrap="wrap" gap="sm">
+            <Text bold>Office</Text>
+            <Text dimColor>{`· ${proj}${sgit?.branch ? ` · ⎇ ${sgit.branch}` : ''}`}</Text>
+          </Box>
+          <Text dimColor>{`${ags.length ? fmtMMSS(elapsedOf(g, now)) : '--:--'} · ${cnt('running')} rodando · ${cnt('done')} concluídos · ${cnt('failed')} falha`}</Text>
+          <Box flexDirection="row" flexWrap="wrap" gap="xs">
+            {ags.map(n => <Box key={`seg-${n.id}`} width={3} height={1} backgroundColor={TONE_OF[n.state]} />)}
+          </Box>
+          {failed.map(c => (
+            <Box key={`ban-${c.id}`} flexDirection="row" flexWrap="wrap" gap="sm" borderStyle="round" borderColor="error" paddingX="sm">
+              <Text color="error" bold>{`✗ ${c.title} falhou`}</Text>
+              {c.status ? <Text dimColor>{c.status}</Text> : null}
+              <Button plain key={`ban-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}><Text color="error">[Ver]</Text></Button>
+            </Box>
+          ))}
+          <Box flexDirection="row" flexWrap="wrap" gap="sm">
+            {TABS.map(([k, label, action]) => (
+              <Button plain key={`tab-${k}`} onPress={() => void act(action)}>
+                <Text bold={curTab === k} color={curTab === k ? 'suggestion' : undefined} dimColor={curTab !== k} underline={curTab === k}>{label}</Text>
+              </Button>
+            ))}
+          </Box>
+        </Box>
+      )
+    }
     // app surfaces (desktop, vscode, mobile): graphical cards of the Chips design (title, chips, state on border and glyph);
     // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
+    if (onApp && view === 'map' && !attach && (!selected || sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' }))) {
+      const tree = appMap(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
+      const body = tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root')
+      return (
+        <Box flexDirection="column" gap="sm">
+          {appChrome()}
+          {selected ? (
+            <Box flexDirection="row" gap="sm">
+              <Box flexDirection="column" flexGrow={1}>{body}</Box>
+              <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>
+                <Button key="office-back" onPress={() => void act('back')}>{'[Fechar]'}</Button>
+                {asideOf(selected)}
+              </Box>
+            </Box>
+          ) : body}
+          {keysRow}
+        </Box>
+      )
+    }
     if (isAppSurface((e as { surface?: string }).surface) && view === 'compact' && !selected && !attach && (await read($, modeAt)) === 'cards') {
       const cards = appCards(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
       return (
         <Box flexDirection="column" gap="sm">
-          <Text dimColor>{statusText(all, now)}</Text>
+          {appChrome()}
           {cards.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : null}
           <Box flexDirection="row" flexWrap="wrap" gap="sm">
-            {cards.map(c => (
-              <Box key={`app-${c.id}`} flexDirection="column" borderStyle="round" borderColor={c.tone} paddingX="sm" width={34}>
-                <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
-                  <Text color={c.tone} bold>{`${c.glyph} ${c.title}`}</Text>
-                </Button>
-                <Box flexDirection="row" flexWrap="wrap" gap="xs">
-                  {c.chips.map(t => (
-                    <Box key={`chip-${c.id}-${t}`} borderStyle="round" borderColor="subtle" backgroundColor="userMessageBackground" paddingX="xs"><Text>{t}</Text></Box>
-                  ))}
-                </Box>
-                {c.status ? <Text dimColor>{c.status}</Text> : null}
-                <Box flexDirection="row" height={1} backgroundColor="subtle">
-                  <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
-                </Box>
-                <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.pctText}</Text><Text dimColor>{c.time}</Text></Box>
-              </Box>
-            ))}
+            {cards.map(c => appCardBox(c))}
           </Box>
           {keysRow}
         </Box>
@@ -695,6 +832,15 @@ export const register: Register = on => {
         <Box flexDirection="column">
           {selected || gone ? backBtn : field}
           {compactFrame.map(draw)}
+          {keysRow}
+        </Box>
+      )
+    }
+    if (view === 'map' && !detail && !gone) {
+      const bm = renderBoxMap(all, now, { width: cols, project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback, git: sgit, ascii: caps.ascii, color: caps.color !== 'mono', query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
+      if (bm) return (
+        <Box flexDirection="column">
+          {bm.map(draw)}
           {keysRow}
         </Box>
       )

@@ -8,6 +8,8 @@ import type { AgentLike } from './office'
 import type { Line, Seg } from './monitor'
 import { nodeView, stateColor, keyOf } from './vocabulary'
 import { maskText } from './mask'
+import { chips } from './persona'
+import type { State } from './run-model'
 
 const BAR_CELLS = 10
 const DIM = '#9ca3af'
@@ -120,4 +122,36 @@ const textOf = (l: Line): string => l.map(x => x.t).join('')
 export function detailScreen(agents: AgentLike[], id: string, now: number, o: { captureIo?: boolean; ascii?: boolean } = {}): DetailScreen {
   const v = detailView(agents, id, now, o)
   return { lines: v.lines.map(textOf), back: v.back, ...(v.warning ? { warning: v.warning } : {}) }
+}
+
+// Structured data for the app pane's side detail (Proto5 aside): same masking and facts as detailView, no text lines.
+export type DetailStep = { at: string; tool: string; label: string; dur: string; ok?: boolean; ms?: number }
+export type DetailData = {
+  crumb: string; name: string; state: State; stateLabel: string; chips: string[]; branch?: string
+  done: number; total?: number; time: string; tokens: string; cost: string; error?: string; steps: DetailStep[]; prompt: string
+}
+export function detailData(agents: AgentLike[], id: string, now: number): DetailData | undefined {
+  const a = agents.find(x => x.id === id)
+  const g = a ? buildGraph(agents, now) : undefined
+  const n = g?.nodes.get(id)
+  if (!a || !g || !n) return undefined
+  const parent = g.nodes.get(n.parentId)
+  const parentAgent = parent && parent.kind === 'agent' ? parent : undefined
+  const kids = n.children.filter(k => k.kind === 'agent')
+  const ch = chips(n.persona, n.model, n.effort)
+  const steps: DetailStep[] = (a.steps ?? []).map(st => ({
+    at: fmt(Math.max(0, st.startedAt - a.startedAt)), tool: maskText(st.tool), label: maskText(st.label),
+    dur: st.durationMs !== undefined ? `${Math.round(st.durationMs / 1000)}s` : '—', ok: st.ok, ms: st.durationMs,
+  }))
+  const br = n.git?.branch ? maskText(n.git.branch) : undefined, wt = n.git?.worktree ? maskText(n.git.worktree) : undefined
+  return {
+    crumb: `Office › ${parentAgent ? maskText(parentAgent.name) + ' › ' : ''}${ch.persona ?? maskText(n.persona || 'Agente')}`,
+    name: maskText(n.name), state: n.state, stateLabel: nodeView(n.state, { ascii: true, color: false }).label,
+    chips: [ch.persona, ch.model, ch.effort].filter((x): x is string => !!x), branch: br ? `⎇ ${br}` : wt ? `⧉ ${wt}` : undefined,
+    done: a.todos?.length ? a.todos.filter(t => t.status === 'completed').length : kids.filter(k => k.state === 'done').length,
+    total: a.todos?.length ? a.todos.length : undefined,
+    time: fmt(durationOf(n, now)), tokens: a.usage?.tokens !== undefined ? String(a.usage.tokens) : '—',
+    cost: a.usage?.costUsd !== undefined ? `$${a.usage.costUsd.toFixed(2)}` : '—',
+    error: n.error ? maskText(n.error) : undefined, steps, prompt: a.prompt ? maskText(a.prompt) : '—',
+  }
 }

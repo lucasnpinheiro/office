@@ -9,8 +9,8 @@ const txt = (ls: { t: string }[][]) => ls.map(l => l.map(s => s.t).join('')).joi
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
 const base = { width: 120, caps, mode: 'cards' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
 
-test('session start opens the boxed cards view, not the one-line map', () => {
-  expect(startUi().view).toBe('compact'); expect(startUi().mode).toBe('cards'); expect(initialUi().view).toBe('compact')
+test('session start opens the map; cards stay the default mode behind v', () => {
+  expect(startUi().view).toBe('map'); expect(startUi().mode).toBe('cards'); expect(initialUi().view).toBe('map')
 })
 test('cards at 120 cols: parent card, then 3 sibling boxes per row, 34 cols wide, 4th card on the next row', () => {
   const ag = ['a', 'b', 'c', 'd'].map(id => mk(id))
