@@ -69,7 +69,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
   // ---- draw
   const box = (n: AppMapNode, bx: number, y: number) => {
     const c = n.card, fg = col(STATE_COLOR[c.state]), nd = c.id === 'session' ? undefined : c.id
-    const st: Omit<Cell, 'c'> = { fg, node: nd }
+    const st: Omit<Cell, 'c'> = { fg } // border: never a Button, so Tab focus does not paint it
     const x1 = bx + BW - 1
     for (let x = bx + 1; x < x1; x++) { put(x, y, sym.h, st); put(x, y + BOX_H - 1, sym.h, st) }
     put(bx, y, sym.tl, st); put(x1, y, sym.tr, st); put(bx, y + BOX_H - 1, sym.bl, st); put(x1, y + BOX_H - 1, sym.br, st)
@@ -86,18 +86,18 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     const who = [pChip, mChip].filter((x): x is string => !!x)
     const parts = o.ascii ? who.map(stripIcon) : who
     const chips = strWidth(T(parts.join(' · '))) <= tw ? parts.join(' · ') : parts.join(' ') // long persona names drop the dot before cutting
-    text(tx, y + 2, fitW(T(chips), tw), { fg: col(DIM), node: nd })
+    text(tx, y + 2, fitW(T(chips), tw), { fg: col(DIM) })
     // line 3 is never blank: branch or worktree, else the tool / error, else the state in words
     const gl = c.git?.length ? c.git : o.git?.branch ? [`⎇ ${o.git.branch}`] : undefined
     const stateWord = { pending: 'aguardando', running: 'executando', done: 'concluído', failed: 'falhou', attention: 'aguarda você', inactive: 'inativo' }[c.state] ?? ''
     const l3 = gl?.length ? { t: gl.join(' '), fg: col(WORKTREE_COLOR) } : { t: c.status ? `${c.state === 'running' ? '▸ ' : ''}${c.status}` : stateWord, fg: col(DIM) }
-    text(tx, y + 3, fitW(T(l3.t), tw), { fg: l3.fg, node: nd })
+    text(tx, y + 3, fitW(T(l3.t), tw), { fg: l3.fg })
     const bar = T(progressBar(c.pct ?? 0, 6))
-    text(tx, y + 4, bar, { fg, node: nd })
+    text(tx, y + 4, bar, { fg })
     const pt = `${c.pctText.padStart(5)} ${c.time}`
-    text(tx + 6, y + 4, pt, { fg: col(DIM), node: nd })
+    text(tx + 6, y + 4, pt, { fg: col(DIM) })
     const eff = eChip ? (o.ascii ? stripIcon(eChip) : eChip) : ''
-    if (eff && 6 + strWidth(pt) + 1 + strWidth(T(eff)) <= tw) text(tx + 6 + strWidth(pt) + 1, y + 4, T(eff), { fg: col(DIM), node: nd })
+    if (eff && 6 + strWidth(pt) + 1 + strWidth(T(eff)) <= tw) text(tx + 6 + strWidth(pt) + 1, y + 4, T(eff), { fg: col(DIM) })
   }
   const draw = (n: AppMapNode, x0: number, y0: number, blockW: number) => {
     const m = measure(n)
@@ -106,7 +106,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     const bx = wrapped ? x0 + 2 + Math.floor((measure(m.rows[0]![0]!).w - BW) / 2) : x0 + Math.floor((blockW - BW) / 2), pcx = bx + BW / 2
     box(n, bx, y0)
     if (!m.rows.length) return
-    put(pcx, y0 + BOX_H - 1, sym.d, { fg: col(STATE_COLOR[n.card.state]), node: n.card.id === 'session' ? undefined : n.card.id })
+    put(pcx, y0 + BOX_H - 1, sym.d, { fg: col(STATE_COLOR[n.card.state]) })
     const tm = m.rows.length > 1 ? 2 : 0
     let y = y0 + BOX_H
     const busYs: number[] = []
@@ -128,7 +128,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
         if (tm) line(ri === 0 ? sym.tl : ri === m.rows.length - 1 ? sym.bl : sym.l, x0)
       }
       const rh = Math.max(...row.map(k => measure(k).h))
-      row.forEach((k, i) => { draw(k, slots[i]!, y + 1, measure(k).w); put(cxs[i]!, y + 1, sym.u, { fg: col(STATE_COLOR[k.card.state]), node: k.card.id }) })
+      row.forEach((k, i) => { draw(k, slots[i]!, y + 1, measure(k).w); put(cxs[i]!, y + 1, sym.u, { fg: col(STATE_COLOR[k.card.state]) }) })
       y += 1 + rh
     })
     if (tm) for (let yy = busYs[0]! + 1; yy < busYs[busYs.length - 1]!; yy++) if (!grid[yy]?.[x0]) put(x0, yy, sym.v, { fg: col(LINE) })

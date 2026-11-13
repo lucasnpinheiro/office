@@ -123,3 +123,9 @@ test('map boxes: a long persona keeps the model whole (dot dropped before any cu
   expect(t.some(l => l.includes('🧠 Especialista 🎼 Sonnet'))).toBe(true)
   expect(t.some(l => l.includes('…'))).toBe(false)
 })
+
+test('map boxes: only the title row is clickable (no border or bar run is a node, so Tab focus never paints a border)', () => {
+  const out = renderBoxMap(agents, T + 9000, { ...base, width: 130 })!
+  for (const l of out) for (const seg of l) if (seg.node) expect(/[─│┌┐└┘┬┴┼├┤▰▱]/.test(seg.t)).toBe(false)
+  expect(out.some(l => l.some(seg => seg.node && seg.t.includes('Tela')))).toBe(true)
+})
