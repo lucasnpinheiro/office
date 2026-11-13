@@ -18,6 +18,7 @@ export const PERSONAS: Persona[] = [
   { key: 'sre', name: 'SRE', icon: '🚨' },
   { key: 'perf', name: 'Performance', icon: '⚡' },
   { key: 'ux', name: 'UX/UI', icon: '🎨' },
+  { key: 'design', name: 'Designer', icon: '🖌️' },
   { key: 'bi', name: 'Data/BI', icon: '📊' },
   { key: 'jr', name: 'Junior', icon: '🌱' },
   { key: 'tw', name: 'Tech Writer', icon: '✍️' },
