@@ -23,6 +23,9 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
     if (s.mode === 'tree' && ctx.collapsed !== false && !s.expanded.includes(TREE_ALL)) return { state: { ...s, expanded: [...s.expanded, TREE_ALL] } }
     return { state: { ...s, mode: nextModeOf(s.mode, ctx.workflow === true), modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_ALL) } }
   }
+  // tabs of the app pane: Mapa = map view; every other tab is the compact view in that mode
+  if (a === 'tab:map') return { state: { ...s, view: 'map', selected: '', attach: '', filter: 'all' } }
+  if (a.startsWith('tab:')) return { state: { ...s, view: 'compact', mode: a.slice(4) as Mode, modeChosen: true, selected: '', attach: '', filter: 'all' } }
   if (a.startsWith('mode:')) return { state: { ...s, mode: a.slice(5) as Mode, modeChosen: true, filter: 'all' } }
   if (a === 'failed') return { state: { ...s, filter: s.filter === 'failed' ? 'all' : 'failed' } }
   if (a === 'sort') return { state: { ...s, sort: s.sort === 'time' ? 'state' : s.sort === 'state' ? 'name' : 'time' } }

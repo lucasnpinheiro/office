@@ -13,7 +13,7 @@ export const isAppSurface = (surface?: string): boolean => surface === 'desktop'
 
 // Theme keys, so light and dark follow the app's own theme (design Chips5: state on border and glyph, never color alone).
 export type Tone = 'suggestion' | 'error' | 'warning' | 'success' | 'subtle'
-const TONE: Record<State, Tone> = { running: 'suggestion', failed: 'error', attention: 'warning', done: 'success', pending: 'subtle', inactive: 'subtle' }
+export const TONE: Record<State, Tone> = { running: 'suggestion', failed: 'error', attention: 'warning', done: 'success', pending: 'subtle', inactive: 'subtle' }
 
 export type AppCard = {
   id: string; title: string; state: State; tone: Tone; glyph: string; chips: string[]
@@ -52,7 +52,7 @@ export function appMap(agents: AgentLike[], now: number, o: { query?: string; fi
   const g = buildGraph(agents, now, o.git)
   const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter)
   const walk = (n: Node): AppMapNode => ({
-    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code / Orquestrador', chips: ['Orquestrador'], status: undefined } : cardOf(n, nm, now),
+    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code', chips: ['Orquestrador'], status: undefined } : cardOf(n, nm, now),
     children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(walk),
   })
   return walk(g.root)

@@ -62,7 +62,7 @@ test('a compact view left over from the previous session does not survive sessio
   await boot($, on, 2)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toContain('Claude Code / Orquestrador'); expect(out).toMatch(/┌─{38}┐/)
+  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toContain('Claude Code'); expect(out).toMatch(/┌[─┴]{28}┐/)
 })
 
 test('desktop surface: the map view draws the org chart as Box cards (root, children), clickable', async ($, on) => {
@@ -74,8 +74,34 @@ test('desktop surface: the map view draws the org chart as Box cards (root, chil
     props: { bodyColumns: 120, bodyRows: 40 } as any, viewport: { columns: 120, rows: 40 } as any,
   })
   const texts = (await ui.findAll({ type: 'Text' })).map((t: any) => t.text as string)
-  expect(texts.some(t => t.includes('Claude Code / Orquestrador'))).toBe(true)
+  expect(texts.some(t => t.includes('Claude Code'))).toBe(true)
   expect(texts.filter(t => t.includes('QA: teste')).length).toBe(2)
   const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => String(b.key ?? b.props?.key ?? ''))
   expect(keys.filter(k => k.startsWith('app-open-')).length).toBe(2)
+})
+
+test('desktop pane: header, tabs with Mapa selected, map card content, side detail on click', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
+  for (let i = 1; i <= 2; i++) await $.agent.spawn({ tool_use_id: `t${i}`, prompt: 'p', description: `🛠️ Pleno · 🎼 Sonnet · 🟡 médio: Tarefa ${i}` } as any)
+  const mountD = () => $.ui.mount({
+    plugin: 'agent-office', surface: 'desktop', component: 'Pane', requestId: 'agent-office',
+    props: { bodyColumns: 140, bodyRows: 40 } as any, viewport: { columns: 140, rows: 40 } as any,
+  })
+  let ui = await mountD()
+  const texts = async () => (await ui.findAll({ type: 'Text' })).map((t: any) => String(t.text))
+  let t = await texts()
+  expect(t).toContain('Office'); expect(t.some(x => x.includes('meuapp'))).toBe(true)
+  expect(t.some(x => /rodando · .* concluídos · .* falha/.test(x))).toBe(true)
+  for (const k of ['Mapa', 'Árvore', 'Worktrees', 'Workflow', 'Custo', 'Ferramentas']) expect(t).toContain(k)
+  const mapa = (await ui.findAll({ type: 'Text' })).find((x: any) => x.text === 'Mapa') as any
+  expect(mapa.props?.bold).toBe(true)
+  expect(t.some(x => x.includes('🛠️ Pleno · 🎼 Sonnet · 🟡 médio'))).toBe(true)
+  expect(t).toContain('Na fila')
+  const open = (await ui.findAll({ type: 'Button' })).map((b: any) => String(b.key ?? '')).find(k => k.startsWith('app-open-'))!
+  await ui.press({ key: open })
+  await ui.unmount(); ui = await mountD()
+  t = await texts()
+  expect(t.some(x => x.includes('[Fechar]')) || (await ui.find({ key: 'office-back' })) !== undefined).toBe(true)
+  expect(t).toContain('Mapa') // tree stays beside the detail
 })

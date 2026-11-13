@@ -46,7 +46,7 @@ test('app card: real description fixture and subagent_type fallback feed the chi
 
 test('appMap: session root, agents under their parent, tones and pct never invented', () => {
   const m = appMap([mk('p', { description: 'Dev: pai', agentId: 'g-p' }), mk('c', { description: 'Dev: filho', parentAgentId: 'g-p' }), mk('x', { description: 'Dev: x', status: 'error' })], T + 5000, {})
-  expect(m.card.title).toBe('Claude Code / Orquestrador')
+  expect(m.card.title).toBe('Claude Code')
   const top = m.children.map(n => n.card.title)
   expect(top).toContain('Dev: pai'); expect(top).toContain('Dev: x')
   const pai = m.children.find(n => n.card.title === 'Dev: pai')!

@@ -9,7 +9,7 @@ import { appMap } from './app-cards'
 import type { AppMapNode } from './app-cards'
 import { asciiText } from './compact'
 
-export const BOX_W = 40 // even: the connector column is the box centre
+export const BOX_W = 30 // even: the connector column is bx + BOX_W / 2, the same for the stub above and below
 const BOX_H = 6
 const GAP = 2
 const LINE = '#4a4e55'
@@ -18,6 +18,7 @@ const DIM = '#9ca3af'
 type Cell = { c: string; fg?: string; bold?: boolean; dim?: boolean; node?: string }
 export type MapOpts = { width: number; project: string; sessionId?: string; git?: GitInfo; ascii: boolean; color: boolean; query?: string; filter?: 'all' | 'failed' }
 
+const fitW = (s: string, w: number): string => (strWidth(s) <= w ? s : `${takeWidth(s, w - 1)}…`)
 const stripIcon = (s: string): string => (/^\S+\s/.test(s) && /[^\x00-\x7f]/.test(s.split(' ')[0]!) ? s.replace(/^\S+\s/, '') : s)
 
 export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line[] | null {
@@ -37,7 +38,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
   }
   const sym = o.ascii ? { h: '-', v: '|', tl: '+', tr: '+', bl: '+', br: '+', d: '+', u: '+', l: '+', r: '+', x: '+' } : { h: '─', v: '│', tl: '┌', tr: '┐', bl: '└', br: '┘', d: '┬', u: '┴', l: '├', r: '┤', x: '┼' }
   const col = (c?: string) => (o.color ? c : undefined)
-  const T = (s: string) => (o.ascii ? asciiText(s) : s)
+  const T = (s: string) => (o.ascii ? asciiText(s.replace(/▾/g, 'v')) : s)
 
   // ---- measure
   type M = { w: number; h: number; rows: AppMapNode[][]; ws: number[] }
@@ -71,12 +72,16 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     const glyph = T(c.glyph), kid = c.hasKids ? ' ▾' : ''
     text(tx, y + 1, glyph, { fg, node: nd })
     const nameRoom = tw - strWidth(glyph) - 1 - strWidth(T(kid))
-    text(tx + strWidth(glyph) + 1, y + 1, takeWidth(T(c.title), nameRoom), { bold: true, node: nd })
-    const nx = tx + strWidth(glyph) + 1 + strWidth(takeWidth(T(c.title), nameRoom))
-    if (kid) text(nx, y + 1, T(kid), { fg: col(DIM), node: nd })
+    const name = fitW(T(c.title), nameRoom)
+    text(tx + strWidth(glyph) + 1, y + 1, name, { bold: true, node: nd })
+    if (kid) text(tx + strWidth(glyph) + 1 + strWidth(name), y + 1, T(kid), { fg: col(DIM), node: nd })
     const chips = (o.ascii ? c.chips.map(stripIcon) : c.chips).join(' · ')
-    text(tx, y + 2, takeWidth(T(chips), tw), { fg: col(DIM), node: nd })
-    if (c.git?.length) text(tx, y + 3, takeWidth(T(c.git.join(' ')), tw), { fg: col(WORKTREE_COLOR), node: nd })
+    text(tx, y + 2, fitW(T(chips), tw), { fg: col(DIM), node: nd })
+    // line 3 is never blank: branch or worktree, else the tool / error, else the state in words
+    const gl = c.git?.length ? c.git : o.git?.branch ? [`⎇ ${o.git.branch}`] : undefined
+    const stateWord = { pending: 'aguardando', running: 'executando', done: 'concluído', failed: 'falhou', attention: 'aguarda você', inactive: 'inativo' }[c.state] ?? ''
+    const l3 = gl?.length ? { t: gl.join(' '), fg: col(WORKTREE_COLOR) } : { t: c.status ? `${c.state === 'running' ? '▸ ' : ''}${c.status}` : stateWord, fg: col(DIM) }
+    text(tx, y + 3, fitW(T(l3.t), tw), { fg: l3.fg, node: nd })
     const bar = T(progressBar(c.pct ?? 0, 6))
     text(tx, y + 4, bar, { fg, node: nd })
     text(tx + 6, y + 4, `${c.pctText.padStart(5)}  ${c.time}`, { fg: col(DIM), node: nd })
@@ -92,7 +97,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     const busYs: number[] = []
     m.rows.forEach((row, ri) => {
       const rw = row.reduce((a, k, i) => a + measure(k).w + (i ? GAP : 0), 0)
-      let sx = x0 + tm + Math.floor((blockW - tm - rw) / 2)
+      let sx = x0 + tm + (tm ? 0 : Math.floor((blockW - rw) / 2))
       const cxs: number[] = []
       const slots = row.map(k => { const s = sx; sx += measure(k).w + GAP; cxs.push(s + Math.floor(measure(k).w / 2)); return s })
       const lo = Math.min(cxs[0]!, pcx, tm ? x0 : Infinity), hi = Math.max(cxs[cxs.length - 1]!, ri === 0 ? pcx : -1)
@@ -108,7 +113,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
         if (tm) line(ri === 0 ? sym.tl : ri === m.rows.length - 1 ? sym.bl : sym.l, x0)
       }
       const rh = Math.max(...row.map(k => measure(k).h))
-      row.forEach((k, i) => draw(k, slots[i]!, y + 1, measure(k).w))
+      row.forEach((k, i) => { draw(k, slots[i]!, y + 1, measure(k).w); put(cxs[i]!, y + 1, sym.u, { fg: col(STATE_COLOR[k.card.state]), node: k.card.id }) })
       y += 1 + rh
     })
     if (tm) for (let yy = busYs[0]! + 1; yy < busYs[busYs.length - 1]!; yy++) if (!grid[yy]?.[x0]) put(x0, yy, sym.v, { fg: col(LINE) })

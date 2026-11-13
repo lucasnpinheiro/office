@@ -150,3 +150,9 @@ test('hotkeys: f e s somem em Custo, Ferramentas e Workflow e voltam nos demais 
     expect(keys).toContain('s')
   }
 })
+
+test('tab:map and tab:<mode> switch the app pane tabs', async () => {
+  const m = applyAction({ ...initialUi(), view: 'compact', mode: 'cost', selected: 'a' }, 'tab:map').state
+  expect(m).toMatchObject({ view: 'map', selected: '' })
+  expect(applyAction(m, 'tab:tools').state).toMatchObject({ view: 'compact', mode: 'tools', modeChosen: true })
+})

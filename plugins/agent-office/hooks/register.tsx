@@ -5,7 +5,8 @@ import { renderBoxMap } from './map-boxes'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
-import { renderMonitor, inlineSize, WORKTREE_COLOR } from './monitor'
+import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS } from './monitor'
+import { TONE as TONE_OF } from './app-cards'
 import { renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
 import { buildRunModel } from './run-model'
@@ -652,20 +653,23 @@ export const register: Register = on => {
       { t: footerTail(ui), fg: '#9ca3af' },
     ])
     // one app card (design Chips5): glyph + title, chips, git, status, progress bar, % and time; border and bar carry the state tone
+    const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
     const appCardBox = (c: AppCard, kids = false) => (
-      <Box key={`app-${c.id}`} flexDirection="column" borderStyle="round" borderColor={c.tone} paddingX="sm" width={34}>
-        {c.id === 'session' ? <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
-          <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
-            <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text>
-          </Button>
-        )}
+      <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} paddingX="sm" width={34}>
+        <Box flexDirection="row" justifyContent="space-between">
+          {c.id === 'session' ? <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
+            <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
+              <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text>
+            </Button>
+          )}
+          <Text color={c.tone}>{PILL[c.state] ?? ''}</Text>
+        </Box>
         <Text dimColor>{c.chips.join(' · ')}</Text>
-        {c.git?.length ? <Text color={WORKTREE_COLOR}>{c.git.join(' ')}</Text> : null}
-        {c.status ? <Text dimColor>{c.status}</Text> : null}
+        {c.git?.length ? <Text color={WORKTREE_COLOR}>{c.git.join(' ')}</Text> : <Text dimColor>{' '}</Text>}
         <Box flexDirection="row" height={1} backgroundColor="subtle">
           <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
         </Box>
-        <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.pctText}</Text><Text dimColor>{c.time}</Text></Box>
+        <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.status ?? ' '}</Text><Text dimColor>{`${c.pctText}  ${c.time}`}</Text></Box>
       </Box>
     )
     // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
@@ -695,14 +699,60 @@ export const register: Register = on => {
         ) : null}
       </Box>
     )
+    // app pane chrome (design Proto5): header, one segment per agent, failure banners, tab row
+    const onApp = isAppSurface((e as { surface?: string }).surface)
+    const TABS: [string, string, string][] = [['map', 'Mapa', 'tab:map'], ['tree', 'Árvore', 'tab:tree'], ['grouped', 'Worktrees', 'tab:grouped'], ['workflow', 'Workflow', 'tab:workflow'], ['cost', 'Custo', 'tab:cost'], ['tools', 'Ferramentas', 'tab:tools']]
+    const curTab = view === 'map' ? 'map' : (await read($, modeAt)) as string
+    const appChrome = () => {
+      const g = buildGraph(all, now, sgit)
+      const ags = [...g.nodes.values()].filter(n => n.kind === 'agent')
+      const cnt = (st: string) => ags.filter(n => n.state === st).length
+      const proj = cwd.split('/').filter(Boolean).pop() ?? ''
+      const failed = appCards(all, now, {}).filter(c => c.state === 'failed')
+      return (
+        <Box flexDirection="column" gap="xs">
+          <Box flexDirection="row" flexWrap="wrap" gap="sm">
+            <Text bold>Office</Text>
+            <Text dimColor>{`· ${proj}${sgit?.branch ? ` · ⎇ ${sgit.branch}` : ''}`}</Text>
+          </Box>
+          <Text dimColor>{`${ags.length ? fmtMMSS(elapsedOf(g, now)) : '--:--'} · ${cnt('running')} rodando · ${cnt('done')} concluídos · ${cnt('failed')} falha`}</Text>
+          <Box flexDirection="row" flexWrap="wrap" gap="xs">
+            {ags.map(n => <Box key={`seg-${n.id}`} width={3} height={1} backgroundColor={TONE_OF[n.state]} />)}
+          </Box>
+          {failed.map(c => (
+            <Box key={`ban-${c.id}`} flexDirection="row" flexWrap="wrap" gap="sm" borderStyle="round" borderColor="error" paddingX="sm">
+              <Text color="error" bold>{`✗ ${c.title} falhou`}</Text>
+              {c.status ? <Text dimColor>{c.status}</Text> : null}
+              <Button plain key={`ban-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}><Text color="error">[Ver]</Text></Button>
+            </Box>
+          ))}
+          <Box flexDirection="row" flexWrap="wrap" gap="sm">
+            {TABS.map(([k, label, action]) => (
+              <Button plain key={`tab-${k}`} onPress={() => void act(action)}>
+                <Text bold={curTab === k} color={curTab === k ? 'suggestion' : undefined} dimColor={curTab !== k} underline={curTab === k}>{label}</Text>
+              </Button>
+            ))}
+          </Box>
+        </Box>
+      )
+    }
     // app surfaces (desktop, vscode, mobile): graphical cards of the Chips design (title, chips, state on border and glyph);
     // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
-    if (isAppSurface((e as { surface?: string }).surface) && view === 'map' && !selected && !attach) {
+    if (onApp && view === 'map' && !attach && (!selected || sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' }))) {
       const tree = appMap(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
+      const body = tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root')
       return (
         <Box flexDirection="column" gap="sm">
-          <Text dimColor>{statusText(all, now)}</Text>
-          {tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root')}
+          {appChrome()}
+          {selected ? (
+            <Box flexDirection="row" gap="sm">
+              <Box flexDirection="column" flexGrow={1}>{body}</Box>
+              <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>
+                <Button key="office-back" onPress={() => void act('back')}>{'[Fechar]'}</Button>
+                {detailOf(selected).lines.map(draw)}
+              </Box>
+            </Box>
+          ) : body}
           {keysRow}
         </Box>
       )
@@ -711,7 +761,7 @@ export const register: Register = on => {
       const cards = appCards(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
       return (
         <Box flexDirection="column" gap="sm">
-          <Text dimColor>{statusText(all, now)}</Text>
+          {appChrome()}
           {cards.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : null}
           <Box flexDirection="row" flexWrap="wrap" gap="sm">
             {cards.map(c => appCardBox(c))}
