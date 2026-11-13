@@ -63,6 +63,8 @@ function clampParent(g: Graph, p: Node): Node {
   return cur
 }
 
+const TIER_FALLBACK: Record<string, { model: string }> = { rapido: { model: 'haiku' }, padrao: { model: 'sonnet' }, profundo: { model: 'opus' } }
+
 // agents (spawn order) -> session root -> agents -> TodoWrite tasks. Nothing is invented:
 // state comes from status/endedAt/seenAt, tasks from the agent's own todos.
 export function buildGraph(agents: readonly AgentRecord[], now: number, sessionGit?: GitInfo, sessionTool?: ToolNote): Graph {
@@ -77,8 +79,10 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
     const caller = (a.parentAgentId && byAgentId.get(a.parentAgentId)) || root
     const parent = clampParent(g, caller)
     const stale = a.status === 'working' && now - (a.seenAt ?? a.startedAt) > ATTENTION_AFTER_MS
-    const model = p.model ?? a.model
-    const effort = p.effort ?? (a.effort ? EFFORT_KEY[a.effort.toLowerCase()] : undefined)
+    // tier agents (rapido/padrao/profundo) say their model and default effort in subagent_type when the description has no prefix
+    const tier = TIER_FALLBACK[(a.subagentType ?? '').replace(/^.*:/, '').toLowerCase()]
+    const model = p.model ?? a.model ?? tier?.model
+    const effort = p.effort ?? (a.effort ? EFFORT_KEY[a.effort.toLowerCase()] : undefined) ?? (tier ? 'low' : undefined)
     // no label in the description: fall back to the first prompt line, then the persona
     const label = p.label || firstWords(a.prompt) || p.persona.name
     const n: Node = {

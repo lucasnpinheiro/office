@@ -649,7 +649,7 @@ export const register: Register = on => {
                 </Button>
                 <Box flexDirection="row" flexWrap="wrap" gap="xs">
                   {c.chips.map(t => (
-                    <Box key={`chip-${c.id}-${t}`} borderStyle="round" borderColor="subtle" paddingX="xs"><Text>{t}</Text></Box>
+                    <Box key={`chip-${c.id}-${t}`} borderStyle="round" borderColor="subtle" backgroundColor="userMessageBackground" paddingX="xs"><Text>{t}</Text></Box>
                   ))}
                 </Box>
                 {c.status ? <Text dimColor>{c.status}</Text> : null}
