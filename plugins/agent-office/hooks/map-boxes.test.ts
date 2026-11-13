@@ -129,3 +129,12 @@ test('map boxes: only the title row is clickable (no border or bar run is a node
   for (const l of out) for (const seg of l) if (seg.node) expect(/[─│┌┐└┘┬┴┼├┤▰▱]/.test(seg.t)).toBe(false)
   expect(out.some(l => l.some(seg => seg.node && seg.t.includes('Tela')))).toBe(true)
 })
+
+test('map boxes: wrapped rows use a dotted dim trunk and dotted row buses (single row stays solid)', () => {
+  const many = Array.from({ length: 8 }, (_, i) => ({ ...mk(`w${i}`, { description: `Dev: tarefa ${i}` }), agentId: `g-w${i}` }))
+  const t = txt(renderBoxMap(many, T + 1000, { ...base, width: 100 })!)
+  expect(t.some(l => l.startsWith('┊'))).toBe(true)
+  expect(t.some(l => /^[┌├└]┄/.test(l))).toBe(true)
+  const one = txt(renderBoxMap(agents, T + 9000, { ...base, width: 130 })!)
+  expect(one.join('\n')).not.toContain('┄')
+})

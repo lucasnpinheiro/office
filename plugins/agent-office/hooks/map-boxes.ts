@@ -43,6 +43,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     for (const ch of (typeof Intl !== 'undefined' && (Intl as any).Segmenter ? [...new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' }).segment(s)].map((z: any) => z.segment as string) : [...s])) { put(cx, y, ch, st); cx += strWidth(ch) }
   }
   const sym = o.ascii ? { h: '-', v: '|', tl: '+', tr: '+', bl: '+', br: '+', d: '+', u: '+', l: '+', r: '+', x: '+' } : { h: '─', v: '│', tl: '┌', tr: '┐', bl: '└', br: '┘', d: '┬', u: '┴', l: '├', r: '┤', x: '┼' }
+  const dot = o.ascii ? { h: '.', v: ':' } : { h: '┄', v: '┊' }
   const col = (c?: string) => (o.color ? c : undefined)
   const T = (s: string) => (o.ascii ? asciiText(s.replace(/▾/g, 'v')) : s)
 
@@ -120,7 +121,8 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
       busYs.push(y)
       if (lo === hi && cxs.length === 1) line(sym.v, lo, STATE_COLOR[row[0]!.card.state])
       else {
-        for (let x = lo; x <= hi; x++) line(sym.h, x)
+        // wrapped rows (user choice): trunk and row buses dotted and dim, so the rows never read as a frame
+        for (let x = lo; x <= hi; x++) line(tm ? dot.h : sym.h, x)
         cxs.forEach((cx, i) => line(sym.d, cx, STATE_COLOR[row[i]!.card.state]))
         if (cxs.includes(lo) && lo !== hi) line(sym.tl, lo, STATE_COLOR[row[cxs.indexOf(lo)]!.card.state])
         if (cxs.includes(hi) && lo !== hi) line(sym.tr, hi, STATE_COLOR[row[cxs.indexOf(hi)]!.card.state])
@@ -131,7 +133,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
       row.forEach((k, i) => { draw(k, slots[i]!, y + 1, measure(k).w); put(cxs[i]!, y + 1, sym.u, { fg: col(STATE_COLOR[k.card.state]) }) })
       y += 1 + rh
     })
-    if (tm) for (let yy = busYs[0]! + 1; yy < busYs[busYs.length - 1]!; yy++) if (!grid[yy]?.[x0]) put(x0, yy, sym.v, { fg: col(LINE) })
+    if (tm) for (let yy = busYs[0]! + 1; yy < busYs[busYs.length - 1]!; yy++) if (!grid[yy]?.[x0]) put(x0, yy, dot.v, { fg: col(LINE) })
   }
   const rootM = measure(root)
   draw(root, 0, 0, Math.max(rootM.w, 0))

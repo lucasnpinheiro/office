@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.4 (agent-office, wrapped sibling rows hang off a dotted trunk)
+
+- Many siblings (rows that wrap): the left trunk and each row bus are dotted and dim (`┊` and `┄`; ASCII `:` and `.`), so the rows no longer read as a frame. A single row keeps the solid bus of the design.
+
 ## 0.19.3 (agent-office, Tab focus no longer paints a box border)
 
 - In the terminal map every cell of a box was a clickable node, so the focused box had its top border painted as a solid bar. Now only the title row is a Button; borders, connectors and the progress bar are plain text.
