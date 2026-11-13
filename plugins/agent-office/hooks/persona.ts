@@ -90,3 +90,19 @@ export const modelDisplay = (m?: string): string => {
   const d = MODEL_DISPLAY[k]
   return d ? `${d.icon} ${d.label}` : modelLabel(m)
 }
+
+export type Chips = { persona: string; model?: string; effort?: string }
+
+// Card chips: icon + label per field, built from the Node strings (persona name, model label, effort label).
+// Unknown values pass through as plain text; missing model/effort stay undefined.
+export function chips(persona?: string, model?: string, effort?: string): Chips {
+  const p = PERSONAS.find(x => x.name === persona) ?? (persona === GENERIC.name ? GENERIC : undefined)
+  const mk = (model ?? '').toLowerCase()
+  const md = MODEL_DISPLAY[mk]
+  const ed = Object.values(EFFORT_DISPLAY).find(d => d.label === effort)
+  return {
+    persona: p ? `${p.icon} ${p.name}` : persona ?? '',
+    model: model ? (md ? `${md.icon} ${md.label}` : model) : undefined,
+    effort: effort ? (ed ? `${ed.icon} ${ed.label}` : effort) : undefined,
+  }
+}

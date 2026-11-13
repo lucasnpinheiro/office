@@ -92,14 +92,14 @@ test('preview: colored diff, text, image fallback', () => {
 
 const many = (n: number, parent?: string) => Array.from({ length: n }, (_, i) => mk('s' + i, parent ? { parentAgentId: parent } : {}))
 const cardRowsAt = (out: string, w = 120) => out.split('\n').filter(l => l.startsWith('╭') && [...l].length < w)
-test('cards: per_row = floor((cols - x_parent - 5 + 2) / 36): 120 -> 3, 200 -> 5, 34-col cards, 6 rows each', () => {
+test('cards: per_row = floor((cols - x_parent - 5 + 2) / 36): 120 -> 3, 200 -> 5, 34-col cards, 7 rows each', () => {
   const o120 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 }))
   expect(cardRowsAt(o120)[0]!.match(/╭/g)!.length).toBe(3)
   expect(cardRowsAt(o120)[0]!.split('╮')[0]!.length).toBe(34 - 1)
   const o200 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 200, maxCardRows: 99 }))
   expect(cardRowsAt(o200, 200)[0]!.match(/╭/g)!.length).toBe(5)
   const lines = o120.split('\n'); const top = lines.findIndex(l => l.startsWith('╭') && [...l].length < 120); const bot = lines.findIndex((l, i) => i > top && l.startsWith('╰'))
-  expect(bot - top + 1).toBe(6)
+  expect(bot - top + 1).toBe(7)
 })
 test('cards: leaf children side by side under a bus line with drops (no corner), indent 5', () => {
   const ag = [mk('p', { agentId: 'P' }), ...many(4, 'P')]
@@ -173,7 +173,7 @@ test('card anatomy: name, persona · model, tool/status row, bar + metric + time
   const ag = [mk('r', { description: '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo: run', tool: 'git', recent: ['Read', 'git'] }),
     mk('d', { status: 'done', endedAt: T + 5000 }), mk('f', { status: 'error', endedAt: T + 2000, error: 'timeout 120s tests/Nfe' })]
   const o = txt(cardsOut(ag))
-  expect(o).toMatch(/Pleno · Sonnet\s+│/); expect(o).not.toContain('baixo')
+  expect(o).toMatch(/🛠️ Pleno\s+│/); expect(o).toMatch(/🎼 Sonnet · 🟢 baixo\s+│/)
   expect(o).toMatch(/▸ git ‹ Read/); expect(o).toContain('concluído'); expect(o).toContain('✗ timeout 120s tests/Nfe')
   expect(o).toMatch(/exec\s+00:09/)
 })
@@ -252,7 +252,7 @@ test('cards hint counts hidden cards, not hidden rows', () => {
 })
 test('cards cut: nested child rows use their absolute line, never a dangling bus or +0 hint', () => {
   const ag = [mk('p', { agentId: 'P' }), ...Array.from({ length: 4 }, (_, i) => mk('c' + i, { parentAgentId: 'P' }))]
-  const o = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 14 }))
+  const o = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 16 }))
   expect(o).not.toContain('+0 cards')
   expect(o).toContain('+1 cards ocultos')
 })
@@ -282,3 +282,16 @@ for (const mode of ['tree', 'cards', 'waterfall'] as const) {
     for (const f of [3, 4]) for (const g of SPIN) expect(spinTxt(f, asc, mode)).not.toContain(g)
   })
 }
+
+test('card chips: icon + persona, icon + model, icon + effort on separate lines; task as title', () => {
+  const ag = [mk('t', { description: '✍️ Tech Writer · 🪶 Haiku · 🟡 médio: Varrer docs com regra antiga' })]
+  const o = txt(cardsOut(ag))
+  expect(o).toContain('Varrer docs com regra antiga')
+  expect(o).toMatch(/│✍️ Tech Writer\s+│/)
+  expect(o).toMatch(/│🪶 Haiku · 🟡 médio\s+│/)
+})
+test('card chips: description without the format falls back to generic persona, no model/effort line noise', () => {
+  const o = txt(cardsOut([mk('g', { description: 'sem formato' })]))
+  expect(o).toContain('sem formato')
+  expect(o).toMatch(/│🤖 Agente\s+│/)
+})

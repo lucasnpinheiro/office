@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Agent cards show chips with icons: persona, model (🪶 Haiku, 🎼 Sonnet, 👑 Opus) and effort (🟢 baixo, 🟡 médio, 🔴 alto), parsed from the description `<icon> Persona · <icon> Model · <icon> esforço: task`; the task is the card title. Terminal card is now 7 lines. Description without the format falls back to `🤖 Agente`.
+
 ## 0.16.0 (agent-office, T-014 leftovers, T-015 docs and CI)
 
 - The running spinner glyph now cycles with the frame in the tree, cards and waterfall renders; it stays fixed in reduced motion

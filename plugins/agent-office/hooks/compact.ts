@@ -12,6 +12,7 @@ import type { Capabilities } from './capabilities'
 import { worktreePartition, groupDivider, restDivider, agentsLine } from './view-worktrees'
 import type { AheadInfo } from './git'
 import { buildRunModel, RUN_STATE } from './run-model'
+import { chips } from './persona'
 import type { RunModel } from './run-model'
 import { costLines, fmtTokens, fmtUsd } from './view-cost'
 import { toolLines } from './view-tools'
@@ -351,7 +352,7 @@ function groupedLines(g: Graph, agents: AgentLike[], nm: Map<string, string>, ke
 // Layout (ref. design v8): card 34 cols x 6 rows, gap 2, child indent 5. Leaf siblings fill rows of
 // per_row = max(1, floor((cols - x_parent - 5 + 2) / 36)); branch siblings take one row each after the leaves, their
 // subtree indented below. A dotted bus under the parent has a drop per card. Worktree flows get a heavy divider.
-export const CARD_W = 34, CARD_H = 6, CARD_GAP = 2, CARD_INDENT = 5
+export const CARD_W = 34, CARD_H = 7, CARD_GAP = 2, CARD_INDENT = 5
 export const perRowOf = (cols: number, xParent: number): number => Math.max(1, Math.floor((cols - xParent - CARD_INDENT + CARD_GAP) / (CARD_W + CARD_GAP)))
 
 type Cell = { ch: string; s: Seg }
@@ -426,12 +427,13 @@ const timeline = (g: Graph, now: number) => {
   return { t0, tot: Math.max(1, t1 - t0) }
 }
 
-// Card anatomy (design): name, persona · model, tool/status row, bar + metric + time. Border by state.
+// Card anatomy (design): name, icon+persona, icon+model · icon+effort, tool/status row, bar + metric + time. Border by state.
 const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: STATE_COLOR.failed, attention: STATE_COLOR.attention, done: '#4b5563', pending: '#4b5563', inactive: '#4b5563' }
 function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number): Line[] {
   const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
   const id = n.id
+  const ch = chips(n.persona, n.model, n.effort)
   const body = (l: Line): Line => [seg(c, b.v, edge), ...fit([...l, ...sp(inner)], inner), seg(c, b.v, edge)]
   const kids = n.children.filter(x => x.kind === 'agent').length
   const sep = c.ascii ? '<' : '‹', tri = c.ascii ? '>' : '▸'
@@ -458,7 +460,8 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   return [
     [seg(c, b.tl + b.h.repeat(inner) + b.tr, edge)],
     body([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, truncRunes(nm.get(id) ?? n.name, inner - 2), undefined, { bold: true, node: id })]),
-    body([seg(c, truncRunes([n.persona, n.model].filter(Boolean).join(' · '), inner), DIM, { node: id })]),
+    body([seg(c, takeWidth(c.ascii ? n.persona : ch.persona, inner), DIM, { node: id })]),
+    body([seg(c, takeWidth(c.ascii ? [n.model, n.effort].filter(Boolean).join(' · ') : [ch.model, ch.effort].filter(Boolean).join(' · '), inner), DIM, { node: id })]),
     body(row3),
     body([...bar, seg(c, ` ${pctText} `), seg(c, time, DIM)]),
     [seg(c, b.bl + b.h.repeat(inner) + b.br, edge)],
