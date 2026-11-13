@@ -1,4 +1,5 @@
 import { atom, read, update } from 'claude-code'
+import { isAppSurface, appCards } from './app-cards'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
@@ -632,6 +633,37 @@ export const register: Register = on => {
       ...hotkeysFor(ui, side).flatMap((h, i) => [...(i ? [{ t: FOOTER_SEP }] : []), { t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }]),
       { t: footerTail(ui), fg: '#9ca3af' },
     ])
+    // app surfaces (desktop, vscode, mobile): graphical cards of the Chips design (title, chips, state on border and glyph);
+    // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
+    if (isAppSurface((e as { surface?: string }).surface) && view === 'compact' && !selected && !attach && (await read($, modeAt)) === 'cards') {
+      const cards = appCards(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
+      return (
+        <Box flexDirection="column" gap="sm">
+          <Text dimColor>{statusText(all, now)}</Text>
+          {cards.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : null}
+          <Box flexDirection="row" flexWrap="wrap" gap="sm">
+            {cards.map(c => (
+              <Box key={`app-${c.id}`} flexDirection="column" borderStyle="round" borderColor={c.tone} paddingX="sm" width={34}>
+                <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
+                  <Text color={c.tone} bold>{`${c.glyph} ${c.title}`}</Text>
+                </Button>
+                <Box flexDirection="row" flexWrap="wrap" gap="xs">
+                  {c.chips.map(t => (
+                    <Box key={`chip-${c.id}-${t}`} borderStyle="round" borderColor="subtle" paddingX="xs"><Text>{t}</Text></Box>
+                  ))}
+                </Box>
+                {c.status ? <Text dimColor>{c.status}</Text> : null}
+                <Box flexDirection="row" height={1} backgroundColor="subtle">
+                  <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
+                </Box>
+                <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.pctText}</Text><Text dimColor>{c.time}</Text></Box>
+              </Box>
+            ))}
+          </Box>
+          {keysRow}
+        </Box>
+      )
+    }
     if (compactFrame) {
       const searching = await read($, searchingAt)
       const field = searching ? (

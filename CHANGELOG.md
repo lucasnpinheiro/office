@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- App surfaces (`desktop`, `vscode`, `mobile`) now draw the Chips design as graphical cards (Box/Text with rounded border by state, title, chip row, bar, percent and time, theme-key colors for light/dark) instead of the terminal's text box; the terminal keeps the text cards unchanged. Only the cards view; other views stay text on the app. New `hooks/app-cards.ts` (`isAppSurface`, `appCards`). The engine has no raw HTML element: the app draws these through its own Box/Text.
 - Agent cards show chips with icons: persona, model (🪶 Haiku, 🎼 Sonnet, 👑 Opus) and effort (🟢 baixo, 🟡 médio, 🔴 alto), parsed from the description `<icon> Persona · <icon> Model · <icon> esforço: task`; the task is the card title. Terminal card is now 7 lines. Description without the format falls back to `🤖 Agente`.
 
 ## 0.16.0 (agent-office, T-014 leftovers, T-015 docs and CI)
