@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.17.0 (agent-office, chips reach the installed plugin)
+
+- Root cause of "nothing shows": PRs #32/#33 shipped without a version bump, so installs stayed on cached 0.15.2. Bumped to 0.17.0; run `claude plugin marketplace update office` then `claude plugin update agent-office@office` and reload.
+- Terminal cards show `🎨 UX/UI · 🎼 Sonnet · 🟢 baixo` on one line (two lines when wider than the card), the task as title, long titles wrap to a second line. A description without the prefix takes model and effort from `subagent_type` (rapido, padrao, profundo).
+- App cards: chips are filled (`userMessageBackground`).
+
+## Unreleased (previous)
 
 - App surfaces (`desktop`, `vscode`, `mobile`) now draw the Chips design as graphical cards (Box/Text with rounded border by state, title, chip row, bar, percent and time, theme-key colors for light/dark) instead of the terminal's text box; the terminal keeps the text cards unchanged. Only the cards view; other views stay text on the app. New `hooks/app-cards.ts` (`isAppSurface`, `appCards`). The engine has no raw HTML element: the app draws these through its own Box/Text.
 - Agent cards show chips with icons: persona, model (🪶 Haiku, 🎼 Sonnet, 👑 Opus) and effort (🟢 baixo, 🟡 médio, 🔴 alto), parsed from the description `<icon> Persona · <icon> Model · <icon> esforço: task`; the task is the card title. Terminal card is now 7 lines. Description without the format falls back to `🤖 Agente`.

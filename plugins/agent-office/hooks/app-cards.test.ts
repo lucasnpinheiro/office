@@ -36,3 +36,10 @@ test('app card: query filters cards', () => {
   const cs = appCards([mk('alfa'), mk('beta')], T + 1000, { query: 'beta' })
   expect(cs.map(c => c.id)).toEqual(['beta'])
 })
+
+test('app card: real description fixture and subagent_type fallback feed the chips', () => {
+  const [a] = appCards([mk('a', { description: '🎨 UX/UI · 🎼 Sonnet · 🟢 baixo: Render HTML no app Claude Code' })], T + 5000, {})
+  expect([a!.title, ...a!.chips]).toEqual(['Render HTML no app Claude Code', '🎨 UX/UI', '🎼 Sonnet', '🟢 baixo'])
+  const [b] = appCards([mk('b', { description: 'Varrer docs', subagentType: 'padrao' })], T + 5000, {})
+  expect(b!.chips).toEqual(['🤖 Agente', '🎼 Sonnet', '🟢 baixo'])
+})

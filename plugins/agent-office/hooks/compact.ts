@@ -429,11 +429,23 @@ const timeline = (g: Graph, now: number) => {
 
 // Card anatomy (design): name, icon+persona, icon+model · icon+effort, tool/status row, bar + metric + time. Border by state.
 const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: STATE_COLOR.failed, attention: STATE_COLOR.attention, done: '#4b5563', pending: '#4b5563', inactive: '#4b5563' }
+// Chip rows (always 2, so cards of a row keep one height): the whole "persona · model · effort" on one line when it fits;
+// else persona on the first and "model · effort" on the second. The spare second row carries the rest of a long task title.
+function chipRows(n: Node, ch: ReturnType<typeof chips>, c: Caps, inner: number, rest = ''): [string, string] {
+  const parts = c.ascii ? [n.persona, n.model, n.effort] : [ch.persona, ch.model, ch.effort]
+  const joined = parts.filter(Boolean).join(' · ')
+  if (strWidth(joined) <= inner) return [joined, rest]
+  return [takeWidth(parts[0] ?? '', inner), takeWidth(parts.slice(1).filter(Boolean).join(' · '), inner)]
+}
 function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number): Line[] {
   const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
   const id = n.id
   const ch = chips(n.persona, n.model, n.effort)
+  const full = nm.get(id) ?? n.name
+  const over = strWidth(full) > inner - 2
+  const title = over ? takeWidth(full, inner - 2) : full
+  const rest = over ? truncRunes(full.slice(title.length).trim(), inner) : ''
   const body = (l: Line): Line => [seg(c, b.v, edge), ...fit([...l, ...sp(inner)], inner), seg(c, b.v, edge)]
   const kids = n.children.filter(x => x.kind === 'agent').length
   const sep = c.ascii ? '<' : '‹', tri = c.ascii ? '>' : '▸'
@@ -459,9 +471,8 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   const time = n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now))
   return [
     [seg(c, b.tl + b.h.repeat(inner) + b.tr, edge)],
-    body([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, truncRunes(nm.get(id) ?? n.name, inner - 2), undefined, { bold: true, node: id })]),
-    body([seg(c, takeWidth(c.ascii ? n.persona : ch.persona, inner), DIM, { node: id })]),
-    body([seg(c, takeWidth(c.ascii ? [n.model, n.effort].filter(Boolean).join(' · ') : [ch.model, ch.effort].filter(Boolean).join(' · '), inner), DIM, { node: id })]),
+    body([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, truncRunes(title, inner - 2), undefined, { bold: true, node: id })]),
+    ...chipRows(n, ch, c, inner, rest).map(t => body([seg(c, t, DIM, { node: id })])),
     body(row3),
     body([...bar, seg(c, ` ${pctText} `), seg(c, time, DIM)]),
     [seg(c, b.bl + b.h.repeat(inner) + b.br, edge)],

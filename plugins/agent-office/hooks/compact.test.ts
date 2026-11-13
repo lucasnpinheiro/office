@@ -173,7 +173,7 @@ test('card anatomy: name, persona · model, tool/status row, bar + metric + time
   const ag = [mk('r', { description: '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo: run', tool: 'git', recent: ['Read', 'git'] }),
     mk('d', { status: 'done', endedAt: T + 5000 }), mk('f', { status: 'error', endedAt: T + 2000, error: 'timeout 120s tests/Nfe' })]
   const o = txt(cardsOut(ag))
-  expect(o).toMatch(/🛠️ Pleno\s+│/); expect(o).toMatch(/🎼 Sonnet · 🟢 baixo\s+│/)
+  expect(o).toMatch(/🛠️ Pleno · 🎼 Sonnet · 🟢 baixo\s+│/)
   expect(o).toMatch(/▸ git ‹ Read/); expect(o).toContain('concluído'); expect(o).toContain('✗ timeout 120s tests/Nfe')
   expect(o).toMatch(/exec\s+00:09/)
 })
@@ -283,12 +283,25 @@ for (const mode of ['tree', 'cards', 'waterfall'] as const) {
   })
 }
 
-test('card chips: icon + persona, icon + model, icon + effort on separate lines; task as title', () => {
-  const ag = [mk('t', { description: '✍️ Tech Writer · 🪶 Haiku · 🟡 médio: Varrer docs com regra antiga' })]
+test('card chips: persona, model and effort chips on ONE line when they fit; task as title', () => {
+  const ag = [mk('t', { description: '🎨 UX/UI · 🎼 Sonnet · 🟢 baixo: Render HTML no app Claude Code' })]
   const o = txt(cardsOut(ag))
-  expect(o).toContain('Varrer docs com regra antiga')
-  expect(o).toMatch(/│✍️ Tech Writer\s+│/)
-  expect(o).toMatch(/│🪶 Haiku · 🟡 médio\s+│/)
+  expect(o).toContain('Render HTML no app Claude Code')
+  expect(o).toMatch(/│🎨 UX\/UI · 🎼 Sonnet · 🟢 baixo\s+│/)
+})
+test('card chips: too wide for one line falls back to persona line + model · effort line', () => {
+  const ag = [mk('t', { description: '🧠 Especialista · 🎼 Sonnet · 🟡 médio: Validar regra' })]
+  const o = txt(cardsOut(ag))
+  expect(o).toMatch(/│🧠 Especialista\s+│/)
+  expect(o).toMatch(/│🎼 Sonnet · 🟡 médio\s+│/)
+})
+test('card title: long task overflows to a second line instead of being cut', () => {
+  const o = txt(cardsOut([mk('t', { description: '🛠️ Pleno · 🪶 Haiku · 🟢 baixo: Atualizar a documentação completa do plugin office' })]))
+  expect(o).toContain('Atualizar a documentação'); expect(o).toContain('plugin office')
+})
+test('card chips: no prefix in the description, subagent_type rapido gives Haiku low', () => {
+  const o = txt(cardsOut([mk('t', { description: 'Varrer docs', subagentType: 'rapido' })]))
+  expect(o).toMatch(/│🤖 Agente · 🪶 Haiku · 🟢 baixo\s+│/)
 })
 test('card chips: description without the format falls back to generic persona, no model/effort line noise', () => {
   const o = txt(cardsOut([mk('g', { description: 'sem formato' })]))

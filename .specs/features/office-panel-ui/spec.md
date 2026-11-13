@@ -101,6 +101,10 @@ Painel no app (cards Chips5, T8/T9):
 - Card do app: borda arredondada na cor do estado (theme keys: suggestion, error, warning, success, subtle; claro/escuro pelo tema do app), glifo + titulo da tarefa, chips persona/modelo/esforco com icone, linha de estado/ferramenta, barra, percentual e tempo; sem formato na description: chip 🤖 Agente. Clique abre o detalhe.
 - Escopo: so a visao cards; arvore, agrupado, custo, ferramentas e workflow seguem em texto no app. Nao verificado visualmente no app (largura 34 fixa, barra por Box width %).
 
+- Causa raiz "nada aparece" (2026-11-13): PR #32/#33 nao subiram a versao; o Claude Code compara versao e manteve o cache 0.15.2 (marketplace clone parado em d946c0c). Corrigido com bump 0.17.0; o usuario roda `claude plugin marketplace update office` e `claude plugin update agent-office@office`, depois reinicia/recarrega.
+- Terminal: chips em UMA linha "🎨 UX/UI · 🎼 Sonnet · 🟢 baixo" quando cabem em 32 colunas; senao persona numa linha e "modelo · esforco" na outra; titulo longo da tarefa quebra na segunda linha reservada. Sem prefixo na description, `subagent_type` rapido/padrao/profundo da modelo (Haiku/Sonnet/Opus) e esforco baixo.
+- App: chips preenchidos (backgroundColor `userMessageBackground`). `e.surface` e campo real do engine (`desktop`, `mobile`, `vscode`; ausente no terminal).
+
 ## 9. Criterios de aceite (para a futura implementacao)
 - AC-1: terminal e app mostram o mesmo nome, estado e ordem a partir do mesmo RunModel.
 - AC-2: cada estado tem glifo, ASCII e texto, legivel com NO_COLOR.
