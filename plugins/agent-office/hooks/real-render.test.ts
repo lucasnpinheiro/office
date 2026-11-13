@@ -62,7 +62,7 @@ test('a compact view left over from the previous session does not survive sessio
   await boot($, on, 2)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toContain('Claude Code'); expect(out).toMatch(/┌[─┴]{28}┐/)
+  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toContain('Claude Code'); expect(out).toMatch(/┌[─┴]{36}┐/)
 })
 
 test('desktop surface: the map view draws the org chart as Box cards (root, children), clickable', async ($, on) => {
@@ -102,6 +102,9 @@ test('desktop pane: header, tabs with Mapa selected, map card content, side deta
   await ui.press({ key: open })
   await ui.unmount(); ui = await mountD()
   t = await texts()
-  expect(t.some(x => x.includes('[Fechar]')) || (await ui.find({ key: 'office-back' })) !== undefined).toBe(true)
+  expect(t.some(x => x.includes('Office › ') && x.includes('Pleno'))).toBe(true) // crumb
+  expect(t).toContain('Linha do tempo'); expect(t).toContain('Tempo'); expect(t).toContain('Tokens'); expect(t).toContain('Custo')
+  expect(t.some(x => x.includes('Prompt'))).toBe(true)
+  expect(await ui.find({ key: 'office-back' })).toBeDefined() // [Fechar]
   expect(t).toContain('Mapa') // tree stays beside the detail
 })

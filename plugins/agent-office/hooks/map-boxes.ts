@@ -9,7 +9,7 @@ import { appMap } from './app-cards'
 import type { AppMapNode } from './app-cards'
 import { asciiText } from './compact'
 
-export const BOX_W = 30 // even: the connector column is bx + BOX_W / 2, the same for the stub above and below
+export const BOX_W = 38 // even: the connector column is bx + BOX_W / 2, the same for the stub above and below
 const BOX_H = 6
 const GAP = 2
 const LINE = '#4a4e55'
@@ -75,7 +75,7 @@ export function renderBoxMap(agents: AgentLike[], now: number, o: MapOpts): Line
     const name = fitW(T(c.title), nameRoom)
     text(tx + strWidth(glyph) + 1, y + 1, name, { bold: true, node: nd })
     if (kid) text(tx + strWidth(glyph) + 1 + strWidth(name), y + 1, T(kid), { fg: col(DIM), node: nd })
-    const chips = (o.ascii ? c.chips.map(stripIcon) : c.chips).join(' · ')
+    const chips = o.ascii ? c.chips.map(stripIcon).join(' · ') : c.chips.join(' ')
     text(tx, y + 2, fitW(T(chips), tw), { fg: col(DIM), node: nd })
     // line 3 is never blank: branch or worktree, else the tool / error, else the state in words
     const gl = c.git?.length ? c.git : o.git?.branch ? [`⎇ ${o.git.branch}`] : undefined

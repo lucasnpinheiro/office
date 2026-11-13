@@ -21,9 +21,16 @@ export type AppCard = {
   pctText: string; time: string; status?: string
   git?: string[] // gitLabel lines: '⎇ branch' then '⧉ worktree' in a linked worktree
   hasKids?: boolean
+  steps?: { weight: number; tone: Tone }[] // one segment per tool step (flex by duration); absent = single pct bar
 }
 
-const cardOf = (n: Node, nm: Map<string, string>, now: number): AppCard => {
+const stepsOf = (n: Node, a: AgentLike | undefined): AppCard['steps'] => {
+  const st = a?.steps ?? []
+  if (!st.length) return undefined
+  const segs = st.map(x => ({ weight: Math.max(500, x.durationMs ?? 1000), tone: (x.ok === false ? 'error' : 'success') as Tone }))
+  return n.state === 'running' ? [...segs, { weight: 1000, tone: 'suggestion' as Tone }] : segs
+}
+const cardOf = (n: Node, nm: Map<string, string>, now: number, a?: AgentLike): AppCard => {
   const ch = chips(n.persona, n.model, n.effort)
   const tasks = n.children.filter(k => k.kind === 'task')
   const leafRunning = n.state === 'running' && n.children.length === 0
@@ -36,23 +43,23 @@ const cardOf = (n: Node, nm: Map<string, string>, now: number): AppCard => {
     pct, pctText: pct === undefined ? 'exec' : `${Math.round(pct * 100)}%`,
     time: n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now)),
     status: n.state === 'failed' || n.state === 'attention' ? n.error : n.tool,
-    git: gitLabel(n.git), hasKids: n.children.some(k => k.kind === 'agent'),
+    git: gitLabel(n.git), hasKids: n.children.some(k => k.kind === 'agent'), steps: stepsOf(n, a),
   }
 }
 
 export function appCards(agents: AgentLike[], now: number, o: { query?: string; filter?: 'all' | 'failed' }): AppCard[] {
   const g = buildGraph(agents, now)
-  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter)
-  return [...g.nodes.values()].filter((n: Node) => n.kind === 'agent' && keep.has(n.id)).map(n => cardOf(n, nm, now))
+  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = new Map(agents.map(a => [a.id, a]))
+  return [...g.nodes.values()].filter((n: Node) => n.kind === 'agent' && keep.has(n.id)).map(n => cardOf(n, nm, now, by.get(n.id)))
 }
 
 // Org chart for the app surfaces: the session card on top, each agent under its parent. Same Graph as the terminal map.
 export type AppMapNode = { card: AppCard; children: AppMapNode[] }
 export function appMap(agents: AgentLike[], now: number, o: { query?: string; filter?: 'all' | 'failed'; git?: GitInfo }): AppMapNode {
   const g = buildGraph(agents, now, o.git)
-  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter)
+  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = new Map(agents.map(a => [a.id, a]))
   const walk = (n: Node): AppMapNode => ({
-    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code', chips: ['Orquestrador'], status: undefined } : cardOf(n, nm, now),
+    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code', chips: ['Orquestrador'], status: undefined } : cardOf(n, nm, now, by.get(n.id)),
     children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(walk),
   })
   return walk(g.root)

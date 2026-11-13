@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import { isAppSurface, appCards, appMap } from './app-cards'
 import type { AppCard, AppMapNode } from './app-cards'
 import { renderBoxMap } from './map-boxes'
+import { detailData } from './view-detail'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
@@ -666,9 +667,15 @@ export const register: Register = on => {
         </Box>
         <Text dimColor>{c.chips.join(' · ')}</Text>
         {c.git?.length ? <Text color={WORKTREE_COLOR}>{c.git.join(' ')}</Text> : <Text dimColor>{' '}</Text>}
-        <Box flexDirection="row" height={1} backgroundColor="subtle">
-          <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
-        </Box>
+        {c.steps ? (
+          <Box flexDirection="row" height={1} gap="xs">
+            {c.steps.map((sg, i) => <Box key={`st-${c.id}-${i}`} flexGrow={sg.weight} height={1} backgroundColor={sg.tone} />)}
+          </Box>
+        ) : (
+          <Box flexDirection="row" height={1} backgroundColor="subtle">
+            <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
+          </Box>
+        )}
         <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.status ?? ' '}</Text><Text dimColor>{`${c.pctText}  ${c.time}`}</Text></Box>
       </Box>
     )
@@ -699,6 +706,41 @@ export const register: Register = on => {
         ) : null}
       </Box>
     )
+    // side detail (Proto5 aside): crumb, name, pills, segments, Tempo/Tokens/Custo, error, timeline, masked prompt
+    const asideOf = (id: string) => {
+      const d = detailData(all, id, now)
+      if (!d) return null
+      const tone = TONE_OF[d.state]
+      const seg = d.total ? Array.from({ length: d.total }, (_, i) => i < d.done) : undefined
+      return (
+        <Box flexDirection="column" gap="xs">
+          <Text dimColor>{d.crumb}</Text>
+          <Text bold>{d.name}</Text>
+          <Box flexDirection="row" flexWrap="wrap" gap="xs">
+            {[d.stateLabel, ...d.chips, ...(d.branch ? [d.branch] : [])].map((t, i) => (
+              <Box key={`pill-${i}`} borderStyle="round" borderColor={i === 0 ? tone : 'subtle'} paddingX="xs"><Text color={i === 0 ? tone : undefined}>{t}</Text></Box>
+            ))}
+          </Box>
+          <Box flexDirection="row" height={1} gap="xs">
+            {(seg ?? [d.state === "done"]).map((lit, i) => <Box key={`ds-${i}`} flexGrow={1} height={1} backgroundColor={lit ? tone : 'subtle'} />)}
+          </Box>
+          <Box flexDirection="row" justifyContent="space-between">
+            {[['Tempo', d.time], ['Tokens', d.tokens], ['Custo', d.cost]].map(([k, v]) => (
+              <Box key={`kv-${k}`} flexDirection="column"><Text dimColor>{k}</Text><Text bold>{v}</Text></Box>
+            ))}
+          </Box>
+          {d.error ? <Box borderStyle="round" borderColor="error" paddingX="xs"><Text color="error">{d.error}</Text></Box> : null}
+          <Text bold>Linha do tempo</Text>
+          {d.steps.length === 0 ? <Text dimColor>—</Text> : d.steps.map((st, i) => (
+            <Box key={`tl-${i}`} flexDirection="row" gap="sm">
+              <Text dimColor>{st.at}</Text><Text color={st.ok === false ? 'error' : undefined} bold>{st.tool}</Text><Text>{st.label}</Text><Text dimColor>{st.dur}</Text>
+            </Box>
+          ))}
+          <Text bold>Prompt · segredos mascarados</Text>
+          <Text dimColor>{d.prompt}</Text>
+        </Box>
+      )
+    }
     // app pane chrome (design Proto5): header, one segment per agent, failure banners, tab row
     const onApp = isAppSurface((e as { surface?: string }).surface)
     const TABS: [string, string, string][] = [['map', 'Mapa', 'tab:map'], ['tree', 'Árvore', 'tab:tree'], ['grouped', 'Worktrees', 'tab:grouped'], ['workflow', 'Workflow', 'tab:workflow'], ['cost', 'Custo', 'tab:cost'], ['tools', 'Ferramentas', 'tab:tools']]
@@ -749,7 +791,7 @@ export const register: Register = on => {
               <Box flexDirection="column" flexGrow={1}>{body}</Box>
               <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>
                 <Button key="office-back" onPress={() => void act('back')}>{'[Fechar]'}</Button>
-                {detailOf(selected).lines.map(draw)}
+                {asideOf(selected)}
               </Box>
             </Box>
           ) : body}

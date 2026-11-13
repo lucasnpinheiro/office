@@ -60,3 +60,9 @@ test('appMap: query prunes branches', () => {
   const m = appMap([mk('alfa'), mk('beta')], T + 1000, { query: 'beta' })
   expect(m.children.map(n => n.card.id)).toEqual(['beta'])
 })
+
+test('app card: one segment per tool step when the timeline exists, else none', () => {
+  const [c] = appCards([mk('a', { steps: [{ id: '1', tool: 'Bash', label: 'x', startedAt: T, durationMs: 4000 }, { id: '2', tool: 'Read', label: 'y', startedAt: T, durationMs: 1000, ok: false }] })], T + 9000, {})
+  expect(c!.steps).toEqual([{ weight: 4000, tone: 'success' }, { weight: 1000, tone: 'error' }, { weight: 1000, tone: 'suggestion' }])
+  expect(appCards([mk('b')], T, {})[0]!.steps).toBeUndefined()
+})

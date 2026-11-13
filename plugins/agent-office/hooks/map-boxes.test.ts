@@ -8,7 +8,7 @@ const T = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o })
 const base = { project: 'loja-web', sessionId: 'e13b5aa', ascii: false, color: true }
 const txt = (ls: Line[]) => ls.map(l => l.map(s => s.t).join(''))
-const topsOf = (t: string[]) => t.flatMap(l => [...l.matchAll(/┌[─┴]{28}┐/g)])
+const topsOf = (t: string[]) => t.flatMap(l => [...l.matchAll(/┌[─┴]{36}┐/g)])
 const D = (p: string, m: string, e: string) => `${p} · ${m} · ${e}`
 const agents = [
   mk('a', { description: `${D('🧭 Squad Leader', '👑 Opus', '🟢 baixo')}: Orquestrar` }),
@@ -32,7 +32,7 @@ test('map boxes: header, root box, bus, children boxed, every box row has equal 
     for (const c of cols) expect(c % 1).toBe(0)
   }
   const persona = t.find(l => l.includes('🧭 Squad Leader'))!
-  expect(persona).toContain('👑 Opus')
+  expect(persona).toContain('🧭 Squad Leader 👑 Opus 🟢 baixo')
   const w = strWidth(persona.slice(persona.indexOf('│'), persona.indexOf('│') + 1 + 0))
   expect(w).toBe(1)
   expect(strWidth(persona.slice(persona.indexOf('│'), persona.indexOf('│', persona.indexOf('│') + 1) + 1))).toBe(BOX_W)
@@ -56,7 +56,7 @@ test('map boxes: siblings that do not fit wrap to a new row and the trunk joins 
 test('map boxes: ASCII mode uses + - | and drops the icons; NO_COLOR drops colours', () => {
   const t = txt(renderBoxMap(agents, T + 9000, { ...base, width: 130, ascii: true, color: false })!).join('\n')
   expect(t).not.toMatch(/[─│┌┐└┘┬┴🧭👑]/)
-  expect(t).toContain('Squad Leader - Opus')
+  expect(t).toContain('Squad Leader - Opus - baixo')
   expect(renderBoxMap(agents, T + 9000, { ...base, width: 130, color: false })!.flat().every(s => !s.fg)).toBe(true)
 })
 
@@ -88,7 +88,7 @@ for (const width of [120, 70]) test(`map boxes @${width}: connectors meet boxes 
     })
   })
   for (const [y, l] of t.entries()) {
-    for (const m of l.matchAll(/┌[─┴]{28}┐/g)) {
+    for (const m of l.matchAll(/┌[─┴]{36}┐/g)) {
       const lc = colOf(l, m.index!)
       for (let r = 1; r <= 4; r++) { expect(charsAt(t[y + r], lc)).toBe('│'); expect(charsAt(t[y + r], lc + BOX_W - 1)).toBe('│') }
       expect(charsAt(t[y + 5], lc + BOX_W - 1)).toBe('┘')
