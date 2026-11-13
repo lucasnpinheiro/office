@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.3 (agent-office, Tab focus no longer paints a box border)
+
+- In the terminal map every cell of a box was a clickable node, so the focused box had its top border painted as a solid bar. Now only the title row is a Button; borders, connectors and the progress bar are plain text.
+
 ## 0.19.2 (agent-office, map matches the Office Agent Monitor Redesign PDF)
 
 - Root box is the orchestrating agent itself (design pages 1 and 3): when the session has a single top-level agent, it is the root of the map in the terminal and in the app; the "Claude Code" session box only appears above several top-level agents.
