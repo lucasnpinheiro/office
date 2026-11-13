@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.1 (agent-office, the terminal map is boxed from the first frame)
+
+- Root cause of "the CLI layout did not change after the reload": with no agents yet (a fresh session, right after `/reload-plugins`) and in side panes narrower than 40 columns, `renderBoxMap` returned null, so the pane fell back to the old one-line text map ("Office · … · 0 rodando"). Agents only appear later, so the first thing seen was always the old layout.
+- No agents: the map draws its header, the root "Claude Code / Orquestrador" box and "Aguardando agentes… use o Claude normalmente" (a filter with no match says so instead).
+- Narrow panes: boxes shrink to the pane (`boxWidth`, even widths from 38 down to 24); only panes under 26 columns keep the text map.
+- One sibling per row (narrow pane): the parent sits over the trunk column, so its stub meets the children's axis (`┤` junction, no off-by-one `┴┐`).
+- New real-pane tests: fresh session at 100 columns and a 34-column side pane both draw boxes.
+
 ## 0.19.0 (agent-office, the map is the default view on every surface)
 
 - `initialUi().view` and the `view` atom now default to `map` (`OFFICE_VIEW=compact` still overrides; `v` cycles map > tree > cards).

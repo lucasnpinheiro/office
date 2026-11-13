@@ -108,3 +108,20 @@ test('desktop pane: header, tabs with Mapa selected, map card content, side deta
   expect(await ui.find({ key: 'office-back' })).toBeDefined() // [Fechar]
   expect(t).toContain('Mapa') // tree stays beside the detail
 })
+
+test('real pane, fresh session (0 agents, as right after a reload): the box map is drawn, not the one-line text map', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
+  const out = (await rowsOf(await mount($, 100, 40))).join('\n')
+  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Claude Code'); expect(out).toContain('Aguardando agentes')
+  expect(out).toMatch(/┌─+┐/)
+  expect(out).not.toContain('0 rodando')
+})
+
+test('real pane, narrow side pane (34 cols, 3 agents): boxes shrink, still the box map', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
+  for (let i = 1; i <= 3; i++) await $.agent.spawn({ tool_use_id: `n${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
+  const out = (await rowsOf(await mount($, 34, 60))).join('\n')
+  expect(out).toContain('Office Agent Monitor'); expect(out).toMatch(/┌─+┐/); expect(out).toContain('teste 3')
+})
