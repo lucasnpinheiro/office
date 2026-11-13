@@ -2,7 +2,7 @@
 
 ## 0.18.1 (agent-office, cards really render: parent card and bus)
 
-- Root cause of "still no boxes" on 0.18.0: the session lives in `~/.agents`, where `installed_plugins.json` holds a project-scope install of agent-office pinned to 0.17.0 (its `startUi` opens the map view, one line per agent). Project scope wins over the user-scope 0.18.0, so the fresh session never ran the new code. `claude plugin update agent-office@office --scope project` (from that project) fixes it. 0.18.0 itself already drew boxes through the real pane.
+- Root cause of "still no boxes" on 0.18.0: `installed_plugins.json` held a project-scope install of agent-office pinned to 0.17.0 for the project the session runs in (its `startUi` opens the map view, one line per agent). Project scope wins over the user-scope 0.18.0, so the fresh session never ran the new code. `claude plugin update agent-office@office --scope project` (from that project) fixes it. 0.18.0 itself already drew boxes through the real pane.
 - New end-to-end test `real-render.test.ts` (register, session.start, 12 spawns, ui.render of the Pane at 110 and 200 columns) reads the rows the pane draws; it also proves a stale map view does not survive session.start.
 - Cards view now draws the main session as the parent card ("Claude Code / Orquestrador") with the dotted bus down to its sibling cards (design TermCards); before, top-level agents floated without a parent. 110 cols fit 2 siblings per row, 120 fit 3, 200 fit 5 (`(cols - 5 + 2) / 36`).
 - Bus and vertical glyphs honor NO_COLOR.
