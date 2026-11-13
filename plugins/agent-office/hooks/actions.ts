@@ -8,8 +8,8 @@ export type Ui = {
   searching: boolean; selected: string; attach: string; query: string; expanded: string[]
   modeChosen: boolean // the user picked the mode (g, button, /office mode): v from the map keeps it
 }
-export const initialUi = (): Ui => ({ view: 'compact', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [], modeChosen: false })
-// Session start: every persisted view/filter/search field goes back to the default (compact view, boxed cards), so a
+export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [], modeChosen: false })
+// Session start: every persisted view/filter/search field goes back to the default (map view, the agent org chart), so a
 // previous session's map view, filter or query never leaks into the new one.
 export const startUi = (): Ui => ({ ...initialUi() })
 

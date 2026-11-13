@@ -30,10 +30,7 @@ test('pane footer has one-letter hotkeys; s opens search and silences them; v to
     props: { bodyColumns: 120, bodyRows: 40 } as any, viewport: { columns: 120, rows: 40 } as any,
   })
   let ui = await mount()
-  // session starts in the boxed cards view (compact): the full hotkey row
-  for (const k of ['g', 'o', 'f', 's', 'v', 'q']) expect([k, !!(await ui.find({ key: `h-${k}` }))]).toEqual([k, true])
-  await ui.press({ key: 'h-v' }) // cards -> mapa
-  await ui.unmount(); ui = await mount()
+  // session starts in the map (default): only v and q
   expect(await ui.find({ key: 'h-g' })).toBeUndefined()
   expect(await ui.find({ key: 'h-v' })).toBeDefined()
   expect(await ui.find({ key: 'h-q' })).toBeDefined()
@@ -48,6 +45,6 @@ test('pane footer has one-letter hotkeys; s opens search and silences them; v to
   await ui.unmount(); ui = await mount()
   await ui.press({ key: 'h-v' }) // árvore -> cards
   await ui.unmount(); ui = await mount()
-  expect(await ui.find({ key: 'h-g' })).toBeDefined()
+  for (const k of ['g', 'o', 'f', 's', 'v', 'q']) expect([k, !!(await ui.find({ key: `h-${k}` }))]).toEqual([k, true])
   await ui.unmount()
 })

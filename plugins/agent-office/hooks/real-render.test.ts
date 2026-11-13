@@ -27,6 +27,7 @@ function setup($: any, on: any) {
 const boot = async ($: any, on: any, agents = 12) => {
   setup($, on)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
+  await $.command.run({ command: 'office', args: 'view compact' } as any) // the session opens on the map; these tests read the cards
   for (let i = 1; i <= agents; i++) await $.agent.spawn({ tool_use_id: `t${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
 }
 const count = (s: string, re: RegExp) => (s.match(re) ?? []).length
@@ -57,10 +58,24 @@ test('real pane, 12 agents, 200 cols: 5 siblings per row, all 12 visible, no ove
   expect(out).not.toContain('cards ocultos')
 })
 
-test('a map view left over from an older version does not survive session.start', async ($, on) => {
+test('a compact view left over from the previous session does not survive session.start: the map opens', async ($, on) => {
   await boot($, on, 2)
-  await $.command.run({ command: 'office', args: 'view map' } as any)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/)
+  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toContain('Claude Code / Orquestrador'); expect(out).toMatch(/┌─{38}┐/)
+})
+
+test('desktop surface: the map view draws the org chart as Box cards (root, children), clickable', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
+  for (let i = 1; i <= 2; i++) await $.agent.spawn({ tool_use_id: `t${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
+  const ui = await $.ui.mount({
+    plugin: 'agent-office', surface: 'desktop', component: 'Pane', requestId: 'agent-office',
+    props: { bodyColumns: 120, bodyRows: 40 } as any, viewport: { columns: 120, rows: 40 } as any,
+  })
+  const texts = (await ui.findAll({ type: 'Text' })).map((t: any) => t.text as string)
+  expect(texts.some(t => t.includes('Claude Code / Orquestrador'))).toBe(true)
+  expect(texts.filter(t => t.includes('QA: teste')).length).toBe(2)
+  const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => String(b.key ?? b.props?.key ?? ''))
+  expect(keys.filter(k => k.startsWith('app-open-')).length).toBe(2)
 })

@@ -55,7 +55,7 @@ executed there, and no parity is claimed. The 93% coverage target is not measura
   |---|---|
   | `g` | cycle mode (tree, grouped, cards, waterfall, cost, tools, workflow) |
   | `o` | cycle sort (time, state, name) |
-  | `v` | toggle map / cards view |
+  | `v` | cycle map, tree, cards views |
   | `f` | only failures |
   | `s` | search (swallows every key until Enter) |
   | `b` | back from a detail |

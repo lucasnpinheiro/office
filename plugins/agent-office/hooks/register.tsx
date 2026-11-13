@@ -1,9 +1,11 @@
 import { atom, read, update } from 'claude-code'
-import { isAppSurface, appCards } from './app-cards'
+import { isAppSurface, appCards, appMap } from './app-cards'
+import type { AppCard, AppMapNode } from './app-cards'
+import { renderBoxMap } from './map-boxes'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
-import { renderMonitor, inlineSize } from './monitor'
+import { renderMonitor, inlineSize, WORKTREE_COLOR } from './monitor'
 import { renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
 import { buildRunModel } from './run-model'
@@ -32,7 +34,7 @@ const sessionUsdAt = atom({ plugin: 'agent-office', key: 'sessionUsd' } as const
 const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as const, {})
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
-const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'compact')
+const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'map')
 const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, DEFAULT_MODE as string)
 const filterAt = atom({ plugin: 'agent-office', key: 'filter' } as const, 'all')
 const sortAt = atom({ plugin: 'agent-office', key: 'sort' } as const, 'time')
@@ -210,6 +212,11 @@ async function gitView($: EngineInterface) {
 // seat by itself (no flag forces inline); a request only, and the person's own drag wins.
 // compact view: size by its own rendered lines (not the old mind map), 80 columns, capped like the inline pane
 async function wantSize($: EngineInterface, list: OfficeAgent[], collapsed: string[], sgit: GitInfo | undefined, st: { tool?: string; recent?: string[] }, thumbs: boolean) {
+  if ((await read($, viewAt)) === 'map') {
+    const mcols = (await read($, colsAt)) || 110
+    const box = renderBoxMap(list, Date.now(), { width: mcols, project: '', ascii: (await capsOf($)).ascii, color: true, query: await read($, queryAt), filter: await read($, filterAt), git: sgit })
+    if (box) return { rows: Math.min(40, Math.max(8, box.length + 3)), columns: mcols }
+  }
   if ((await read($, viewAt)) !== 'compact') return inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
   const caps = await capsOf($)
   const wcols = (await read($, colsAt)) || 80
@@ -644,8 +651,62 @@ export const register: Register = on => {
       ...hotkeysFor(ui, side).flatMap((h, i) => [...(i ? [{ t: FOOTER_SEP }] : []), { t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }]),
       { t: footerTail(ui), fg: '#9ca3af' },
     ])
+    // one app card (design Chips5): glyph + title, chips, git, status, progress bar, % and time; border and bar carry the state tone
+    const appCardBox = (c: AppCard, kids = false) => (
+      <Box key={`app-${c.id}`} flexDirection="column" borderStyle="round" borderColor={c.tone} paddingX="sm" width={34}>
+        {c.id === 'session' ? <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
+          <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
+            <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text>
+          </Button>
+        )}
+        <Text dimColor>{c.chips.join(' · ')}</Text>
+        {c.git?.length ? <Text color={WORKTREE_COLOR}>{c.git.join(' ')}</Text> : null}
+        {c.status ? <Text dimColor>{c.status}</Text> : null}
+        <Box flexDirection="row" height={1} backgroundColor="subtle">
+          <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
+        </Box>
+        <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.pctText}</Text><Text dimColor>{c.time}</Text></Box>
+      </Box>
+    )
+    // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
+    // Connectors are Boxes (a 1-cell bar), tone `suggestion` into a running child, `subtle` otherwise.
+    const mapTree = (n: AppMapNode, key: string): any => (
+      <Box key={key} flexDirection="column" alignItems="center">
+        {appCardBox(n.card, n.children.length > 0)}
+        {n.children.length ? (
+          <>
+            <Box width={1} height={1} backgroundColor="subtle" />
+            <Box flexDirection="row" flexWrap="wrap" justifyContent="center" gap="sm">
+              {n.children.map((k, i) => {
+                const tone = k.card.state === 'running' ? 'suggestion' : 'subtle'
+                return (
+                  <Box key={`mk-${k.card.id}`} flexDirection="column" alignItems="center">
+                    <Box flexDirection="row" height={1} width="100%">
+                      <Box width="50%" height={1} backgroundColor={i === 0 ? undefined : 'subtle'} />
+                      <Box width="50%" height={1} backgroundColor={i === n.children.length - 1 ? undefined : 'subtle'} />
+                    </Box>
+                    <Box width={1} height={1} backgroundColor={tone} />
+                    {mapTree(k, `mt-${k.card.id}`)}
+                  </Box>
+                )
+              })}
+            </Box>
+          </>
+        ) : null}
+      </Box>
+    )
     // app surfaces (desktop, vscode, mobile): graphical cards of the Chips design (title, chips, state on border and glyph);
     // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
+    if (isAppSurface((e as { surface?: string }).surface) && view === 'map' && !selected && !attach) {
+      const tree = appMap(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
+      return (
+        <Box flexDirection="column" gap="sm">
+          <Text dimColor>{statusText(all, now)}</Text>
+          {tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root')}
+          {keysRow}
+        </Box>
+      )
+    }
     if (isAppSurface((e as { surface?: string }).surface) && view === 'compact' && !selected && !attach && (await read($, modeAt)) === 'cards') {
       const cards = appCards(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
       return (
@@ -653,23 +714,7 @@ export const register: Register = on => {
           <Text dimColor>{statusText(all, now)}</Text>
           {cards.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : null}
           <Box flexDirection="row" flexWrap="wrap" gap="sm">
-            {cards.map(c => (
-              <Box key={`app-${c.id}`} flexDirection="column" borderStyle="round" borderColor={c.tone} paddingX="sm" width={34}>
-                <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
-                  <Text color={c.tone} bold>{`${c.glyph} ${c.title}`}</Text>
-                </Button>
-                <Box flexDirection="row" flexWrap="wrap" gap="xs">
-                  {c.chips.map(t => (
-                    <Box key={`chip-${c.id}-${t}`} borderStyle="round" borderColor="subtle" backgroundColor="userMessageBackground" paddingX="xs"><Text>{t}</Text></Box>
-                  ))}
-                </Box>
-                {c.status ? <Text dimColor>{c.status}</Text> : null}
-                <Box flexDirection="row" height={1} backgroundColor="subtle">
-                  <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
-                </Box>
-                <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.pctText}</Text><Text dimColor>{c.time}</Text></Box>
-              </Box>
-            ))}
+            {cards.map(c => appCardBox(c))}
           </Box>
           {keysRow}
         </Box>
@@ -695,6 +740,15 @@ export const register: Register = on => {
         <Box flexDirection="column">
           {selected || gone ? backBtn : field}
           {compactFrame.map(draw)}
+          {keysRow}
+        </Box>
+      )
+    }
+    if (view === 'map' && !detail && !gone) {
+      const bm = renderBoxMap(all, now, { width: cols, project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback, git: sgit, ascii: caps.ascii, color: caps.color !== 'mono', query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
+      if (bm) return (
+        <Box flexDirection="column">
+          {bm.map(draw)}
           {keysRow}
         </Box>
       )

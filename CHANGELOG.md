@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.0 (agent-office, the map is the default view on every surface)
+
+- `initialUi().view` and the `view` atom now default to `map` (`OFFICE_VIEW=compact` still overrides; `v` cycles map > tree > cards).
+- Terminal: new boxed org chart (design Term5 "Mapa"): header (Office Agent Monitor, project, branch, session; overall progress, elapsed, estimate), root box, bus, one box per agent (glyph and name, persona / model / effort with icons, branch or worktree, bar, percent, time), grandchildren boxed under their parent. Border colour is the state. Placement uses display width, so emoji never break the right border. Siblings that do not fit wrap to a new row joined by a trunk. `OFFICE_ASCII` draws `+ - |` and drops the icons, `NO_COLOR` drops colour. Panes narrower than one box (or without agents) keep the text map.
+- Desktop, VS Code and mobile: the map is a graphical org chart of Box cards (stub, bus, stub into each child, children stacked under their parent; the connector into a running child uses the run tone), each card opens its detail. `appMap()` in `app-cards.ts` builds the tree from the same Graph.
+- Pane sizing in the map view follows the boxed chart.
+- Not verified: the desktop render (no app available here; covered by an element-tree test only) and terminal glyph widths on a real terminal (ambiguous-width glyphs such as the branch symbol).
+
 ## 0.18.1 (agent-office, cards really render: parent card and bus)
 
 - Root cause of "still no boxes" on 0.18.0: `installed_plugins.json` held a project-scope install of agent-office pinned to 0.17.0 for the project the session runs in (its `startUi` opens the map view, one line per agent). Project scope wins over the user-scope 0.18.0, so the fresh session never ran the new code. `claude plugin update agent-office@office --scope project` (from that project) fixes it. 0.18.0 itself already drew boxes through the real pane.

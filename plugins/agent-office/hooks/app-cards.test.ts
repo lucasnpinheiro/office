@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { isAppSurface, appCards } from './app-cards'
+import { isAppSurface, appCards, appMap } from './app-cards'
 import type { AgentLike } from './office'
 
 const T = 1_000_000
@@ -42,4 +42,21 @@ test('app card: real description fixture and subagent_type fallback feed the chi
   expect([a!.title, ...a!.chips]).toEqual(['Render HTML no app Claude Code', '🎨 UX/UI', '🎼 Sonnet', '🟢 baixo'])
   const [b] = appCards([mk('b', { description: 'Varrer docs', subagentType: 'padrao' })], T + 5000, {})
   expect(b!.chips).toEqual(['🤖 Agente', '🎼 Sonnet', '🟢 baixo'])
+})
+
+test('appMap: session root, agents under their parent, tones and pct never invented', () => {
+  const m = appMap([mk('p', { description: 'Dev: pai', agentId: 'g-p' }), mk('c', { description: 'Dev: filho', parentAgentId: 'g-p' }), mk('x', { description: 'Dev: x', status: 'error' })], T + 5000, {})
+  expect(m.card.title).toBe('Claude Code / Orquestrador')
+  const top = m.children.map(n => n.card.title)
+  expect(top).toContain('Dev: pai'); expect(top).toContain('Dev: x')
+  const pai = m.children.find(n => n.card.title === 'Dev: pai')!
+  expect(pai.children.map(n => n.card.title)).toEqual(['Dev: filho'])
+  expect(pai.children[0]!.card.pct).toBeUndefined()
+  expect(pai.children[0]!.card.tone).toBe('suggestion')
+  expect(m.children.find(n => n.card.title === 'Dev: x')!.card.tone).toBe('error')
+})
+
+test('appMap: query prunes branches', () => {
+  const m = appMap([mk('alfa'), mk('beta')], T + 1000, { query: 'beta' })
+  expect(m.children.map(n => n.card.id)).toEqual(['beta'])
 })
