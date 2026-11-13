@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.5 (agent-office, the app map follows the terminal rules)
+
+- App surfaces (desktop, vscode, mobile): siblings that do not fit one row now split into rows of `(cols - 2 + 2) / 36` cards hung off a dashed trunk on the left, each row under its own dashed bus (same rule as the terminal 0.19.4). Siblings that fit keep the single solid bus of Proto5. Before, `flexWrap` broke the bus mid-row.
+- A single top-level agent without children is drawn as the root card; before it fell into "Aguardando agentes" because the root is now the agent itself (0.19.2).
+
 ## 0.19.4 (agent-office, wrapped sibling rows hang off a dotted trunk)
 
 - Many siblings (rows that wrap): the left trunk and each row bus are dotted and dim (`┊` and `┄`; ASCII `:` and `.`), so the rows no longer read as a frame. A single row keeps the solid bus of the design.

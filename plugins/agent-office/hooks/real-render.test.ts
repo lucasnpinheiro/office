@@ -125,3 +125,32 @@ test('real pane, narrow side pane (34 cols, 3 agents): boxes shrink, still the b
   const out = (await rowsOf(await mount($, 34, 60))).join('\n')
   expect(out).toContain('Office Agent Monitor'); expect(out).toMatch(/┌─+┐/); expect(out).toContain('teste 3')
 })
+
+const mountApp = ($: any, cols: number) => $.ui.mount({
+  plugin: 'agent-office', surface: 'desktop', component: 'Pane', requestId: 'agent-office',
+  props: { bodyColumns: cols, bodyRows: 60 } as any, viewport: { columns: cols, rows: 60 } as any,
+})
+const boxKeys = async (ui: any) => (await ui.findAll({ type: 'Box' })).map((b: any) => String(b.key ?? b.props?.key ?? ''))
+
+test('desktop map: a single top-level agent with no children is drawn as the root card, not "Aguardando agentes"', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
+  await $.agent.spawn({ tool_use_id: 's1', prompt: 'p', description: '🧭 Squad Leader · 👑 Opus · 🟢 baixo: Orquestrador' } as any)
+  const t = (await (await mountApp($, 120)).findAll({ type: 'Text' })).map((x: any) => String(x.text))
+  expect(t.some(x => x.includes('Orquestrador'))).toBe(true)
+  expect(t.some(x => x.includes('Aguardando agentes'))).toBe(false)
+})
+
+test('desktop map: siblings that do not fit wrap into rows hung off a dashed trunk, each row with a dashed bus (same rule as the terminal)', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
+  for (let i = 1; i <= 8; i++) await $.agent.spawn({ tool_use_id: `w${i}`, prompt: 'p', description: `🛠️ Pleno · 🪶 Haiku · 🟢 baixo: tarefa ${i}` } as any)
+  const u1 = await mountApp($, 112)
+  const k = await boxKeys(u1) // (112 - 2) / 36 = 3 per row -> 3 rows
+  await u1.unmount()
+  expect(k.filter(x => x.startsWith('trunk-'))).toEqual(['trunk-session'])
+  expect(k.filter(x => x.startsWith('rowbus-')).length).toBe(3)
+  const k2 = await boxKeys(await mountApp($, 400)) // everything fits: one solid bus, no trunk
+  expect(k2.filter(x => x.startsWith('trunk-')).length).toBe(0)
+  expect(k2.filter(x => x.startsWith('rowbus-')).length).toBe(0)
+})
