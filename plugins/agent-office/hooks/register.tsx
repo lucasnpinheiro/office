@@ -681,31 +681,57 @@ export const register: Register = on => {
     )
     // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
     // Connectors are Boxes (a 1-cell bar), tone `suggestion` into a running child, `subtle` otherwise.
-    const mapTree = (n: AppMapNode, key: string): any => (
-      <Box key={key} flexDirection="column" alignItems="center">
-        {appCardBox(n.card, n.children.length > 0)}
-        {n.children.length ? (
-          <>
-            <Box width={1} height={1} backgroundColor="subtle" />
-            <Box flexDirection="row" flexWrap="wrap" justifyContent="center" gap="sm">
-              {n.children.map((k, i) => {
-                const tone = k.card.state === 'running' ? 'suggestion' : 'subtle'
-                return (
-                  <Box key={`mk-${k.card.id}`} flexDirection="column" alignItems="center">
-                    <Box flexDirection="row" height={1} width="100%">
-                      <Box width="50%" height={1} backgroundColor={i === 0 ? undefined : 'subtle'} />
-                      <Box width="50%" height={1} backgroundColor={i === n.children.length - 1 ? undefined : 'subtle'} />
-                    </Box>
-                    <Box width={1} height={1} backgroundColor={tone} />
-                    {mapTree(k, `mt-${k.card.id}`)}
-                  </Box>
-                )
-              })}
-            </Box>
-          </>
-        ) : null}
+    const APP_CARD_W = 34, APP_GAP = 2
+    const perRowApp = Math.max(1, Math.floor((cols - 2 + APP_GAP) / (APP_CARD_W + APP_GAP)))
+    const dashes = (key: string, dir: 'row' | 'column', n: number) => (
+      <Box key={key} flexDirection={dir} gap="xs" {...(dir === 'row' ? { height: 1, width: '100%' } : { width: 1 })}>
+        {Array.from({ length: n }, (_, i) => <Box key={`dash-${key}-${i}`} flexGrow={1} {...(dir === 'row' ? { height: 1 } : { width: 1 })} backgroundColor="subtle" />)}
       </Box>
     )
+    const childCol = (k: AppMapNode, i: number, n: number, solid: boolean) => {
+      const tone = k.card.state === 'running' ? 'suggestion' : 'subtle'
+      return (
+        <Box key={`mk-${k.card.id}`} flexDirection="column" alignItems="center">
+          {solid ? (
+            <Box flexDirection="row" height={1} width="100%">
+              <Box width="50%" height={1} backgroundColor={i === 0 ? undefined : 'subtle'} />
+              <Box width="50%" height={1} backgroundColor={i === n - 1 ? undefined : 'subtle'} />
+            </Box>
+          ) : null}
+          <Box width={1} height={1} backgroundColor={tone} />
+          {mapTree(k, `mt-${k.card.id}`)}
+        </Box>
+      )
+    }
+    // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
+    // Same rule as the terminal: one solid bus when the siblings fit one row; otherwise rows of perRowApp cards hang off a
+    // dashed trunk on the left, each row under its own dashed bus (user choice), so the rows never read as a frame.
+    const mapTree = (n: AppMapNode, key: string): any => {
+      const kids = n.children
+      const rows: AppMapNode[][] = []
+      for (let i = 0; i < kids.length; i += perRowApp) rows.push(kids.slice(i, i + perRowApp))
+      return (
+        <Box key={key} flexDirection="column" alignItems="center">
+          {appCardBox(n.card, kids.length > 0)}
+          {kids.length ? <Box width={1} height={1} backgroundColor="subtle" /> : null}
+          {rows.length === 1 ? (
+            <Box flexDirection="row" justifyContent="center" gap="sm">{rows[0]!.map((k, i) => childCol(k, i, rows[0]!.length, true))}</Box>
+          ) : rows.length > 1 ? (
+            <Box flexDirection="row" width="100%">
+              {dashes(`trunk-${n.card.id}`, 'column', rows.length * 6)}
+              <Box flexDirection="column" flexGrow={1} gap="sm">
+                {rows.map((row, ri) => (
+                  <Box key={`row-${n.card.id}-${ri}`} flexDirection="column">
+                    {dashes(`rowbus-${n.card.id}-${ri}`, 'row', 24)}
+                    <Box flexDirection="row" gap="sm" paddingLeft={1}>{row.map((k, i) => childCol(k, i, row.length, false))}</Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : null}
+        </Box>
+      )
+    }
     // side detail (Proto5 aside): crumb, name, pills, segments, Tempo/Tokens/Custo, error, timeline, masked prompt
     const asideOf = (id: string) => {
       const d = detailData(all, id, now)
@@ -782,7 +808,7 @@ export const register: Register = on => {
     // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
     if (onApp && view === 'map' && !attach && (!selected || sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' }))) {
       const tree = appMap(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
-      const body = tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root')
+      const body = tree.card.id === 'session' && tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root')
       return (
         <Box flexDirection="column" gap="sm">
           {appChrome()}
