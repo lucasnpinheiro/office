@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { statusLines } from './status'
+import { statusLines, toggleAction } from './status'
 import type { AgentLike } from './office'
 
 const T0 = 1_700_000_000_000
@@ -28,4 +28,15 @@ test('statusLines: counts agents, running, done, failed, depth and progress', ()
   expect(out).toContain('falhas: 1')
   expect(out).toContain('concluídos: 1')
   expect(out).toContain('em execução: 1')
+})
+
+test('toggleAction: pane pedido mas não desenhado abre em vez de fechar', () => {
+  expect(toggleAction(true, false)).toBe('start')
+  expect(toggleAction(true, true)).toBe('stop')
+  expect(toggleAction(false, false)).toBe('start')
+})
+
+test('statusLines: pane não desenhado mostra o motivo', () => {
+  expect(statusLines([], T0, true, 'terminal estreito').join('\n')).toContain('pedido, não desenhado (terminal estreito)')
+  expect(statusLines([], T0, true).join('\n')).toContain('aberto: sim')
 })

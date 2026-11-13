@@ -3,7 +3,10 @@
 import { buildGraph, maxDepthOf, overallProgress } from './monitor'
 import type { AgentLike } from './office'
 
-export function statusLines(agents: AgentLike[], now: number, open: boolean): string[] {
+// bare /office: an open pane that is not drawn (narrow terminal, unasked) counts as closed, so the toggle opens it
+export function toggleAction(open: boolean, placed: boolean): 'start' | 'stop' { return open && placed ? 'stop' : 'start' }
+
+export function statusLines(agents: AgentLike[], now: number, open: boolean, undrawn?: string): string[] {
   const g = buildGraph(agents, now)
   let total = 0, running = 0, done = 0, failed = 0
   for (const n of g.nodes.values()) {
@@ -15,7 +18,7 @@ export function statusLines(agents: AgentLike[], now: number, open: boolean): st
   }
   const p = overallProgress(g)
   return [
-    `aberto: ${open ? 'sim' : 'não'}`,
+    `aberto: ${open ? (undrawn === undefined ? 'sim' : 'pedido, não desenhado (' + (undrawn || 'sem motivo') + ')') : 'não'}`,
     `sessões: 1 · agentes: ${total} · profundidade máx: ${maxDepthOf(g)}`,
     `em execução: ${running} · concluídos: ${done} · falhas: ${failed}`,
     p === undefined ? 'progresso: sem tarefas conhecidas' : `progresso: ${Math.round(p * 100)}%`,

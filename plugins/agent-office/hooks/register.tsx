@@ -20,6 +20,7 @@ import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLa
 import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf, errorText, toolArgs } from './capture'
 import { captureIoOn, maskText } from './mask'
 import { resolveGit, aheadOf, cachedAhead } from './git'
+import { toggleAction } from './status'
 import { statusLines } from './status'
 import type { GitInfo, AheadInfo, AheadCache, ProcessRun } from './git'
 
@@ -168,7 +169,7 @@ function refreshAhead($: EngineInterface, list: OfficeAgent[], repos: readonly s
   const run: ProcessRun = async (argv, init) => $.process.run(argv, init)
   for (const key of new Set(list.map(a => worktreeOfAgent(a)).filter((x): x is string => !!x))) {
     const before = aheadCache.get(key)?.info
-    bg(cachedAhead(aheadCache, key, Date.now(), () => aheadOf(run, key, repos)).then(info => {
+    bg(cachedAhead(aheadCache, key, Date.now(), () => aheadOf(run, key, repos, undefined, ms => $.clock.sleep(ms))).then(info => {
       if (info?.base !== before?.base || info?.ahead !== before?.ahead) $.ui.invalidate('ui.render')
     }))
   }
@@ -226,7 +227,9 @@ async function openSized($: EngineInterface, focus = false) {
   const collapsed: string[] = await read($, collapsedAt)
   const s = await wantSize($, list, collapsed, sgit, st, thumbs)
   lastSize = `${s.rows}x${s.columns}`
-  return $.ui.open({ id: PANE, title: 'Office Agent Monitor', rows: s.rows, columns: s.columns, ...(focus ? { focus: true as const } : {}) })
+  const r = await $.ui.open({ id: PANE, title: 'Office Agent Monitor', rows: s.rows, columns: s.columns, ...(focus ? { focus: true as const } : {}) })
+  undrawn = r.isPlaced ? undefined : r.reason ?? ''
+  return r
 }
 
 // reopen only when the wanted size really changed
@@ -236,6 +239,12 @@ async function resizeIfNeeded($: EngineInterface) {
   const collapsed: string[] = await read($, collapsedAt)
   const s = await wantSize($, list, collapsed, sgit, st, thumbs)
   if (`${s.rows}x${s.columns}` !== lastSize) await openSized($)
+}
+
+// why the pane waits undrawn (undefined: drawn or closed); isOpen stays true meanwhile so timers and resizes keep working
+let undrawn: string | undefined
+async function placed($: EngineInterface): Promise<boolean> {
+  return (await $.ui.panes().catch(() => [])).some(p => p.id === PANE && p.isPlaced)
 }
 
 async function openOffice($: EngineInterface, focus = false) {
@@ -248,6 +257,7 @@ async function closeOffice($: EngineInterface) {
   stopTicking()
   shots.clear()
   bg($.ui.status(undefined))
+  undrawn = undefined
   await update($, isOpen, () => false)
   await $.ui.close({ id: PANE })
 }
@@ -357,7 +367,7 @@ export const register: Register = on => {
     if (sub === 'status') {
       const all: OfficeAgent[] = await read($, office)
       const open: boolean = await read($, isOpen)
-      return { text: statusLines(all, Date.now(), open).join('\n') }
+      return { text: statusLines(all, Date.now(), open, open && !(await placed($)) ? (undrawn ?? '') : undefined).join('\n') }
     }
     if (sub === 'reset') {
       if (await read($, isOpen)) return { text: 'Monitor aberto: feche com /office stop antes de resetar.' }
@@ -366,7 +376,7 @@ export const register: Register = on => {
       return { text: 'Estado do monitor resetado.' }
     }
     const open = await read($, isOpen)
-    const action = sub === 'toggle' ? (open ? 'stop' : 'start') : sub
+    const action = sub === 'toggle' ? toggleAction(open, open ? await placed($) : false) : sub
     if (action === 'start') {
       await openOffice($, true)
       return { text: 'Monitor aberto. Feche com /office stop.' }
@@ -381,6 +391,7 @@ export const register: Register = on => {
       stopTicking()
       shots.clear()
       bg($.ui.status(undefined))
+      undrawn = undefined
       await update($, isOpen, () => false)
     }
     return next(e)

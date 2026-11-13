@@ -45,7 +45,7 @@ test('AC-023 aheadOf: $.process ausente, git falha, saída não numérica ou exc
 
 test('AC-023 aheadOf: passou do limite de tempo, omite (não trava o painel)', async () => {
   const t0 = Date.now()
-  expect(await aheadOf(scripted({ [UP]: 'hang' }), WT, REPOS, 50)).toBeUndefined()
+  expect(await aheadOf(scripted({ [UP]: 'hang' }), WT, REPOS, 50, ms => new Promise<void>(r => (globalThis as any).setTimeout(r, ms)))).toBeUndefined()
   expect(Date.now() - t0).toBeLessThan(1000)
 })
 
