@@ -62,7 +62,7 @@ test('a compact view left over from the previous session does not survive sessio
   await boot($, on, 2)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toContain('Claude Code'); expect(out).toMatch(/┌[─┴]{36}┐/)
+  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toContain('Claude Code'); expect(out).toMatch(/┌[─┴]{28}┐/)
 })
 
 test('desktop surface: the map view draws the org chart as Box cards (root, children), clickable', async ($, on) => {

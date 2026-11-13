@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.2 (agent-office, map matches the Office Agent Monitor Redesign PDF)
+
+- Root box is the orchestrating agent itself (design pages 1 and 3): when the session has a single top-level agent, it is the root of the map in the terminal and in the app; the "Claude Code" session box only appears above several top-level agents.
+- Terminal boxes are 30 columns wide (4 per row from 128 columns): line 2 is persona · model (the dot is dropped before anything is cut), and the effort moves to the progress line (`▰▰▱▱ 45% 00:14 🟢 baixo`).
+- Map footer: `visão (mapa › árvore › cards) · só falhas · fechar · Tab mover · Enter abrir`.
+
 ## 0.19.1 (agent-office, the terminal map is boxed from the first frame)
 
 - Root cause of "the CLI layout did not change after the reload": with no agents yet (a fresh session, right after `/reload-plugins`) and in side panes narrower than 40 columns, `renderBoxMap` returned null, so the pane fell back to the old one-line text map ("Office · … · 0 rodando"). Agents only appear later, so the first thing seen was always the old layout.

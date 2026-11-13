@@ -62,5 +62,8 @@ export function appMap(agents: AgentLike[], now: number, o: { query?: string; fi
     card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code', chips: ['Orquestrador'], status: undefined } : cardOf(n, nm, now, by.get(n.id)),
     children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(walk),
   })
-  return walk(g.root)
+  const top = walk(g.root)
+  // design (Term5 / Proto5 "Mapa"): the root box IS the orchestrating agent; the session box only appears when
+  // several top-level agents need a common parent
+  return top.children.length === 1 ? top.children[0]! : top
 }
