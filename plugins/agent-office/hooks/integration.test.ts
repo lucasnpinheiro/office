@@ -359,3 +359,20 @@ test('workflow: SubagentStop que chega antes de o spawn devolver o agentId tamb�
   expect(await texts(ui)).toContain('✓ Dev: alfa')
   await ui.unmount()
 })
+
+const mountOn = ($: any, surface: string) =>
+  $.ui.mount({ plugin: 'agent-office', surface, component: 'Pane', requestId: 'agent-office',
+    props: { bodyColumns: 120, bodyRows: 80 } as any, viewport: { columns: 120, rows: 80 } as any })
+
+test('app surface: cards viram Box/Text gráficos com chips, sem caixa de texto; terminal mantém a caixa', async ($, on) => {
+  setup($, on)
+  await start($)
+  await spawn($, 'tu1', '🛠️ Pleno · 🎼 Sonnet · 🟡 médio: Reading edit.php')
+  const app = await mountOn($, 'desktop')
+  const a = await texts(app)
+  expect(a).toContain('Reading edit.php'); expect(a).toContain('🛠️ Pleno'); expect(a).toContain('🎼 Sonnet'); expect(a).toContain('🟡 médio')
+  expect(a).not.toMatch(/[╭╮╰╯│]/)
+  await app.unmount()
+  const term = await texts(await mountOn($, 'terminal'))
+  expect(term).toMatch(/[╭╮╰╯]/)
+})

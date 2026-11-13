@@ -125,7 +125,7 @@ function segBar(g: Graph, c: Caps, cells: number): Line {
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)]! : 0 }
 
 // Unique display names: duplicates get " #n".
-function names(g: Graph): Map<string, string> {
+export function names(g: Graph): Map<string, string> {
   const seen = new Map<string, number>(), tot = new Map<string, number>()
   for (const n of g.nodes.values()) tot.set(n.name, (tot.get(n.name) ?? 0) + 1)
   const out = new Map<string, string>()
@@ -180,7 +180,7 @@ export function asciiText(t: string): string {
 export const asciiLine = (l: Line): Line => l.map(s => ({ ...s, t: asciiText(s.t) }))
 
 const matches = (n: Node, q: string) => !q || `${n.name} ${n.persona} ${n.model}`.toLowerCase().includes(q.toLowerCase())
-function visibleSet(g: Graph, q: string, hidden: Set<string>, filter: 'all' | 'failed' = 'all'): Set<string> {
+export function visibleSet(g: Graph, q: string, hidden: Set<string>, filter: 'all' | 'failed' = 'all'): Set<string> {
   const keep = new Set<string>()
   const walk = (n: Node): boolean => {
     const kids = n.children.map(walk).some(Boolean)

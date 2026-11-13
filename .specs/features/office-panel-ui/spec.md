@@ -84,7 +84,7 @@ Lacunas:
 1. Paleta: compact.ts, view-cost.ts e view-detail.ts usam cores fora dos tokens (#22c55e, #ef4444, #6b7280, #374151, #9ca3af). Artifact pede tokens unicos (ok #6FD08C, fail #FF8A80, muted #A9ADB5). Ajustar para tokens.
 2. Tema claro: vocabulary.ts tem valores light, mas compact.ts nao usa a tabela de tokens; faltam bg, surface, line claros.
 3. Fonte IBM Plex e numeros tabulares: nao se aplica ao terminal; no app nao ha codigo de CSS neste plugin (sem tela de app propria).
-4. Painel nativo no app (T3, T5, T7, T8, T9): nao ha componente de app; register.tsx e uma TUI/mod. Falta spec de integracao com o app (cards, gaveta, abas Rodando/Concluidos/Atencao/Falhas).
+4. Painel nativo no app (T3, T5, T7, T9): cards (T8) ja em Box/Text pela surface; restam gaveta, abas e demais visoes; register.tsx e uma TUI/mod. Falta spec de integracao com o app (cards, gaveta, abas Rodando/Concluidos/Atencao/Falhas).
 5. Breadcrumb e navegacao por Esc entre dependencias: so 2 ocorrencias; verificar view-detail.ts.
 6. Barra segmentada e contagem por grupo (✓ ● ✗ ○): ETA existe; barra segmentada nao confirmada.
 7. Acoes na falha (ver log, reenviar em outro modelo com confirmacao): nao encontrado no grep; falta.
@@ -95,6 +95,11 @@ Lacunas:
 12. Movimento: durações do artifact (900/800/220/1600/160/140ms) nao conferidas no motion.ts; verificar.
 13. Raio: artifact usa 10 (token) e 12 (CSS); decidir um valor.
 14. Estado "Parado sem sinal" a partir de 10 min: confirmar limiar em status.ts.
+
+Painel no app (cards Chips5, T8/T9):
+- Decisao: o engine nao tem elemento HTML; o app (surface desktop, vscode, mobile) desenha Box/Text graficos. register.tsx escolhe pela `e.surface` (hooks/app-cards.ts isAppSurface); terminal inalterado.
+- Card do app: borda arredondada na cor do estado (theme keys: suggestion, error, warning, success, subtle; claro/escuro pelo tema do app), glifo + titulo da tarefa, chips persona/modelo/esforco com icone, linha de estado/ferramenta, barra, percentual e tempo; sem formato na description: chip 🤖 Agente. Clique abre o detalhe.
+- Escopo: so a visao cards; arvore, agrupado, custo, ferramentas e workflow seguem em texto no app. Nao verificado visualmente no app (largura 34 fixa, barra por Box width %).
 
 ## 9. Criterios de aceite (para a futura implementacao)
 - AC-1: terminal e app mostram o mesmo nome, estado e ordem a partir do mesmo RunModel.
