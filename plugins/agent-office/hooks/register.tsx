@@ -32,7 +32,7 @@ const sessionUsdAt = atom({ plugin: 'agent-office', key: 'sessionUsd' } as const
 const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as const, {})
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
-const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'map')
+const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'compact')
 const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, DEFAULT_MODE as string)
 const filterAt = atom({ plugin: 'agent-office', key: 'filter' } as const, 'all')
 const sortAt = atom({ plugin: 'agent-office', key: 'sort' } as const, 'time')
@@ -727,7 +727,6 @@ export const register: Register = on => {
             {f.thumbs.map(t => thumb(t))}
           </Box>
         ) : null}
-        {f.footer.map(draw)}
         {keysRow}
       </Box>
     )

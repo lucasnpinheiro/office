@@ -1,12 +1,12 @@
 import { test, expect } from 'claude-code/testing'
 import { applyAction, initialUi, hotkeysFor, startUi, footerText, footerTail } from './actions'
 
-const s0 = initialUi()
+const s0 = { ...initialUi(), view: 'map' as const } // map-view fixtures; the default view is compact cards (startUi)
 const c0 = { ...s0, view: 'compact' as const }
 
-test('defaults: map view, cards mode inside compact, not searching', async () => {
-  expect(s0.mode).toBe('cards')
-  expect(s0.view).toBe('map')
+test('defaults: compact view with boxed cards, not searching', async () => {
+  expect(initialUi().mode).toBe('cards')
+  expect(initialUi().view).toBe('compact')
   expect(s0.searching).toBe(false)
 })
 
@@ -80,9 +80,9 @@ test('hotkeys are unique per view and off while searching', async () => {
   expect(hotkeysFor({ ...s0, selected: 'a' }, false).map(h => h.key)).toEqual(['v', 'b', 'q'])
 })
 
-test('session start always opens the map (cards inside compact), clearing persisted filters and search', async () => {
+test('session start always opens the boxed cards view, clearing persisted filters and search', async () => {
   const st = startUi()
-  expect(st.view).toBe('map')
+  expect(st.view).toBe('compact')
   expect(st.mode).toBe('cards')
   expect(st.searching).toBe(false)
   expect(st.query).toBe('')

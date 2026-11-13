@@ -30,28 +30,23 @@ test('pane footer has one-letter hotkeys; s opens search and silences them; v to
     props: { bodyColumns: 120, bodyRows: 40 } as any, viewport: { columns: 120, rows: 40 } as any,
   })
   let ui = await mount()
-  // session starts in the map view: only v and q
+  // session starts in the boxed cards view (compact): the full hotkey row
+  for (const k of ['g', 'o', 'f', 's', 'v', 'q']) expect([k, !!(await ui.find({ key: `h-${k}` }))]).toEqual([k, true])
+  await ui.press({ key: 'h-v' }) // cards -> mapa
+  await ui.unmount(); ui = await mount()
   expect(await ui.find({ key: 'h-g' })).toBeUndefined()
   expect(await ui.find({ key: 'h-v' })).toBeDefined()
   expect(await ui.find({ key: 'h-q' })).toBeDefined()
-  await ui.press({ key: 'h-v' })
+  await ui.press({ key: 'h-v' }) // mapa -> árvore
   await ui.unmount(); ui = await mount()
-  for (const k of ['g', 'o', 'f', 's', 'v', 'q']) expect([k, !!(await ui.find({ key: `h-${k}` }))]).toEqual([k, true])
+  expect(await ui.find({ key: 'h-g' })).toBeDefined()
   await ui.press({ key: 'h-s' })
   await ui.unmount(); ui = await mount()
   expect(["search", !!(await ui.find({ key: "office-search" }))]).toEqual(["search", true])
   expect(await ui.find({ key: 'h-g' })).toBeUndefined()
   await ui.input({ key: 'office-search', text: '' })
   await ui.unmount(); ui = await mount()
-  // T-006: v cicla mapa -> árvore -> cards -> mapa
   await ui.press({ key: 'h-v' }) // árvore -> cards
-  await ui.unmount(); ui = await mount()
-  expect(await ui.find({ key: 'h-g' })).toBeDefined()
-  await ui.press({ key: 'h-v' }) // cards -> mapa
-  await ui.unmount(); ui = await mount()
-  expect(await ui.find({ key: 'h-g' })).toBeUndefined()
-  expect(await ui.find({ key: 'h-v' })).toBeDefined()
-  await ui.press({ key: 'h-v' }) // mapa -> árvore
   await ui.unmount(); ui = await mount()
   expect(await ui.find({ key: 'h-g' })).toBeDefined()
   await ui.unmount()

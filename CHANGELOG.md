@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.0 (agent-office, terminal opens on boxed cards)
+
+- Root cause of "no boxes": the session opened in the map view (`view: 'map'`), which draws the Round 5 tree, one line per agent. The boxed cards (34-col, 7-line, side by side, dotted bus, worktree dividers, overflow row) only existed in the compact view, one `v` away. `startUi` and the `view` atom now default to compact + cards; `v` still cycles cards > map > tree.
+- Cards view pins failure and decision rows (`✗`, `◆`) above the boxes, as the tree already did (Term5).
+- One hint row: the map/tree view no longer draws the monitor's static key line above the live hotkey row.
+- No change to the design canvas; ASCII fallback (`OFFICE_ASCII`) unchanged.
+
 ## 0.17.0 (agent-office, chips reach the installed plugin)
 
 - Root cause of "nothing shows": PRs #32/#33 shipped without a version bump, so installs stayed on cached 0.15.2. Bumped to 0.17.0; run `claude plugin marketplace update office` then `claude plugin update agent-office@office` and reload.
