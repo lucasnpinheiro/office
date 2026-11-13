@@ -4,8 +4,10 @@ const run = ($: any, args: string) => $.command.run({ command: 'office', args })
 
 test('/office star opens, /office stop closes, bare toggles, junk shows help', async ($, on) => {
   const seen: string[] = []
-  on('ui.open', async () => { seen.push('open'); return { value: { isPlaced: true } } })
-  on('ui.close', async () => { seen.push('close'); return { value: undefined } })
+  let up = false
+  on('ui.open', async () => { seen.push('open'); up = true; return { value: { isPlaced: true } } })
+  on('ui.close', async () => { seen.push('close'); up = false; return { value: undefined } })
+  on('ui.panes', async () => ({ value: up ? [{ id: 'agent-office', title: 'Office Agent Monitor', isPlaced: true }] : [] }) as any)
 
   expect((await run($, 'star')).text).toContain('aberto')
   expect((await run($, 'stop')).text).toContain('fechado')
@@ -14,6 +16,17 @@ test('/office star opens, /office stop closes, bare toggles, junk shows help', a
   expect((await run($, 'banana')).text).toContain('Uso:')
   expect(seen.filter(x => x === 'open').length).toBeGreaterThanOrEqual(2)
   expect(seen.filter(x => x === 'close').length).toBeGreaterThanOrEqual(2)
+})
+
+test('bare /office opens (with focus) a pane that waits undrawn instead of closing it', async ($, on) => {
+  const opens: unknown[] = []
+  on('ui.open', async (_$: any, e: any) => { opens.push(e.focus); return { value: { isPlaced: false, reason: 'terminal estreito' } } as any })
+  on('ui.close', async () => ({ value: undefined }))
+  on('ui.panes', async () => ({ value: [{ id: 'agent-office', title: 'x', isPlaced: false }] }) as any)
+  await run($, 'start')
+  expect((await run($, 'status')).text).toContain('não desenhado (terminal estreito)')
+  expect((await run($, '')).text).toContain('aberto') // undrawn counts as closed: no "fechado"
+  expect(opens[opens.length - 1]).toBe(true)
 })
 
 test('/office collapse and expand answer', async ($, on) => {

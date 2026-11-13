@@ -18,6 +18,8 @@ function setup($: any, on: any, o: { process?: (argv: readonly string[], cwd?: s
   const box = { usage: undefined as Usage | undefined }
   on('ui.open', async () => ({ value: { isPlaced: true } }))
   on('ui.focus', async () => ({ value: {} }) as any)
+  on('ui.panes', async () => ({ value: [{ id: 'agent-office', title: 'Office Agent Monitor', isPlaced: true }] }) as any)
+  on('clock.sleep', async (_$: any, e: any) => { await new Promise<void>(r => (globalThis as any).setTimeout(r, e.ms)); return { value: undefined } })
   on('ui.status', async () => ({ value: {} }) as any)
   on('session.cwd', async () => ({ value: '/work/meuapp' }))
   on('session.id', async () => ({ value: 'abcdef123' }))

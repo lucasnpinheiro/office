@@ -86,10 +86,11 @@ export function trustedCwd(cwd: string, repos: readonly string[]): boolean {
   })
 }
 
-export async function aheadOf(run: ProcessRun | undefined, cwd: string, repos: readonly string[], timeoutMs = AHEAD_TIMEOUT_MS): Promise<AheadInfo | undefined> {
+// `sleep` resolves after ms (the module has no setTimeout: register.tsx passes $.clock.sleep); without it there is no time limit beyond the process timeout
+export type Sleep = (ms: number) => Promise<void>
+export async function aheadOf(run: ProcessRun | undefined, cwd: string, repos: readonly string[], timeoutMs = AHEAD_TIMEOUT_MS, sleep?: Sleep): Promise<AheadInfo | undefined> {
   if (typeof run !== 'function' || !trustedCwd(cwd, repos)) return undefined
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const limit = new Promise<undefined>(r => { timer = setTimeout(() => r(undefined), timeoutMs) })
+  const limit: Promise<undefined> = sleep ? sleep(timeoutMs).then(() => undefined, () => undefined) : new Promise<undefined>(() => {})
   const git = async (...args: string[]): Promise<string | undefined> => {
     const r = await run([...GIT_SAFE_PREFIX, ...args], { cwd, timeoutMs }).catch(() => undefined)
     return r && r.exitCode === 0 ? String(r.stdout).trim() : undefined
@@ -100,7 +101,7 @@ export async function aheadOf(run: ProcessRun | undefined, cwd: string, repos: r
     const n = await git('rev-list', '--count', `${base}..HEAD`)
     return n !== undefined && /^\d+$/.test(n) ? { base, ahead: Number(n) } : undefined
   })()
-  try { return await Promise.race([work, limit]) } finally { if (timer) clearTimeout(timer) }
+  return Promise.race([work, limit])
 }
 
 export type AheadCache = Map<string, { at: number; info?: AheadInfo; pending?: boolean }>
