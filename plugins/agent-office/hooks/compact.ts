@@ -617,7 +617,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const out: Line[] = [...header(g, agents, now, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
   if (agents.length === 0) out.push([seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)])
   else {
-    if (v.mode === 'tree') out.push(...pinnedLines(g, nm, keep, v))
+    if (v.mode === 'tree' || v.mode === 'cards') out.push(...pinnedLines(g, nm, keep, v))
     const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
     if (v.mode === 'grouped' && bad.length) {
       out.push([seg(v.caps, `Atenção (${bad.length})`, STATE_COLOR.attention, { bold: true })])
