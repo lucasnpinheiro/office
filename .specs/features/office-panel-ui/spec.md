@@ -26,7 +26,7 @@ Extra: Proto/Proto5 (prototipo interativo: run ao vivo, decisao, workflow hier-o
 - Cabecalho de sessao: nome do projeto, id da sessao, decorrido, ETA, percentual geral.
 - Barra segmentada: concluidos, em execucao, falhas, pendentes (substitui 0% por filho).
 - Filtros: Tudo, Rodando, Concluidos, Atencao, Falhas (f filtra; g alterna agrupado/todos).
-- Card de agente: glifo de estado, nome completo, persona e modelo, barra, ferramenta atual, tempo.
+- Card de agente: glifo de estado, tarefa como título (nome completo), chips com ícone: persona (ícone + nome), modelo (🪶 Haiku, 🎼 Sonnet, 👑 Opus) e esforço (🟢 baixo, 🟡 médio, 🔴 alto), barra, ferramenta atual, tempo. Origem: description `<ícone> Persona · <ícone> Modelo · <ícone> esforço: tarefa`; sem esse formato cai em `🤖 Agente` e a description inteira vira o título. Terminal: card de 7 linhas (persona numa linha, modelo · esforço na seguinte); ASCII sem emojis.
 - Linha de worktree (divisor de largura total): nome do worktree/branch, contagem.
 - Arvore: barramento pai > irmaos, filhos recuados 5 colunas; irmaos folha lado a lado.
 - Detalhe: breadcrumb, estado, branch, tempo, tokens, custo, erro, linha do tempo de ferramentas, prompt com segredos mascarados, acoes.

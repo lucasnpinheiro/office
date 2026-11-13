@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseDescription, PERSONAS, MODEL_DISPLAY, EFFORT_DISPLAY } from './persona'
+import { parseDescription, chips, PERSONAS, MODEL_DISPLAY, EFFORT_DISPLAY } from './persona'
 
 test('parses persona prefix', () => {
   const p = parseDescription('🛠️ Pleno·padrao·sonnet·low: Reading edit.php')
@@ -55,4 +55,12 @@ test('parses the new humanized prefix to the same canonical fields', () => {
 test('display tables', () => {
   expect(MODEL_DISPLAY.opus).toEqual({ icon: '👑', label: 'Opus' })
   expect(EFFORT_DISPLAY.medium).toEqual({ icon: '🟡', label: 'médio' })
+})
+
+test('chips: icon + label for persona, model and effort; graceful fallbacks', () => {
+  expect(chips('Tech Writer', 'Haiku', 'médio')).toEqual({ persona: '✍️ Tech Writer', model: '🪶 Haiku', effort: '🟡 médio' })
+  expect(chips('Product Owner', 'Opus', 'alto')).toEqual({ persona: '🎯 Product Owner', model: '👑 Opus', effort: '🔴 alto' })
+  expect(chips('Pleno', 'Sonnet', 'baixo')).toEqual({ persona: '🛠️ Pleno', model: '🎼 Sonnet', effort: '🟢 baixo' })
+  expect(chips('Agente', '', undefined)).toEqual({ persona: '🤖 Agente', model: undefined, effort: undefined })
+  expect(chips('Orquestrador', 'ModeloX', 'raro')).toEqual({ persona: 'Orquestrador', model: 'ModeloX', effort: 'raro' })
 })
