@@ -61,8 +61,6 @@ export const STATE_COLORS = Object.fromEntries((Object.keys(RUN_STATE) as State[
 // `cap` = capability que precisa ser `yes` na superfície; sem ela o controle não é desenhado nem ligado.
 export type KeyEntry = { key: string; act: string; label: string; ctx?: 'view' | 'confirm' | 'decision'; cap?: CapabilityKey }
 export const KEY_MAP: KeyEntry[] = [
-  { key: 'j', act: 'scrollDown', label: 'descer' }, // cards view taller than the pane: one level (card + bus) per press
-  { key: 'k', act: 'scrollUp', label: 'subir' },
   { key: 'd', act: 'decide', label: 'decidir', cap: 'allow' },
   { key: 'r', act: 'retry', label: 'repetir', cap: 'retry' },
   { key: 'b', act: 'back', label: 'voltar' },

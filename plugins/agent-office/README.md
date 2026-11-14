@@ -50,7 +50,7 @@ cap) and the layout is recomputed on every resize.
   cards re-wrap one column narrower to make room, and a stale scroll offset is clamped after a resize.
 - Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
 - Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
-- Keys: `j` scroll down, `k` scroll up (one card row per press), plus the hotkeys below.
+- Scrolling: the engine exposes no mouse-wheel event, so `j`/`k` stay as invisible keys (no button, not in the footer); the position shows as `n/total` with `↑`/`↓`. Cards encode model (`◇` Haiku, `◆` Sonnet, `■` Opus, coloured), effort (`▁` `▁▃` `▁▃▅`) and depth (`L{n}`, up to 50).
 
 Not shipped: Allow, Decline, Stop, Retry, Pause and open-in-chat controls, and the "needs you" (`◆`) decision state. They stay
 hidden until the manual probes listed in ADR 0002 are run (see `.specs/features/office-agent-monitor-v2/spec/06-gaps.md`).

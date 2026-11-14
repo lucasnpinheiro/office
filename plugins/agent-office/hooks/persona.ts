@@ -109,6 +109,11 @@ export type Chips = { persona: string; model?: string; effort?: string }
 
 // Card chips: icon + label per field, built from the Node strings (persona name, model label, effort label).
 // Unknown values pass through as plain text; missing model/effort stay undefined.
+// Terminal card encoding: model = glyph + colour, effort = rising bars (design Grafo6).
+export const MODEL_GLYPH: Record<string, { g: string; color: string }> = {
+  haiku: { g: '◇', color: '#5EC8B8' }, sonnet: { g: '◆', color: '#7FA9FF' }, opus: { g: '■', color: '#F2A65A' },
+}
+export const EFFORT_BARS: Record<string, string> = { baixo: '▁', médio: '▁▃', alto: '▁▃▅', low: '▁', medium: '▁▃', high: '▁▃▅' }
 export function chips(persona?: string, model?: string, effort?: string): Chips {
   const p = byName(persona) ?? (persona === GENERIC.name ? GENERIC : undefined)
   const mk = (model ?? '').toLowerCase()

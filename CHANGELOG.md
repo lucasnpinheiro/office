@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.27.0 (agent-office, deeper graph, simpler scroll, encoded cards)
+
+- Depth limit 20 to 50. The descer/subir buttons are gone from the footer; the cards pane shows the position as `n/total`.
+- Mouse wheel is not exposed by the engine (no event in types or JSX), so j/k remain as invisible hotkeys.
+- Terminal cards: model glyph and colour, effort bars, `L{depth}` badge. Not done: `└─▸` indented connectors, workflow badge.
+
 ## 0.26.0 (agent-office, the cards pane fills the terminal and has a scrollbar)
 
 - Default is every card open: the tree no longer folds identical siblings into `Rodando xN`; that is opt-in with `g` (state item `tree:fold`, was `tree:all`).

@@ -49,3 +49,27 @@ test('tabs scroll horizontally on a narrow pane and keep the active one visible'
   expect(tabs).toContain('‹')
   expect(strWidth(tabs)).toBeLessThanOrEqual(60)
 })
+
+test('50 sub-levels: every card reachable by scrolling, none hidden, L badge and n/total shown', () => {
+  const chain = Array.from({ length: 50 }, (_, i) => ({ ...mk(`d${i}`), ...(i ? { parentAgentId: `g-d${i - 1}` } : {}) }) as AgentLike)
+  const seen = new Set<string>()
+  for (let scroll = 0; scroll <= 420; scroll += 96) {
+    const t = rows(chain, { maxLines: 130, scroll }).join('\n')
+    for (const m of t.matchAll(/Dev: d\d+/g)) seen.add(m[0])
+    expect(t).toMatch(/\d+\/\d+/)
+  }
+  expect(seen.size).toBe(50)
+  expect(rows(chain, { maxLines: 500 }).join('\n')).toContain('L49')
+})
+
+test('regression: cards view never drops a finished agent, however long ago it ended', () => {
+  const old = Array.from({ length: 5 }, (_, i) => ({ ...mk(`o${i}`), status: 'done', endedAt: T + 1000 }) as AgentLike)
+  const t = renderCompact(old, T + 3_600_000, { ...base, maxLines: 200 }).map(l => l.map(s => s.t).join('')).join('\n')
+  for (let i = 0; i < 5; i++) expect(t).toContain(`Dev: o${i}`)
+})
+
+test('70 agents: every card renders in cards view (no 60 cap)', () => {
+  const ag = Array.from({ length: 70 }, (_, i) => mk(`z${i}`))
+  const t = renderCompact(ag, T + 5000, { ...base, maxLines: 2000 }).map(l => l.map(s => s.t).join('')).join('\n')
+  for (let i = 0; i < 70; i++) expect(t).toContain(`Dev: z${i}`)
+})

@@ -6,7 +6,7 @@ import type { GitInfo } from './git'
 import { HIDE_AFTER_MS } from './office'
 import type { Capabilities } from './capabilities'
 
-export const MAX_DEPTH = 20
+export const MAX_DEPTH = 50
 // Quota / rate-limit failures are not agent bugs: they surface as attention items, not failures.
 // "429" only as an HTTP status (start of text, after error/status/http), "credit" only as a balance: a stray line
 // number or a form field named "credit card" is not a quota failure.

@@ -38,7 +38,7 @@ test('tree: one line per agent, glyphs, unique names, ETA calculando, legend', (
   const out = txt(renderCompact(ag, T + 9000, v))
   expect(out).toMatch(/✓ .*Dev|✓ a/); expect(out).toContain('✗'); expect(out).toContain('⠹')
   expect(out).toContain('ETA calculando'); expect(out).toContain('Office')
-  expect(out).toMatch(/Níveis de profundidade: 1\/20/)
+  expect(out).toMatch(/Níveis de profundidade: 1\/50/)
 })
 test('tree: ASCII fallback has no unicode box/glyphs', () => {
   const a = detectCaps({ OFFICE_ASCII: '1' })
@@ -123,9 +123,9 @@ test('cards ASCII: ":" vertical, "." horizontal, "+" joints', () => {
 test('cards: the worktree and the role share one row of the card (unicode and ASCII), no full-width divider', () => {
   const ag = [mk('m'), mk('w', { git: { branch: 'feat/x', worktree: 'wt' } })]
   const u = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards' }))
-  expect(u).toMatch(/│⧉ feat\/x +agente│/); expect(u).not.toContain('worktree: feat')
+  expect(u).toMatch(/│⧉ feat\/x +agente L1│/); expect(u).not.toContain('worktree: feat')
   const a = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', caps: detectCaps({ OFFICE_ASCII: '1' }) }))
-  expect(a).toMatch(/\|wt feat\/x +agente\|/)
+  expect(a).toMatch(/\|wt feat\/x +agente L1\|/)
 })
 test('cards: waterfall row has span on session timeline, partial blocks; ASCII uses = and #', () => {
   const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 4000 }), mk('b', { startedAt: T + 4000 })]
@@ -178,7 +178,7 @@ test('card anatomy: name, persona · model, tool/status row, bar + metric + time
   const ag = [mk('r', { description: '🧪 QA · 🎼 Sonnet · 🟢 baixo: run', tool: 'git', recent: ['Read', 'git'] }),
     mk('d', { status: 'done', endedAt: T + 5000 }), mk('f', { status: 'error', endedAt: T + 2000, error: 'timeout 120s tests/Nfe' })]
   const o = txt(cardsOut(ag))
-  expect(o).toMatch(/🧪 QA · 🎼 Sonnet · 🟢 baixo\s+│/)
+  expect(o).toMatch(/🧪 QA · ◆ Sonnet ▁\s+│/)
   expect(o).toMatch(/▸ git ‹ Read/); expect(o).toContain('concluído'); expect(o).toContain('✗ timeout 120s')
   expect(o).toMatch(/exec · 00:09│/) // status left, metric · time right
   expect(o).toMatch(/Rodando│/); expect(o).toMatch(/Concluído│/); expect(o).toMatch(/Falhou│/) // state pill, top right
@@ -206,7 +206,7 @@ test('maxLines: a short pane shows a window of full cards with scroll notes; the
   const ag = Array.from({ length: 12 }, (_, i) => mk('m' + i))
   const ls = renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 80, maxCardRows: 99, maxLines: 20 })
   expect(ls.length).toBeLessThanOrEqual(20 + 4 + 3)
-  expect(txt(ls)).toContain('mais cards abaixo · j desce')
+  expect(txt(ls)).toContain('1/')
   expect(txt(ls)).toMatch(/✓ Concluído\s+⠹ Rodando/)
 })
 
@@ -228,7 +228,7 @@ test('worktree row: every card of the worktree carries it, with its role', () =>
     mk('c', { parentAgentId: 'P', git: wt, agentId: 'C' }), mk('d', { parentAgentId: 'C', git: wt })]
   const o = txt(cardsOut(ag))
   expect((o.match(/⧉ feat\/x/g) ?? []).length).toBe(5)
-  expect((o.match(/ subagente│/g) ?? []).length).toBe(4); expect((o.match(/ agente│/g) ?? []).length).toBe(1)
+  expect((o.match(/ subagente L\d+│/g) ?? []).length).toBe(4); expect((o.match(/ agente L1│/g) ?? []).length).toBe(1)
 })
 test('filter failed keeps only failures/attention; sort by state puts failures first', () => {
   const ag = [mk('ok', { status: 'done', endedAt: T + 5 }), mk('bad', { status: 'error', endedAt: T + 5 }), mk('run')]
@@ -288,12 +288,12 @@ test('card chips: persona, model and effort chips on ONE line when they fit; tas
   const ag = [mk('t', { description: '🎨 UX/UI · 🎼 Sonnet · 🟢 baixo: Render HTML no app Claude Code' })]
   const o = txt(cardsOut(ag))
   expect(o).toContain('Render HTML no app Claude Code')
-  expect(o).toMatch(/│🎨 UX\/UI · 🎼 Sonnet · 🟢 baixo\s+│/)
+  expect(o).toMatch(/│🎨 UX\/UI · ◆ Sonnet ▁\s+│/)
 })
 test('card chips: too wide with the dots drops the dots, never the model or the effort', () => {
   const ag = [mk('t', { description: '🧠 Specialist · 🎼 Sonnet · 🟡 médio: Validar regra' })]
   const o = txt(cardsOut(ag))
-  expect(o).toMatch(/│🧠 Specialist 🎼 Sonnet 🟡 médio\s*│/)
+  expect(o).toMatch(/│🧠 Specialist · ◆ Sonnet ▁▃\s*│/)
 })
 test('card title: one row; a long task takes the whole row and the state pill gives way (the detail view has the whole text)', () => {
   const o = txt(cardsOut([mk('t', { description: '🧪 QA · 🪶 Haiku · 🟢 baixo: Atualizar a documentação completa do plugin office' })]))
@@ -301,7 +301,7 @@ test('card title: one row; a long task takes the whole row and the state pill gi
 })
 test('card chips: no prefix in the description, subagent_type rapido gives Haiku low', () => {
   const o = txt(cardsOut([mk('t', { description: 'Varrer docs', subagentType: 'rapido' })]))
-  expect(o).toMatch(/│🤖 Agente · 🪶 Haiku · 🟢 baixo\s+│/)
+  expect(o).toMatch(/│🤖 Agente · ◇ Haiku ▁\s+│/)
 })
 test('card chips: description without the format falls back to generic persona, no model/effort line noise', () => {
   const o = txt(cardsOut([mk('g', { description: 'sem formato' })]))

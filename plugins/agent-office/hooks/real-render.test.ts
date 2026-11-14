@@ -48,7 +48,7 @@ test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, s
   expect(rows.some(r => /^ *╭┄+/.test(r))).toBe(true) // bus from the parent card, hung off the trunk
   expect(Math.max(...boxTops(rows))).toBe(3) // 3 x 34 + 2 gaps + trunk = 108 <= 110
   expect(rows.filter(r => /^[ ┊]*╭[─┴]{32}╮/.test(r)).length).toBeGreaterThan(2) // parent + at least two sibling rows
-  expect(out).not.toContain('cards ocultos'); expect(out).toContain('mais cards abaixo · j desce') // short pane: a scrolling window of full cards
+  expect(out).not.toContain('cards ocultos'); expect(out).toMatch(/1\/\d+/) // short pane: a scrolling window of full cards
   expect(out).toContain('Concluído'); expect(out).toContain('barramento')
   expect(rows.filter(r => r.includes('fechar')).length).toBe(1) // one hotkey row; its hint tail only when it fits
 })
