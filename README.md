@@ -117,9 +117,10 @@ with sample agents (`scripts/render-docs.ts`).
 
 ### Mapa (default on the app surfaces)
 
-The session is always the single root card, titled **Orquestrador** (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`, branch of the
-session cwd on the left, `orquestrador` on the right). It is the same card over one agent or over many: there is no separate
-"Claude Code" card.
+The session is the root card (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`, branch of the session cwd on the left, `orquestrador` on the
+right). Root rule from the design legend: with **one** top-level agent the card is titled **Orquestrador**; with **two or more**
+top-level agents the root card is titled **Claude Code** and the agents hang below it (solid bus when they fit one row, dashed
+rows otherwise). Subagents do not count toward the rule.
 
 - **Depth grows downward.** The level-1 agents sit in one row under the root, joined by a solid bus. Each agent's subagents
   hang directly below that parent, in the parent's column, joined by a short vertical line (a parent never shares a row with its
@@ -169,7 +170,9 @@ Tokens read `31k tok`; cost is hidden while unknown; the tool name appears once 
 Three centred rows: the status legend, the glyph legend, then the keys, grouped as filtros (`g o f s`) | visão (`v`) | sair
 (`b q`) with the navigation hints last (`j: descer`, `k: subir`, `Tab`, `Enter`, `ctrl+x tab`). Key letters are buttons, the
 hints are dim. Rows wrap by width one whole item at a time, so a lone `x:` never appears. In a detail the footer reads
-`b voltar | p/n irmão | q fechar`.
+`b: voltar · p/n irmão · j: rolar ↓ · k: rolar ↑ · q: fechar`. `j` / `k` are the `scrollDown` / `scrollUp` actions: in the cards
+view they move the window one card block at a time; in a detail they scroll the body 3 lines per press (clamped, reset when a
+detail opens or closes).
 
 #### Statuses
 
@@ -208,6 +211,7 @@ running session keeps the old code until then.
 - **0.28.9**: map wrap rule (`mapRows`: solid vs dashed bus, rows by width) and root rule covered by tests; footer regrouped,
   centred and wrapped, `j`/`k` are visible items (they rendered as empty `j:` / `k:` lines); the installed-plugin updater and hook.
 - **0.28.10**: Concluído cards expire after 30 s; detail view redesigned (Solicitação / Andamento / Conclusão / Contexto).
+- **0.28.11**: root rule from the design legend (Orquestrador over one top agent, Claude Code over two or more); `j`/`k` scroll the detail body, with `j: rolar ↓` / `k: rolar ↑` in the detail footer.
 
 Full history: [CHANGELOG.md](CHANGELOG.md).
 

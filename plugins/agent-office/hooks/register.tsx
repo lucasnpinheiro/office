@@ -13,7 +13,7 @@ import type { CView } from './compact'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
 import { sideDetail } from './layout'
-import { detailView } from './view-detail'
+import { detailView, detailScrollStep } from './view-detail'
 import { hasWorkflow } from './view-workflow'
 import { worktreeOfAgent } from './view-worktrees'
 import { applyAction, footerRows, startUi } from './actions'
@@ -299,6 +299,14 @@ async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolea
   return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter }), workflow: hasWorkflow(list) } // workflow: g only stops there while a run exists
 }
 async function dispatch($: EngineInterface, a: string) {
+  if ((a === 'scrollDown' || a === 'scrollUp') && (await readUi($)).selected) { // detail open: j/k scroll its body
+    const sel = (await readUi($)).selected
+    const total = detailView((await read($, office)) as OfficeAgent[], sel, Date.now()).lines.length // render is pure: count here, not in the render hook
+    const at = Number(await read($, scrollAt)) || 0
+    await update($, scrollAt, () => detailScrollStep(at, a, total))
+    $.ui.invalidate('ui.render')
+    return
+  }
   if (a === 'scrollDown' || a === 'scrollUp') {
     // one card per press: the window moves from one card block to the next (compact.ts scrollInfo.units), clamped to the last render's max
     const cur = Math.min(Number(await read($, scrollAt)) || 0, scrollInfo.max)
@@ -312,6 +320,7 @@ async function dispatch($: EngineInterface, a: string) {
   if (ui.selected && !((await read($, office)) as OfficeAgent[]).some(x => x.id === ui.selected)) ui.selected = ''
   const r = applyAction(ui, a, a === 'group' ? await groupCtx($, ui) : { terminal: onTerminal() })
   if (r.close) return closeOffice($)
+  if (r.state.selected !== ui.selected) await update($, scrollAt, () => 0) // opening or leaving a detail starts at the top
   await writeUi($, r.state)
   $.ui.invalidate('ui.render')
   if (a === 'view') bg(resizeIfNeeded($)) // map and compact want different pane sizes
@@ -639,7 +648,10 @@ export const register: Register = on => {
       if (selected && attach) {
         const text = await Promise.resolve($.fs.read(attach)).then(r => (typeof r === 'string' ? r : '[binário]')).catch(() => '[não foi possível ler o arquivo]')
         compactFrame = [[{ t: maskText(attach), bold: true, attach: '' }], ...previewLines(text, attach, 40)]
-      } else if (selected) compactFrame = detailOf(selected).lines
+      } else if (selected) {
+        const dl = detailOf(selected).lines
+        compactFrame = dl.slice(Math.min(Number(await read($, scrollAt)) || 0, Math.max(0, dl.length - 1)))
+      }
       else compactFrame = [...goneWarning, ...renderCompact(all, now, compactView)]
     }
     const detail = selected && view !== 'compact' ? detailOf(selected).lines : undefined

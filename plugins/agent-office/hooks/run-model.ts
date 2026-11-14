@@ -111,6 +111,8 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
       prev = id
     })
   }
+  // design legend: one top-level agent keeps the Orquestrador root; two or more get a "Claude Code" root above them
+  if (root.children.filter(k => k.kind === 'agent').length >= 2) root.name = 'Claude Code'
   const starts = [...g.nodes.values()].filter(n => n.kind !== 'session' && n.start !== undefined && Number.isFinite(n.start)).map(n => n.start!)
   if (starts.length) root.start = Math.min(...starts)
   // the orchestrator is done once every agent is final, the same count the header shows (B5): its card and time stop at the last end

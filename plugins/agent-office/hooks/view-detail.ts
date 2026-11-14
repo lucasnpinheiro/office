@@ -178,6 +178,10 @@ export function detailView(agents: AgentLike[], id: string, now: number, o: { ca
   return { lines: out.map(l => cut(l, W)), back: false }
 }
 
+// j/k in a detail: the body moves 3 lines per press, clamped to the first and the last line.
+export const detailScrollStep = (cur: number, dir: 'scrollDown' | 'scrollUp', total: number): number =>
+  Math.max(0, Math.min(Math.max(0, total - 1), cur + (dir === 'scrollDown' ? 3 : -3)))
+
 const textOf = (l: Line): string => l.map(x => x.t).join('')
 
 export function detailScreen(agents: AgentLike[], id: string, now: number, o: { captureIo?: boolean; ascii?: boolean; width?: number } = {}): DetailScreen {

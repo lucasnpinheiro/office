@@ -25,3 +25,7 @@ A imagem do usuário (Image #7) não estava acessível; a fidelidade segue o des
 - Concluído expira em 30 s (`hiddenIds`, só `done`); Falhou/Precisa de você ficam; pai segue visível enquanto um filho aparece. Testes: `cards-visible.test.ts` (B2).
 - Detalhe: layout Solicitação/Andamento/Conclusão/Contexto, `detailView(..., { width })`; teste `view-detail.test.ts` (80 e 160 colunas).
 - Rodapé: `footerRows` (actions.ts), teste em `actions.test.ts`.
+
+## 0.28.11
+- Raiz: 1 agente de topo = card Orquestrador; 2+ = card "Claude Code" acima (`buildGraph` renomeia a raiz; terminal e app). Testes: `app-cards.test.ts` (root rule).
+- Detalhe: j/k rolam o corpo (3 linhas, `detailScrollStep`), rodapé `b voltar · p/n irmão · j/k rolar · q fechar`. Testes: `actions.test.ts`, `view-detail.test.ts`.

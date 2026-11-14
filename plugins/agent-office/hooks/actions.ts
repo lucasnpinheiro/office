@@ -94,6 +94,23 @@ export function footerRows(s: Ui, side: boolean, cols: number): FooterSeg[][] {
     ...(scroll ? [{ t: 'j: descer', act: 'scrollDown', hotkey: 'j' }, { t: 'k: subir', act: 'scrollUp', hotkey: 'k' }] : []),
     ...footerTail(s).replace(/^ · /, '').split(' · ').map(t => ({ t, dim: true })),
   ]
+  if (s.selected && !side && !s.searching) { // detail: b voltar · p/n irmão · j/k rolar · q fechar
+    const items: FooterSeg[] = [
+      ...hotkeysFor(s, side).filter(h => h.act === 'back').map(h => ({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })),
+      { t: 'p/n irmão', dim: true }, { t: 'j: rolar ↓', act: 'scrollDown', hotkey: 'j' }, { t: 'k: rolar ↑', act: 'scrollUp', hotkey: 'k' },
+      ...hotkeysFor(s, side).filter(h => h.act === 'close').map(h => ({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })),
+    ]
+    const rows: FooterSeg[][] = []
+    let cur: FooterSeg[] = [], w = 0
+    for (const seg of items) {
+      const len = [...seg.t].length + (cur.length ? 3 : 0)
+      if (cur.length && w + len > cols) { rows.push(cur); cur = []; w = 0 }
+      if (cur.length) { cur.push({ t: ' · ', dim: true }); w += 3 }
+      cur.push(seg); w += [...seg.t].length
+    }
+    if (cur.length) rows.push(cur)
+    return rows
+  }
   const groups: FooterSeg[][] = [nav, [], [], []]
   for (const h of hotkeysFor(s, side)) groups[groupOf(h.act)]!.push({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })
   // order: filtros, visão, sair first (the keys), navegação last (hints)

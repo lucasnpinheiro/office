@@ -50,7 +50,7 @@ test('app card: real description fixture and subagent_type fallback feed the chi
 
 test('appMap: session root, agents under their parent, tones and pct never invented', () => {
   const m = appMap([mk('p', { description: 'Dev: pai', agentId: 'g-p' }), mk('c', { description: 'Dev: filho', parentAgentId: 'g-p' }), mk('x', { description: 'Dev: x', status: 'error' })], T + 5000, {})
-  expect(m.card.title).toBe('Orquestrador')
+  expect(m.card.title).toBe('Claude Code') // two top-level agents
   const top = m.children.map(n => n.card.title)
   expect(top).toContain('Dev: pai'); expect(top).toContain('Dev: x')
   const pai = m.children.find(n => n.card.title === 'Dev: pai')!
@@ -65,9 +65,9 @@ test('appMap: query prunes branches', () => {
   expect(m.card.id).toBe('session'); expect(m.children.map(n => n.card.id)).toEqual(['beta']) // design 2026-11-14: Orquestrador always on top
 })
 
-test('appMap: several top-level agents keep the Orquestrador session box as their parent', () => {
+test('appMap: several top-level agents hang under the session root titled Claude Code', () => {
   const m = appMap([mk('alfa'), mk('beta')], T + 1000, {})
-  expect(m.card.title).toBe('Orquestrador'); expect(m.children.map(n => n.card.id)).toEqual(['alfa', 'beta'])
+  expect(m.card.title).toBe('Claude Code'); expect(m.children.map(n => n.card.id)).toEqual(['alfa', 'beta'])
 })
 
 test('app card: one segment per tool step when the timeline exists, else none', () => {
@@ -128,10 +128,15 @@ test('map wrap: siblings that fit one row get a solid bus; otherwise rows of flo
   expect(mapRows([], 112)).toEqual({ bus: 'solid', rows: [] })
 })
 
-test('root rule: the session is always the single root card (Orquestrador), over one or several top agents; Claude Code is that session', () => {
-  for (const ag of [[mk('a')], [mk('a'), mk('b'), mk('c')]]) {
+test('root rule (design legend): one top agent keeps the Orquestrador root; two or more get a "Claude Code" root above them', () => {
+  const one = appMap([mk('a')], T + 5000, {})
+  expect(one.card.id).toBe('session'); expect(one.card.title).toBe('Orquestrador'); expect(one.children.map(c => c.card.id)).toEqual(['a'])
+  for (const ag of [[mk('a'), mk('b')], [mk('a'), mk('b'), mk('c')]]) {
     const m = appMap(ag, T + 5000, {})
-    expect(m.card.id).toBe('session'); expect(m.card.title).toBe('Orquestrador'); expect(m.card.role).toBe('orquestrador')
-    expect(m.children.map(c => c.card.id)).toEqual(ag.map(a => a.id))
+    expect(m.card.id).toBe('session'); expect(m.card.title).toBe('Claude Code'); expect(m.layout).toBe('row')
+    expect(m.children.map(c => c.card.id)).toEqual(ag.map(x => x.id))
   }
+  expect(appMap([], T, {}).card.title).toBe('Orquestrador')
+  // subagents do not count: one top agent with two children is still a single top-level agent
+  expect(appMap([mk('a'), mk('k1', { parentAgentId: 'g-a', agentId: 'g-k1' }), mk('k2', { parentAgentId: 'g-a', agentId: 'g-k2' })].map((x, i) => i === 0 ? { ...x, agentId: 'g-a' } : x), T + 5000, {}).card.title).toBe('Orquestrador')
 })

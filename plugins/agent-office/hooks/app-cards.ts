@@ -67,12 +67,12 @@ export function appMap(agents: AgentRecord[], now: number, o: { query?: string; 
   const g = buildGraph(agents, now, o.git)
   const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = runsOf(agents, now, o.model)
   const walk =(n: Node, depth = 0): AppMapNode => ({
-    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Orquestrador', status: undefined, role: 'orquestrador' }
+    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: n.name, status: undefined, role: 'orquestrador' }
       : { ...cardOf(n, nm, now, by.get(n.id)), role: depth <= 1 ? 'agente' : 'subagente' },
     children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(k => walk(k, depth + 1)),
     layout: depth === 0 ? 'row' : 'column',
   })
-  return walk(g.root) // design 2026-11-14: the Orquestrador box is always the root, even over a single agent
+  return walk(g.root) // design legend: the session card is the root (Orquestrador over one top agent, Claude Code over several)
 }
 
 // Card grid: rows of as many 34-wide cards (gap 2) as the pane holds; an explicit row per chunk, so the layout never depends on flex wrap.
