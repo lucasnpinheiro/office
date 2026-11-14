@@ -162,9 +162,9 @@ test('detail redesign: sections in order, k tokens, no orphan rows, no double br
   const kids = Array.from({ length: 11 }, (_, i) => mk(`s${i}`, { agentId: `S${i}`, parentAgentId: 'P', description: `Dev: irmao${i}`, status: 'done', endedAt: T0 + 3000 }))
   const a = mk('a1', {
     agentId: 'A', parentAgentId: 'P', description: 'Dev: fns-misc.js', status: 'done', endedAt: T0 + 8000, usage: { tokens: 30983 },
-    prompt: '[spec-research] respond in caveman full.\nDir: /Users/x/some/very/long/path/to/the/repo\nEscreva as funções utilitárias de fns-misc.js seguindo o CONTRACT.md e rode os testes antes de entregar o resultado final ao orquestrador.',
+    prompt: '[spec-research] respond in caveman full.\nDir: /work/x/some/very/long/path/to/the/repo\nEscreva as funções utilitárias de fns-misc.js seguindo o CONTRACT.md e rode os testes antes de entregar o resultado final ao orquestrador.',
     steps: [{ id: '1', tool: 'Write', label: 'Write fns-misc.js', startedAt: T0 + 3000, durationMs: 400, ok: true }],
-    files: ['/Users/x/proj/scratchpad/work/with/a/really/long/nested/path/that/goes/on/and/on/fns-misc.js'],
+    files: ['/work/x/proj/scratchpad/work/with/a/really/long/nested/path/that/goes/on/and/on/fns-misc.js'],
     git: { branch: 'fix/office-map-wrap' },
   })
   for (const width of [80, 160]) {
