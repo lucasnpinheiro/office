@@ -27,15 +27,15 @@ test('v cycles map, árvore, cards and back to map', async () => {
   expect(applyAction(c, 'view').state.view).toBe('map')
 })
 
-// T-006 / AC-019: g in árvore first opens every collapsed group (tree:all), then moves to the next mode.
+// T-006 / AC-019: g in árvore first opens every collapsed group (tree:fold), then moves to the next mode.
 test('g in árvore: opens all groups first, then the next mode', async () => {
   const t = { ...s0, view: 'compact' as const, mode: 'tree' as const }
   const a = applyAction(t, 'group').state
   expect(a).toMatchObject({ mode: 'tree' })
-  expect(a.expanded).toContain('tree:all')
+  expect(a.expanded).toContain('tree:fold')
   const b = applyAction(a, 'group').state
   expect(b.mode).toBe('grouped')
-  expect(b.expanded).not.toContain('tree:all')
+  expect(b.expanded).not.toContain('tree:fold')
 })
 
 test('s toggles search, back closes search, then attach, then detail', async () => {
@@ -107,8 +107,8 @@ test('g em árvore sem grupos colapsados pula direto ao próximo modo', async ()
   const t = { ...s0, view: 'compact' as const, mode: 'tree' as const }
   const r = applyAction(t, 'group', { collapsed: false }).state
   expect(r.mode).toBe('grouped')
-  expect(r.expanded).not.toContain('tree:all')
-  expect(applyAction(t, 'group', { collapsed: true }).state.expanded).toContain('tree:all')
+  expect(r.expanded).not.toContain('tree:fold')
+  expect(applyAction(t, 'group', { collapsed: true }).state.expanded).toContain('tree:fold')
 })
 
 test('g alcança Custo e Ferramentas; Workflow só entra no ciclo com uma execução em curso (T-008, T-010)', async () => {

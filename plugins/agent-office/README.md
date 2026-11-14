@@ -34,6 +34,24 @@ Terminal pane (a mod run by the engine). Views: tree, grouped, cards (default), 
 workflow run exists), worktrees, detail per agent. Per-agent tokens and tool timeline, session token total (marked `parcial` when
 something is unknown), `+N commits` per worktree, ETA, masked prompts and errors, responsive layout, spinner at 6 frames/s.
 
+#### Layout, breakpoints and scrolling
+
+Follows the Claude Design board "Office Agent Monitor Redesign" (Rodada 5). The pane height is the terminal height (no fixed
+cap) and the layout is recomputed on every resize.
+
+| Pane width | Layout |
+| --- | --- |
+| 100+ columns | full cards, centred tree, status pill, chips, step bar |
+| 60 to 99 | compact cards, the "agora" (current tool) shrinks first, cost and time stay |
+| under 60 | list only: failures and decisions first, then rows of status, name and time with indented children |
+| 150+ (110+ in the desktop app) | detail opens as a side panel; below that it covers the list |
+
+- Overflowing cards scroll: a vertical scrollbar (`░` track, `█` thumb; `|` and `#` in ASCII mode) sits on the last column,
+  cards re-wrap one column narrower to make room, and a stale scroll offset is clamped after a resize.
+- Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
+- Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
+- Keys: `j` scroll down, `k` scroll up (one card row per press), plus the hotkeys below.
+
 Not shipped: Allow, Decline, Stop, Retry, Pause and open-in-chat controls, and the "needs you" (`◆`) decision state. They stay
 hidden until the manual probes listed in ADR 0002 are run (see `.specs/features/office-agent-monitor-v2/spec/06-gaps.md`).
 No bell is rung (there is no pending-decision state). Per-agent cost is `—` (no price table); workflow phase names, rounds and

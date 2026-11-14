@@ -1,5 +1,5 @@
 // Pure UI reducer for the pane's buttons and hotkeys, so every action is testable without a surface.
-import { DEFAULT_MODE, NEXT_MODE, TREE_ALL } from './compact'
+import { DEFAULT_MODE, NEXT_MODE, TREE_FOLD } from './compact'
 import type { Mode } from './compact'
 import { keyOf, labelOf } from './vocabulary'
 
@@ -18,10 +18,10 @@ export const startUi = (): Ui => ({ ...initialUi() })
 export const nextModeOf = (m: Mode, workflow: boolean): Mode => { const n = NEXT_MODE[m]; return n === 'workflow' && !workflow ? NEXT_MODE[n] : n }
 export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workflow?: boolean; terminal?: boolean } = {}): { state: Ui; close?: true } {
   if (a === 'close') return { state: s, close: true }
-  // g em árvore: primeiro abre todos os grupos colapsados (estado do mesmo ciclo), depois passa ao modo seguinte.
+  // g em árvore: primeiro recolhe irmãos iguais em grupos (opt-in; o padrão mostra todos), depois passa ao modo seguinte.
   if (a === 'group') {
-    if (s.mode === 'tree' && ctx.collapsed !== false && !s.expanded.includes(TREE_ALL)) return { state: { ...s, expanded: [...s.expanded, TREE_ALL] } }
-    return { state: { ...s, mode: nextModeOf(s.mode, ctx.workflow === true), modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_ALL) } }
+    if (s.mode === 'tree' && ctx.collapsed !== false && !s.expanded.includes(TREE_FOLD)) return { state: { ...s, expanded: [...s.expanded, TREE_FOLD] } }
+    return { state: { ...s, mode: nextModeOf(s.mode, ctx.workflow === true), modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_FOLD) } }
   }
   // tabs of the app pane: Mapa = map view; every other tab is the compact view in that mode
   if (a === 'tab:map') return { state: { ...s, view: 'map', selected: '', attach: '', filter: 'all' } }

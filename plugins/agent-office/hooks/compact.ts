@@ -88,8 +88,8 @@ export type CView = {
   sessionUsd?: number // `$.session.usage().cost.usd`, only when the engine gave it
   containerPx?: number // app container width (px), only when the engine reports it (ADR 0002: containerWidth not-verified); absent = terminal rules
 }
-// Árvore: irmãos com o mesmo estado acima de 8 viram `Rodando ×N`; `g` com este item em expanded abre todos (AC-019).
-export const TREE_ALL = 'tree:all'
+// Árvore: por padrão todos os cards aparecem abertos. Opt-in (tecla g, item em expanded): irmãos do mesmo estado acima de 8 viram um grupo `Rodando ×N` (AC-019).
+export const TREE_FOLD = 'tree:fold'
 export const TREE_COLLAPSE_OVER = 8
 
 const sp = (n: number): Seg[] => (n > 0 ? [{ t: ' '.repeat(n) }] : [])
@@ -229,7 +229,13 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
 function tabsLine(agents: AgentLike[], v: CView): Line {
   const c = v.caps
   const tabs: [Mode, string][] = [['cards', 'Mapa'], ['tree', 'Árvore'], ['grouped', 'Worktrees'], ...(agents.some(a => a.workflow) ? [['workflow', 'Workflow'] as [Mode, string]] : []), ['cost', 'Custo'], ['tools', 'Ferramentas']]
-  return fit(tabs.flatMap(([m, label]) => [seg(c, ` ${label} `, undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]), v.width)
+  const one = ([m, label]: [Mode, string]): Seg[] => [seg(c, ` ${label} `, undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
+  // too narrow for every tab: the strip scrolls, dropping tabs from the left until the active one is visible (design: tabs scroll horizontally)
+  const wOf = (t: [Mode, string]) => strWidth(t[1]) + 3
+  const act = Math.max(0, tabs.findIndex(t => t[0] === v.mode))
+  let from = 0
+  while (from < act && tabs.slice(from, act + 1).reduce((a, t) => a + wOf(t), from ? 2 : 0) > v.width) from++
+  return fit([...(from ? [seg(c, c.ascii ? '< ' : '‹ ', DIM)] : []), ...tabs.slice(from).flatMap(one)], v.width)
 }
 
 function filterBar(g: Graph, v: CView): Line {
@@ -306,7 +312,7 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
         if (ms.length > 1) items.push({ group: { state: s, ms, key: `grp:${n.id}:${s}` } })
         else ms.forEach(k => items.push({ n: k }))
       }
-    } else if (v.mode === 'tree' && !v.expanded.has(TREE_ALL)) {
+    } else if (v.mode === 'tree' && v.expanded.has(TREE_FOLD)) {
       // irmãos do mesmo estado acima do limite viram um grupo colapsado, na posição do primeiro (AC-019)
       const counts = new Map<State, number>()
       for (const k of kids) if (k.kind === 'agent' && !pinned(k)) counts.set(k.state, (counts.get(k.state) ?? 0) + 1)
@@ -675,9 +681,11 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     if (v.mode === 'cards') {
       // every card keeps its full anatomy and none is dropped: a pane too short shows a window of the tree that scrolls
       // one level (card + bus) per step, with a line above and below saying where the rest is
-      const allCards = cardLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r])))
+      let allCards = cardLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r])))
       const cap = v.maxLines === undefined ? Infinity : Math.max(CARD_H + 3, v.maxLines)
       if (allCards.length > cap) {
+        // one column goes to the scrollbar: cards are laid out again one column narrower
+        allCards = cardLines(g, nm, keep, now, { ...v, width: w - 1 }, new Map(model.nodes.map(r => [r.id, r])))
         const room = cap - 2, step = CARD_H + 1
         const max = Math.ceil((allCards.length - room) / step) * step
         const off = Math.min(Math.max(0, v.scroll ?? 0), max)
@@ -685,7 +693,17 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         const kd = keyOf('scrollDown') ?? 'j', ku = keyOf('scrollUp') ?? 'k'
         const note = (t: string): Line => centre([seg(v.caps, t, DIM)], w)
         out.push(note(off > 0 ? `${v.caps.ascii ? '^' : '↑'} mais cards acima · ${ku} sobe` : `${ku} sobe · ${kd} desce`))
-        out.push(...allCards.slice(Math.max(0, off - 1), Math.max(0, off - 1) + room)) // off - 1: the window opens on the bus above the row
+        const from = Math.max(0, off - 1) // off - 1: the window opens on the bus above the row
+        const win = allCards.slice(from, from + room)
+        // scrollbar: track + thumb on the last column, thumb size and place proportional to the window
+        const thumbH = Math.max(1, Math.min(room, Math.round(room * room / allCards.length)))
+        const top = Math.round((room - thumbH) * (max ? Math.min(from, allCards.length - room) / Math.max(1, allCards.length - room) : 0))
+        const [tk, th] = v.caps.ascii ? ['|', '#'] : ['░', '█']
+        for (let i = 0; i < room; i++) {
+          const l = fit(win[i] ?? [], w - 1)
+          const used = l.reduce((a, q) => a + strWidth(q.t), 0)
+          out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM)])
+        }
         out.push(note(off < max ? `${v.caps.ascii ? 'v' : '↓'} mais cards abaixo · ${kd} desce` : `fim da árvore · ${ku} sobe`))
       } else { scrollInfo.max = 0; out.push(...allCards) }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
