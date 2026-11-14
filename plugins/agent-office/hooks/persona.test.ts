@@ -34,7 +34,7 @@ test('parser: legacy versioned model token and tier-only prefix resolve the cano
 test('PERSONAS catalog: unique keys/icons for every row', () => {
   const strip = (s: string) => s.replace('️', '')
   const icons = PERSONAS.map(p => strip(p.icon))
-  expect(PERSONAS.length).toBe(17)
+  expect(PERSONAS.length).toBe(18)
   expect(new Set(PERSONAS.map(p => p.key)).size).toBe(PERSONAS.length)
   expect(new Set(icons).size).toBe(PERSONAS.length)
   for (const a of icons) for (const b of icons) if (a !== b) expect(a.includes(b)).toBe(false)
@@ -60,7 +60,24 @@ test('display tables', () => {
 test('chips: icon + label for persona, model and effort; graceful fallbacks', () => {
   expect(chips('Tech Writer', 'Haiku', 'médio')).toEqual({ persona: '✍️ Tech Writer', model: '🪶 Haiku', effort: '🟡 médio' })
   expect(chips('Product Owner', 'Opus', 'alto')).toEqual({ persona: '🎯 Product Owner', model: '👑 Opus', effort: '🔴 alto' })
-  expect(chips('Pleno', 'Sonnet', 'baixo')).toEqual({ persona: '🛠️ Pleno', model: '🎼 Sonnet', effort: '🟢 baixo' })
+  expect(chips('Pleno', 'Sonnet', 'baixo')).toEqual({ persona: '🛠️ Mid-level', model: '🎼 Sonnet', effort: '🟢 baixo' })
   expect(chips('Agente', '', undefined)).toEqual({ persona: '🤖 Agente', model: undefined, effort: undefined })
   expect(chips('Orquestrador', 'ModeloX', 'raro')).toEqual({ persona: 'Orquestrador', model: 'ModeloX', effort: 'raro' })
+})
+
+test('English persona names and pt-BR aliases map to the same persona', () => {
+  const pairs: [string, string, string][] = [
+    ['🧠', 'Specialist', 'Especialista'], ['📐', 'Architect', 'Arquiteto'],
+    ['🛠️', 'Mid-level', 'Pleno'], ['🐣', 'Intern', 'Estagiário'],
+  ]
+  for (const [icon, en, pt] of pairs) {
+    const a = parseDescription(`${icon} ${en} · 🎼 Sonnet · 🟢 esforço: x`)
+    const b = parseDescription(`${icon} ${pt} · 🎼 Sonnet · 🟢 baixo: x`)
+    expect(a.persona.key).toBe(b.persona.key)
+    expect(a.persona.name).toBe(en)
+    expect(chips(pt).persona).toBe(chips(en).persona)
+    expect(chips(en).persona).toBe(`${a.persona.icon} ${en}`)
+  }
+  const q = parseDescription('🛠️ Mid-level · 🎼 Sonnet · 🟢 esforço: Reading edit.php')
+  expect([q.persona.key, q.model, q.effort, q.label]).toEqual(['pl', 'sonnet', 'low', 'Reading edit.php'])
 })

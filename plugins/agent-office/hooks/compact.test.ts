@@ -168,10 +168,10 @@ test('no slanted parallelogram glyphs anywhere (render badly in terminals)', () 
   expect(txt(cardsOut([mk('a'), mk('b', { status: 'done', endedAt: T + 100 })]))).not.toMatch(/[▰▱]/)
 })
 test('card anatomy: name, persona · model, tool/status row, bar + metric + time', () => {
-  const ag = [mk('r', { description: '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo: run', tool: 'git', recent: ['Read', 'git'] }),
+  const ag = [mk('r', { description: '🧪 QA · 🎼 Sonnet · 🟢 baixo: run', tool: 'git', recent: ['Read', 'git'] }),
     mk('d', { status: 'done', endedAt: T + 5000 }), mk('f', { status: 'error', endedAt: T + 2000, error: 'timeout 120s tests/Nfe' })]
   const o = txt(cardsOut(ag))
-  expect(o).toMatch(/🛠️ Pleno · 🎼 Sonnet · 🟢 baixo\s+│/)
+  expect(o).toMatch(/🧪 QA · 🎼 Sonnet · 🟢 baixo\s+│/)
   expect(o).toMatch(/▸ git ‹ Read/); expect(o).toContain('concluído'); expect(o).toContain('✗ timeout 120s tests/Nfe')
   expect(o).toMatch(/exec\s+00:09/)
 })
@@ -287,13 +287,13 @@ test('card chips: persona, model and effort chips on ONE line when they fit; tas
   expect(o).toMatch(/│🎨 UX\/UI · 🎼 Sonnet · 🟢 baixo\s+│/)
 })
 test('card chips: too wide for one line falls back to persona line + model · effort line', () => {
-  const ag = [mk('t', { description: '🧠 Especialista · 🎼 Sonnet · 🟡 médio: Validar regra' })]
+  const ag = [mk('t', { description: '🧠 Specialist · 🎼 Sonnet · 🟡 médio: Validar regra' })]
   const o = txt(cardsOut(ag))
-  expect(o).toMatch(/│🧠 Especialista\s+│/)
+  expect(o).toMatch(/│🧠 Specialist\s+│/)
   expect(o).toMatch(/│🎼 Sonnet · 🟡 médio\s+│/)
 })
 test('card title: long task overflows to a second line instead of being cut', () => {
-  const o = txt(cardsOut([mk('t', { description: '🛠️ Pleno · 🪶 Haiku · 🟢 baixo: Atualizar a documentação completa do plugin office' })]))
+  const o = txt(cardsOut([mk('t', { description: '🧪 QA · 🪶 Haiku · 🟢 baixo: Atualizar a documentação completa do plugin office' })]))
   expect(o).toContain('Atualizar a documentação'); expect(o).toContain('plugin office')
 })
 test('card chips: no prefix in the description, subagent_type rapido gives Haiku low', () => {

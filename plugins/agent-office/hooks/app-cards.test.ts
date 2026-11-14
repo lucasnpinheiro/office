@@ -12,9 +12,9 @@ test('surface: only the terminal keeps the text cards; desktop, vscode and mobil
 })
 
 test('app card: task as title, persona/model/effort chips with icons, state tone', () => {
-  const [c] = appCards([mk('a', { description: '🛠️ Pleno · 🎼 Sonnet · 🟡 médio: Reading edit.php' })], T + 5000, {})
+  const [c] = appCards([mk('a', { description: '🛠️ Mid-level · 🎼 Sonnet · 🟡 médio: Reading edit.php' })], T + 5000, {})
   expect(c!.title).toBe('Reading edit.php')
-  expect(c!.chips).toEqual(['🛠️ Pleno', '🎼 Sonnet', '🟡 médio'])
+  expect(c!.chips).toEqual(['🛠️ Mid-level', '🎼 Sonnet', '🟡 médio'])
   expect(c!.state).toBe('running')
   expect(c!.tone).toBe('suggestion')
 })

@@ -1,6 +1,6 @@
 {
   "name": "personas",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Three-tier subagent workers (rapido/padrao/profundo = Haiku/Sonnet/Opus), a 17-persona role table and an optional UserPromptSubmit tier router (uses Laya when available, keyword fallback otherwise).",
   "author": { "name": "lucasnpinheiro" },
   "homepage": "https://github.com/lucasnpinheiro/office/tree/main/plugins/personas#readme",

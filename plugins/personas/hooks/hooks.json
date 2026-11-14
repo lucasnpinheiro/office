@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/model-router.sh\"",
+            "command": "if [ -f /Users/lucasnpinheiro/.agents/hooks/model-router.sh ]; then bash /Users/lucasnpinheiro/.agents/hooks/model-router.sh; else bash \"${CLAUDE_PLUGIN_ROOT}/hooks/model-router.sh\"; fi",
             "timeout": 10
           }
         ]
