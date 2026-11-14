@@ -223,3 +223,7 @@ Details: [docs/privacy.md](docs/privacy.md).
 MIT (each plugin carries its own `LICENSE`). Exception: `plugins/learning/skills/task-observer` is by Eoghan Henn
 ([rebelytics.com](https://rebelytics.com)), licensed CC BY 4.0, original
 https://github.com/rebelytics/one-skill-to-rule-them-all (see the NOTICE in [plugins/learning](plugins/learning/README.md)).
+
+## Keeping installed plugins current
+
+`scripts/update-installed-plugins.sh` refreshes the marketplace and the user-scope install of every plugin whose `plugin.json` version differs from the installed one (idempotent, silent without `claude`). The `post-merge` hook in `.githooks/` runs it after a pull or merge that touches a manifest. Enable once per clone: `git config core.hooksPath .githooks`. Self-check: `scripts/test-update-installed.sh`.
