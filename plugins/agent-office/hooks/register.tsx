@@ -623,8 +623,8 @@ export const register: Register = on => {
     const compactView: CView = {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
-      expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, scroll: await read($, scrollAt),
-      maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 9, // header box 3 + Geral 1 + rule and legend 3 + hotkeys 1 + 1 spare
+      expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, scroll: await read($, scrollAt), branch: sgit?.branch,
+      maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 9, // header 3 + tabs 1 + rule and legend 3 + hotkeys 1 + 1 spare (alert banners add their own rows)
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, ahead: aheadNow(),
       containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,

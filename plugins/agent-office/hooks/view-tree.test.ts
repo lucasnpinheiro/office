@@ -31,7 +31,7 @@ test('AC-018 árvore: conectores ├─ e └─ (sem ╰─)', () => {
 test('AC-018 árvore: cabeçalho com tempo, rodando e tokens (sem custo inventado)', () => {
   const out = txt(renderCompact(family, T + 5000, view()))
   expect(out).toContain('00:00:05')
-  expect(out).toContain('ativos')
+  expect(out).toContain('rodando')
   expect(out).toMatch(/tokens —/) // sem dado: traço, nunca zero
   expect(out).not.toMatch(/custo|~\$0,00/)
 })
@@ -101,8 +101,8 @@ test('AC-018 árvore: tokens aparecem no cabeçalho a 60 colunas, em forma curta
   const lines = txt(renderCompact([mk('o')], T + 5000, view({ width: 60, project: 'proj' }))).split('\n')
   const head = lines.slice(0, 3).join('\n')
   expect(head).toContain('Office')
-  expect(lines[1]).toMatch(/\d\d:\d\d · —/)
-  expect(lines[1]).not.toContain('tokens') // forma curta: sem a palavra
+  expect(lines[0]).toMatch(/ —$/); expect(lines[1]).toMatch(/^\d\d:\d\d · /)
+  expect(head).not.toContain('tokens') // forma curta: sem a palavra
 })
 
 // Judge finding 10: stale hint, treeHasCollapsed

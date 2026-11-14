@@ -80,7 +80,7 @@ export const DEFAULT_MODE: Mode = 'cards'
 // g cycle. `workflow` is only a stop while a workflow run exists (applyAction skips it otherwise: an always-empty screen is not shown).
 export const NEXT_MODE: Record<Mode, Mode> = { tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'cost', cost: 'tools', tools: 'workflow', workflow: 'tree' }
 export type CView = {
-  width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; scroll?: number
+  width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; scroll?: number; branch?: string
   filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities
   ahead?: Record<string, AheadInfo> // by worktree key: real base + commits ahead; absent = unknown (AC-023)
   model?: RunModel // built once by the caller (register.tsx) with the session tokens; built here from the agents when absent
@@ -108,18 +108,6 @@ const fit = (l: Line, w: number): Line => {
 const spread = (l: Line, r: Line, w: number): Line => {
   const gap = w - lineWidth(l) - lineWidth(r)
   return gap >= 1 ? [...l, ...sp(gap), ...r] : fit(l, Math.max(0, w - lineWidth(r) - 1)).concat(sp(1), r)
-}
-
-// Segmented single bar: done (green), running (blue), failed (red), rest hatched.
-function segBar(g: Graph, c: Caps, cells: number): Line {
-  const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
-  const tot = ns.length || 1
-  const cnt = (f: (n: Node) => boolean) => Math.round((ns.filter(f).length / tot) * cells)
-  const d = Math.min(cells, cnt(n => n.state === 'done'))
-  const r = Math.min(cells - d, cnt(n => n.state === 'running' || n.state === 'attention'))
-  const x = Math.min(cells - d - r, cnt(n => n.state === 'failed'))
-  const [on, off] = BAR(c)
-  return [seg(c, on.repeat(d), STATE_COLOR.done), seg(c, on.repeat(r), STATE_COLOR.running), seg(c, on.repeat(x), STATE_COLOR.failed), seg(c, off.repeat(cells - d - r - x), DIM)]
 }
 
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)]! : 0 }
@@ -203,9 +191,10 @@ const ROUND_BOX = (c: Caps, w: number, left: Line, right: Line, color = '#6b7280
 // centred chrome of the cards view (user decision: everything centred)
 const centre = (l: Line, w: number): Line => { const lw = l.reduce((a, q) => a + strWidth(q.t), 0); return lw >= w ? l : [...sp(Math.floor((w - lw) / 2)), ...l] }
 
+// Header per design (Proto5 top): "Office · project · ⎇ branch" with the cost on the right, a line of time and counts,
+// then one bar segment per agent in its state colour, the full width of the pane.
 function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const { caps: c, width: w } = v
-  const prog = overallProgress(g)
   const eta = etaOf(g)
   const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const n_ = (f: (n: Node) => boolean) => ns.filter(f).length
@@ -213,19 +202,34 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   // tokens come from the RunModel (per agent + main session, `partial` when something is unknown); the session USD only when the engine gave it
   const tot = (v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)).totals
   const tokTxt = tot.tokens === undefined ? '—' : fmtTokens(tot.tokens) + (tot.partial ? ' parcial' : '')
-  const usdTxt = v.sessionUsd === undefined ? '' : ` · ${fmtUsd(v.sessionUsd)}`
   const sid = String(v.sessionId ?? '').replace(/[^\w-]/g, '').slice(0, 6)
-  // the full layout carries the whole product name (one view in the terminal, so this is the only header)
-  const left: Line = [seg(c, layoutLevel(w) === 'full' ? 'Office Agent Monitor' : 'Office', undefined, { bold: true }), seg(c, ` · ${v.project || '-'}${sid ? ' · #' + sid : ''}`, DIM)]
-  // below the full layout the right side drops the words and the ETA, so the "Office" title keeps its room
   const full = layoutLevel(w) === 'full'
-  const right: Line = [seg(c, `${glyph(c, 'running')} ${act}${full ? ' ativos' : ''}`, STATE_COLOR.running), seg(c, ` ${glyph(c, 'done')} ${ok}`, STATE_COLOR.done),
-    seg(c, ` ${glyph(c, 'failed')} ${bad}`, STATE_COLOR.failed),
-    seg(c, full ? ` · ${fmtHMS(agents.length ? elapsedOf(g, now) : 0)} · tokens ${tokTxt}${usdTxt} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}` : ` · ${fmtMMSS(agents.length ? elapsedOf(g, now) : 0)}${w >= 60 ? ' · ' + (tot.tokens === undefined ? '—' : fmtTokens(tot.tokens)) : ''}`, DIM)]
-  const geral: Line = [seg(c, 'Geral '), ...segBar(g, c, layoutLevel(w) === 'full' ? 20 : 10), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'} · `),
-    seg(c, keyOf('group') ?? 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna modo', DIM)]
-  // sem agente não há progresso a mostrar: a linha Geral (com barra) só existe quando há agentes (AC-020)
-  return [...ROUND_BOX(c, w, left, right), ...(agents.length ? [v.mode === 'cards' ? centre(fit(geral, w), w) : fit(geral, w)] : [])]
+  const left: Line = [seg(c, 'Office', undefined, { bold: true }),
+    seg(c, ` · ${v.project || '-'}${v.branch ? ` · ${c.ascii ? 'br' : '⎇'} ${v.branch}` : ''}${sid ? ' · #' + sid : ''}`, DIM)]
+  const right: Line = [seg(c, v.sessionUsd !== undefined ? fmtUsd(v.sessionUsd) : full ? `tokens ${tokTxt}` : tot.tokens === undefined ? '—' : fmtTokens(tot.tokens), undefined, { bold: true })]
+  const dot = seg(c, ' · ', DIM)
+  const counts: Line = [seg(c, full ? fmtHMS(agents.length ? elapsedOf(g, now) : 0) : fmtMMSS(agents.length ? elapsedOf(g, now) : 0), DIM), dot,
+    seg(c, `${act} rodando`, STATE_COLOR.running), dot, seg(c, `${ok} ${ok === 1 ? 'concluído' : 'concluídos'}`, STATE_COLOR.done), dot,
+    seg(c, `${bad} ${bad === 1 ? 'falha' : 'falhas'}`, bad ? STATE_COLOR.failed : DIM),
+    ...(full ? [seg(c, `${v.sessionUsd === undefined ? '' : ` · tokens ${tokTxt}`} · ${eta === undefined ? 'ETA calculando' : 'ETA ' + fmtHMS(eta)}`, DIM)] : [])]
+  // one segment per agent (state colour); more agents than fit share the row in equal slices of the same order
+  const H = c.ascii ? '=' : '━'
+  const slots = Math.max(1, Math.min(ns.length, Math.floor((w + 1) / 2)))
+  const per = Math.floor((w - (slots - 1)) / slots), extra = w - (slots - 1) - per * slots
+  const worst = (xs: Node[]): string => stateColor((xs.find(n => n.state === 'failed') ?? xs.find(n => n.state === 'attention') ?? xs.find(n => n.state === 'running') ?? xs.find(n => n.state === 'pending') ?? xs[0]!).state)
+  const bar: Line = ns.length ? Array.from({ length: slots }, (_, i) => {
+    const grp = ns.slice(Math.floor((i * ns.length) / slots), Math.floor(((i + 1) * ns.length) / slots))
+    return [...(i ? sp(1) : []), seg(c, H.repeat(per + (i < extra ? 1 : 0)), worst(grp))]
+  }).flat() : []
+  // sem agente não há progresso a mostrar: a barra de segmentos só existe quando há agentes (AC-020)
+  return [spread(left, right, w), fit(counts, w), ...(ns.length ? [bar] : [])]
+}
+
+// View tabs of the design (Mapa, Árvore, Worktrees, Custo, Ferramentas; Workflow only while a run exists): a click picks the mode.
+function tabsLine(agents: AgentLike[], v: CView): Line {
+  const c = v.caps
+  const tabs: [Mode, string][] = [['cards', 'Mapa'], ['tree', 'Árvore'], ['grouped', 'Worktrees'], ...(agents.some(a => a.workflow) ? [['workflow', 'Workflow'] as [Mode, string]] : []), ['cost', 'Custo'], ['tools', 'Ferramentas']]
+  return fit(tabs.flatMap(([m, label]) => [seg(c, ` ${label} `, undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]), v.width)
 }
 
 function filterBar(g: Graph, v: CView): Line {
@@ -251,19 +255,24 @@ function footer(g: Graph, v: CView): Line[] {
 }
 
 // Topo da árvore: ◆ (decisão) e ✗ (falha) sempre primeiro. A tecla da ação só aparece se a capability for `yes` (AC-018).
+// Banners of the design under the header: one rounded box per agent that needs the user (◆) or failed (✗), its message and
+// [Ver] to open it. At most two boxes; the rest is one line, so the tree keeps its room.
 function pinnedLines(g: Graph, nm: Map<string, string>, keep: Set<string>, v: CView): Line[] {
   const c = v.caps
   // só a falha tem ação hoje (retry); a decisão (needs-you, ◆) entra com T-011 e o estado correspondente
   const ret = bindable(v.capabilities ?? CAPABILITIES, 'terminal').find(e => e.act === 'retry')
-  return [...g.nodes.values()]
+  const bad = [...g.nodes.values()]
     .filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'attention' || n.state === 'failed'))
     .sort((a, b) => Number(b.state === 'attention') - Number(a.state === 'attention'))
-    .map(n => {
-      const e = n.state === 'failed' ? ret : undefined
-      const left: Line = [seg(c, glyph(c, n.state) + ' ', stateColor(n.state), { node: n.id }),
-        seg(c, nm.get(n.id) ?? n.name, undefined, { bold: true, node: n.id }), seg(c, n.error ? '  ' + n.error : '', DIM)]
-      return e ? spread(left, [seg(c, `${e.key} ${e.label}`, DIM)], v.width) : fit(left, v.width)
-    })
+  const out: Line[] = []
+  for (const n of bad.slice(0, 2)) {
+    const col_ = stateColor(n.state), name = nm.get(n.id) ?? n.name
+    const left: Line = [seg(c, `${glyph(c, n.state)} ${n.state === 'failed' ? `${name} falhou` : `Precisa de você: ${name}`}`, col_, { bold: true, node: n.id }), seg(c, n.error ? '  ' + n.error : '', undefined)]
+    const e = n.state === 'failed' ? ret : undefined
+    out.push(...ROUND_BOX(c, v.width, left, [...(e ? [seg(c, `${e.key} ${e.label}  `, DIM)] : []), seg(c, '[Ver]', col_, { node: n.id })], col_))
+  }
+  if (bad.length > 2) out.push(fit([seg(c, `${glyph(c, 'failed')} +${bad.length - 2} ${bad.length - 2 === 1 ? 'outro alerta' : 'outros alertas'} · ${keyOf('failed') ?? 'f'} ${labelOf('failed') ?? 'só falhas'}`, STATE_COLOR.failed)], v.width))
+  return out
 }
 
 function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, start: Node = g.root): Line[] {
@@ -649,14 +658,14 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const nm = names(g)
   const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
-  const out: Line[] = [...header(g, agents, now, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
+  // order of the design: header, alert banners, view tabs, then the view itself
+  const out: Line[] = [...header(g, agents, now, v), ...(agents.length && (v.mode === 'tree' || v.mode === 'cards') ? pinnedLines(g, nm, keep, v) : []), tabsLine(agents, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
   if (agents.length === 0) {
     // empty session: the orchestrator card alone, centred, with the waiting line under it (never a bare line of text)
     if (v.mode === 'cards') { scrollInfo.max = 0; out.push(...cardLines(g, nm, keep, now, v), []) }
     const wait: Line = [seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)]
     out.push(v.mode === 'cards' ? centre(wait, w) : wait)
   } else {
-    if (v.mode === 'tree' || v.mode === 'cards') out.push(...pinnedLines(g, nm, keep, v))
     const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
     if (v.mode === 'grouped' && bad.length) {
       out.push([seg(v.caps, `Atenção (${bad.length})`, STATE_COLOR.attention, { bold: true })])

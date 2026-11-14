@@ -121,7 +121,7 @@ test('header keeps the "Office" title visible at 60 columns (T-013: below 60 is 
   const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
   const ag = Array.from({ length: 5 }, (_, i) => mk({ id: 'h' + i, agentId: 'gh' + i }))
   const lines = renderCompact(ag, T0 + 5000, { width: 60, caps, mode: 'cards', query: '', expanded: new Set(), maxCardRows: 4, project: 'meuprojeto', sessionId: 'abcdef123' })
-  expect(lines[1]!.map(s => s.t).join('')).toContain('Office')
+  expect(lines[0]!.map(s => s.t).join('')).toContain('Office')
 })
 
 test('/office open <unknown id> in the compact view keeps the cards (no fall-through to the map)', async ($, on) => {

@@ -47,7 +47,7 @@ test('sideDetail: container conhecido manda; senão a regra de colunas do termin
 
 test('I-042 renderCompact 100 colunas é completo; 60 é compacto sem perder estado; nada passa da largura', () => {
   const full = renderCompact(agents, NOW, view({ width: 100 })), comp = renderCompact(agents, NOW, view({ width: 60 }))
-  expect(txt(full)).toContain('ativos'); expect(txt(comp)).not.toContain('ativos')
+  expect(txt(full)).toContain('ETA'); expect(txt(comp)).not.toContain('ETA') // the compact header drops the ETA, keeps the counts
   for (const out of [txt(full), txt(comp)]) { expect(out).toContain('boom'); expect(out).toContain('01:05'); expect(out).toContain('run') }
   expect(widest(full)).toBeLessThanOrEqual(100); expect(widest(comp)).toBeLessThanOrEqual(60)
   expect(txt(full)).toContain('Bash') // agora visível com espaço
