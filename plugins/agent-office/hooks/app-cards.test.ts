@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { isAppSurface, appCards, appMap, appGrid } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows } from './app-cards'
 import type { AgentLike } from './office'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES } from './capabilities'
@@ -117,4 +117,21 @@ test('grid: cards wrap into rows by pane width (horizontal and vertical), never 
   expect(rowsOf(10)).toEqual([1, 1, 1, 1, 1, 1, 1]) // narrower than one card: one per row, none dropped
   expect(appGrid(['a'], 120)).toEqual([['a']])
   expect(appGrid([], 120)).toEqual([])
+})
+
+test('map wrap: siblings that fit one row get a solid bus; otherwise rows of floor((w-2+2)/36) hang off a dashed trunk, one dashed bus per row', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+  expect(mapRows(ids.slice(0, 3), 112)).toEqual({ bus: 'solid', rows: [['a', 'b', 'c']] }) // 3 per row at 112 cols
+  expect(mapRows(ids, 112)).toEqual({ bus: 'dashed', rows: [['a', 'b', 'c'], ['d', 'e', 'f'], ['g']] })
+  expect(mapRows(ids.slice(0, 4), 112).bus).toBe('dashed')
+  expect(mapRows(ids.slice(0, 2), 10)).toEqual({ bus: 'dashed', rows: [['a'], ['b']] }) // narrower than a card: one per row
+  expect(mapRows([], 112)).toEqual({ bus: 'solid', rows: [] })
+})
+
+test('root rule: the session is always the single root card (Orquestrador), over one or several top agents; Claude Code is that session', () => {
+  for (const ag of [[mk('a')], [mk('a'), mk('b'), mk('c')]]) {
+    const m = appMap(ag, T + 5000, {})
+    expect(m.card.id).toBe('session'); expect(m.card.title).toBe('Orquestrador'); expect(m.card.role).toBe('orquestrador')
+    expect(m.children.map(c => c.card.id)).toEqual(ag.map(a => a.id))
+  }
 })

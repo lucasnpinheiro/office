@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import { isAppSurface, appCards, appMap, appGrid, appPerRow } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows } from './app-cards'
 import type { AppCard, AppMapNode } from './app-cards'
 import { spinnerGlyph } from './motion'
 import { detailData } from './view-detail'
@@ -721,7 +721,6 @@ export const register: Register = on => {
     )
     // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
     // Connectors are Boxes (a 1-cell bar), tone `suggestion` into a running child, `subtle` otherwise.
-    const perRowApp = appPerRow(cols)
     const dashes = (key: string, dir: 'row' | 'column', n: number, live = false) => (
       <Box key={key} flexDirection={dir} gap="xs" {...(dir === 'row' ? { height: 1, width: '100%' } : { width: 1 })}>
         {Array.from({ length: n }, (_, i) => <Box key={`dash-${key}-${i}`} flexGrow={1} {...(dir === 'row' ? { height: 1 } : { width: 1 })} backgroundColor={live && !caps.reducedMotion && i === fr % n ? 'suggestion' : 'subtle'} />)}
@@ -743,12 +742,11 @@ export const register: Register = on => {
       )
     }
     // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
-    // Same rule as the terminal: one solid bus when the siblings fit one row; otherwise rows of perRowApp cards hang off a
+    // Same rule as the terminal: one solid bus when the siblings fit one row; otherwise rows of appPerRow cards hang off a
     // dashed trunk on the left, each row under its own dashed bus (user choice), so the rows never read as a frame.
     const mapTree = (n: AppMapNode, key: string): any => {
       const kids = n.children
-      const rows: AppMapNode[][] = []
-      for (let i = 0; i < kids.length; i += perRowApp) rows.push(kids.slice(i, i + perRowApp))
+      const { rows } = mapRows(kids, cols)
       return (
         <Box key={key} flexDirection="column" alignItems="center">
           {appCardBox(n.card, kids.length > 0)}

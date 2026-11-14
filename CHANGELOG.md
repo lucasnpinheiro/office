@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.9 (agent-office, map wrap rule tested)
+
+- The map's sibling layout is now the pure `mapRows` (solid bus when siblings fit one row, else rows of floor((w-2+2)/36) under a dashed trunk with a dashed bus per row), with tests. Root rule locked by test: the session is always the single root card (Orquestrador) over one or several top agents.
+
 ## 0.28.8 (agent-office, cards grid on the app surfaces)
 
 - Desktop/VS Code/mobile card view now lays cards out in explicit rows by pane width (`appGrid`, 34-wide cards + gap 2) instead of relying on flex wrap, which rendered every card in one horizontal row. Narrower than one card: one per row, none dropped.

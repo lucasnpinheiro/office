@@ -15,3 +15,8 @@ A imagem do usuário (Image #7) não estava acessível; a fidelidade segue o des
 - AC-1 `appGrid(7 itens, 120)` = [3,3,1]; `(…, 200)` = [5,2]; `(…, 10)` = 7 linhas de 1.
 - AC-2 `appGrid(['a'], 120)` = [['a']]; `appGrid([], 120)` = [].
 - Teste: `app-cards.test.ts` (grid).
+
+## 0.28.9
+- `mapRows(kids, cols)` (app-cards.ts) decide o barramento do mapa: `solid` se cabe numa fileira, senão `dashed` com fileiras de `appPerRow(cols)`, tronco e barramento tracejados por fileira (register.tsx `mapTree`).
+- Raiz: a sessão é sempre o único card raiz (Orquestrador) sobre um ou vários agentes de topo; não existe nó "Claude Code" separado no modelo de dados.
+- Testes: `app-cards.test.ts` (map wrap, root rule).
