@@ -53,6 +53,7 @@ export function groupDivider(g: Pick<WtGroup, 'key' | 'name' | 'agents' | 'faile
   const parts = [plural(g.agents.length, 'agente', 'agentes')]
   if (g.failed > 0) parts.push(plural(g.failed, 'falha', 'falhas'))
   if (done > 0) parts.push(`${done} concluído${done === 1 ? '' : 's'}`)
+  if (g.agents.length > 0 && done === g.agents.length && g.failed === 0) parts.push('pronto')
   if (ahead && typeof ahead.ahead === 'number' && Number.isFinite(ahead.ahead) && ahead.base) parts.push(`base ${maskText(ahead.base)} +${ahead.ahead} commits`)
   const isBranch = g.key.startsWith('branch:')
   const name = maskText(g.name)

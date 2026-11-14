@@ -1,6 +1,10 @@
 import { test, expect } from 'claude-code/testing'
 import { isAppSurface, appCards, appMap } from './app-cards'
 import type { AgentLike } from './office'
+import { buildRunModel } from './run-model'
+import { CAPABILITIES } from './capabilities'
+import { renderCompact, detectCaps } from './compact'
+import { STATE_TABLE } from './vocabulary'
 
 const T = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o })
@@ -79,4 +83,24 @@ test('appMap: every card carries its role by depth: orquestrador (session), agen
   expect(pai.card.role).toBe('agente'); expect(pai.children[0]!.card.role).toBe('subagente')
   // a lone top-level agent promoted to root keeps its own role
   expect(appMap([mk('solo')], T + 1000, {}).card.role).toBe('agente')
+})
+
+test('parity: one RunModel, Terminal pills and App cards carry the same agents, states and stalled flags', () => {
+  const agents = [
+    mk('run'), mk('bad', { status: 'error', error: 'boom' }), mk('ok', { status: 'done', endedAt: T + 1000 }),
+    mk('old', { seenAt: T - 11 * 60_000, startedAt: T - 11 * 60_000 }), mk('q', { active: false }),
+  ]
+  const now = T + 5000
+  const model = buildRunModel(agents, now, CAPABILITIES)
+  const cards = appCards(agents, now, { model })
+  const term = renderCompact(agents, now, { width: 200, caps: detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' }), mode: 'cards', query: '', expanded: new Set<string>(), maxCardRows: 99, model })
+    .map(l => l.map(s => s.t).join('')).join('\n')
+  expect(cards.map(c => c.id).sort()).toEqual(model.nodes.map(n => n.id).sort())
+  for (const r of model.nodes) {
+    const c = cards.find(x => x.id === r.id)!
+    expect(c.runState).toBe(r.state)
+    expect(c.stalled).toBe(r.state === 'stalled')
+    expect(term).toContain(STATE_TABLE[r.state].label) // Terminal draws the same state from the same node
+  }
+  expect(cards.find(c => c.id === 'old')!.stalled).toBe(true)
 })

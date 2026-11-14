@@ -1,10 +1,23 @@
 # Changelog
 
-## 0.24.0 (agent-office, the cards pane fills the terminal and has a scrollbar)
+## 0.26.0 (agent-office, the cards pane fills the terminal and has a scrollbar)
 
 - Tabs scroll horizontally on a narrow pane and keep the active one visible; READMEs describe the layout, breakpoints, scrollbar and keys.
 - Root cause of the half-empty pane: the cards window height came from the viewport rows capped at 30 minus the chrome. The cap is gone: the window follows the pane (`bodyRows`) or the terminal rows, so it grows and shrinks on resize.
 - A vertical scrollbar (track `░`, thumb `█`, `|` and `#` in ASCII) sits on the last column when the cards overflow; the cards re-wrap one column narrower to make room. j/k still scroll and a stale offset is clamped on resize.
+
+## 0.25.0 (agent-office, one RunModel for both renderers)
+
+- App cards and the App map now read the same RunModel nodes as the Terminal cards (`appCards` / `appMap` take `model`, built from the agents when absent): state, persona/model/effort and tool steps come from the `RunNode`. `AppCard` gains `runState` and `stalled`. The AgentLike-only path is gone; `register.tsx` passes the one model it already builds.
+- Visible App output is unchanged. The only addition is the `stalled` flag, which the Terminal already showed (state pill) and the card now carries.
+- needs-you stays hidden until the engine tells a pending human dialog from any permission check (ADR 0002 note).
+
+## 0.24.0 (agent-office, lifecycle and worktree status from the flow rules)
+
+- Stalled overlay ("Parado sem sinal") only from Rodando: a queued agent (no tool yet) never reads as stalled after 10 min.
+- Lifecycle arrows as one pure reducer (`nextState` in run-model.ts): queued to running on the first tool, running to done, failed, stopped, needs-you or stalled, failed to running on retry, needs-you to running or paused, paused to running. Any other event leaves the state unchanged.
+- Worktree divider reads `pronto` when every agent of the worktree is done and none failed.
+- Not shipped (no engine event or action yet): the needs-you producer (the `tool.check` event fires for every permission decision, not only for a pending dialog, ADR 0002), pause and resume, and the App surface, which still draws the cards from the agent records instead of the RunModel nodes.
 
 ## 0.23.0 (agent-office, the design header in the terminal)
 

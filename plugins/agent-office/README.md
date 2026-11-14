@@ -28,7 +28,7 @@ claude plugin update agent-office@office     # then restart Claude Code (or /rel
 claude plugin uninstall agent-office@office
 ```
 
-## What ships (0.16.0)
+## What ships (0.24.0)
 
 Terminal pane (a mod run by the engine). Views: tree, grouped, cards (default), waterfall, cost, tools, workflow (only while a
 workflow run exists), worktrees, detail per agent. Per-agent tokens and tool timeline, session token total (marked `parcial` when

@@ -78,3 +78,6 @@ Probe feita em 2026-11-05 com mod descartável em scratch (fora do repo), carreg
 
 ## Perguntas ao usuário (AC-002) - respondida acima
 ASK: Pause, Stop, Allow, Decline e openInChat sem suporte comprovado no engine 2.1.292; como seguir para T-011 e T-012? | Seguir sem esses controles (recomendado, controle não aparece); Provar por probe em sessão real antes de T-011; Remover esses controles da spec
+
+## Decisão do usuário (2026-11-14): needs-you
+`needs-you` fica oculto até o engine distinguir um diálogo humano pendente: `tool.check` dispara a cada decisão de permissão, não só no diálogo, então nenhum produtor emite esse estado.
