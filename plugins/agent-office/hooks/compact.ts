@@ -675,9 +675,11 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     if (v.mode === 'cards') {
       // every card keeps its full anatomy and none is dropped: a pane too short shows a window of the tree that scrolls
       // one level (card + bus) per step, with a line above and below saying where the rest is
-      const allCards = cardLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r])))
+      let allCards = cardLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r])))
       const cap = v.maxLines === undefined ? Infinity : Math.max(CARD_H + 3, v.maxLines)
       if (allCards.length > cap) {
+        // one column goes to the scrollbar: cards are laid out again one column narrower
+        allCards = cardLines(g, nm, keep, now, { ...v, width: w - 1 }, new Map(model.nodes.map(r => [r.id, r])))
         const room = cap - 2, step = CARD_H + 1
         const max = Math.ceil((allCards.length - room) / step) * step
         const off = Math.min(Math.max(0, v.scroll ?? 0), max)
@@ -685,7 +687,17 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         const kd = keyOf('scrollDown') ?? 'j', ku = keyOf('scrollUp') ?? 'k'
         const note = (t: string): Line => centre([seg(v.caps, t, DIM)], w)
         out.push(note(off > 0 ? `${v.caps.ascii ? '^' : '↑'} mais cards acima · ${ku} sobe` : `${ku} sobe · ${kd} desce`))
-        out.push(...allCards.slice(Math.max(0, off - 1), Math.max(0, off - 1) + room)) // off - 1: the window opens on the bus above the row
+        const from = Math.max(0, off - 1) // off - 1: the window opens on the bus above the row
+        const win = allCards.slice(from, from + room)
+        // scrollbar: track + thumb on the last column, thumb size and place proportional to the window
+        const thumbH = Math.max(1, Math.min(room, Math.round(room * room / allCards.length)))
+        const top = Math.round((room - thumbH) * (max ? Math.min(from, allCards.length - room) / Math.max(1, allCards.length - room) : 0))
+        const [tk, th] = v.caps.ascii ? ['|', '#'] : ['░', '█']
+        for (let i = 0; i < room; i++) {
+          const l = fit(win[i] ?? [], w - 1)
+          const used = l.reduce((a, q) => a + strWidth(q.t), 0)
+          out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM)])
+        }
         out.push(note(off < max ? `${v.caps.ascii ? 'v' : '↓'} mais cards abaixo · ${kd} desce` : `fim da árvore · ${ku} sobe`))
       } else { scrollInfo.max = 0; out.push(...allCards) }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))

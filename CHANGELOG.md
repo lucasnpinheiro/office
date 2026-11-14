@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.24.0 (agent-office, the cards pane fills the terminal and has a scrollbar)
+
+- Root cause of the half-empty pane: the cards window height came from the viewport rows capped at 30 minus the chrome. The cap is gone: the window follows the pane (`bodyRows`) or the terminal rows, so it grows and shrinks on resize.
+- A vertical scrollbar (track `░`, thumb `█`, `|` and `#` in ASCII) sits on the last column when the cards overflow; the cards re-wrap one column narrower to make room. j/k still scroll and a stale offset is clamped on resize.
+
 ## 0.23.0 (agent-office, the design header in the terminal)
 
 - Header of the terminal views follows the design top: `Office · project · ⎇ branch · #session` with the session cost on the right (tokens when the engine gives no cost), a line with the time and the coloured counts (`rodando`, `concluídos`, `falhas`, then the ETA), and one full-width bar segment per agent in its state colour. The rounded header box and the `Geral` line are gone.

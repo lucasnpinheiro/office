@@ -89,6 +89,12 @@ export function paneWidth(props?: { bodyColumns?: number }, viewport?: { columns
   return props?.bodyColumns || viewport?.columns || 80
 }
 
+// Body rows the cards view may use: the pane's own (`bodyRows`) or the whole viewport, no fixed cap, minus the
+// chrome (header 3 + tabs 1 + rule and legend 3 + hotkeys 1 + 1 spare; alert banners add their own rows).
+export function paneBodyLines(props?: { bodyRows?: number }, viewport?: { rows?: number }): number {
+  return (props?.bodyRows || viewport?.rows || 30) - 9
+}
+
 // Signature of what a redraw would show: data + animation frame + second (the clocks). Equal = skip the redraw.
 export function drawSig(agents: AgentLike[], now: number): string {
   return `${frameFor(agents, now)}|${Math.floor(now / 1000)}|${JSON.stringify(agents)}`

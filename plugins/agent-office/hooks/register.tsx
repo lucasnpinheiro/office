@@ -5,7 +5,7 @@ import { spinnerGlyph } from './motion'
 import { detailData } from './view-detail'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
-import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
+import { frameFor, nextDelay, parseSub, paneWidth, paneBodyLines, drawSig, ticker } from './office'
 import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS } from './monitor'
 import { TONE as TONE_OF } from './app-cards'
 import { scrollInfo, renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
@@ -624,7 +624,7 @@ export const register: Register = on => {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
       expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, scroll: await read($, scrollAt), branch: sgit?.branch,
-      maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 9, // header 3 + tabs 1 + rule and legend 3 + hotkeys 1 + 1 spare (alert banners add their own rows)
+      maxLines: paneBodyLines(e.props as { bodyRows?: number } | undefined, e.viewport),
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, ahead: aheadNow(),
       containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,
