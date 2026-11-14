@@ -117,3 +117,14 @@ test('divisor mascara segredo na branch e no nome do worktree vindo do caminho',
   }
   expect(txt(renderCompact(byBranch, T + 5000, view()))).toContain('⧉')
 })
+
+// flow-rules §2: a worktree whose agents are all done and none failed reads "pronto"
+test('divisor mostra pronto só quando todos concluíram sem falha', () => {
+  const ok = { key: 'wt', name: 'tela', failed: 0, agents: [{ id: 'a', status: 'done' }, { id: 'b', status: 'done' }] as AgentLike[] }
+  const txtOk = groupDivider(ok, undefined, { width: 80 })[0].map(s => s.t).join('')
+  expect(txtOk).toContain('pronto')
+  const run = { ...ok, agents: [{ id: 'a', status: 'done' }, { id: 'b', status: 'working' }] as AgentLike[] }
+  expect(groupDivider(run, undefined, { width: 80 })[0].map(s => s.t).join('')).not.toContain('pronto')
+  const bad = { ...ok, failed: 1, agents: [{ id: 'a', status: 'done' }, { id: 'b', status: 'error' }] as AgentLike[] }
+  expect(groupDivider(bad, undefined, { width: 80 })[0].map(s => s.t).join('')).not.toContain('pronto')
+})

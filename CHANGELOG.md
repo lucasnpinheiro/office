@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.24.0 (agent-office, lifecycle and worktree status from the flow rules)
+
+- Stalled overlay ("Parado sem sinal") only from Rodando: a queued agent (no tool yet) never reads as stalled after 10 min.
+- Lifecycle arrows as one pure reducer (`nextState` in run-model.ts): queued to running on the first tool, running to done, failed, stopped, needs-you or stalled, failed to running on retry, needs-you to running or paused, paused to running. Any other event leaves the state unchanged.
+- Worktree divider reads `pronto` when every agent of the worktree is done and none failed.
+- Not shipped (no engine event or action yet): the needs-you producer (the `tool.check` event fires for every permission decision, not only for a pending dialog, ADR 0002), pause and resume, and the App surface, which still draws the cards from the agent records instead of the RunModel nodes.
+
 ## 0.23.0 (agent-office, the design header in the terminal)
 
 - Header of the terminal views follows the design top: `Office · project · ⎇ branch · #session` with the session cost on the right (tokens when the engine gives no cost), a line with the time and the coloured counts (`rodando`, `concluídos`, `falhas`, then the ETA), and one full-width bar segment per agent in its state colour. The rounded header box and the `Geral` line are gone.

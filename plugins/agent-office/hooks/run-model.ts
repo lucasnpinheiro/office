@@ -78,7 +78,7 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
     const p = parseDescription(a.description)
     const caller = (a.parentAgentId && byAgentId.get(a.parentAgentId)) || root
     const parent = clampParent(g, caller)
-    const stale = a.status === 'working' && now - (a.seenAt ?? a.startedAt) > ATTENTION_AFTER_MS
+    const stale = a.status === 'working' && a.active !== false && now - (a.seenAt ?? a.startedAt) > ATTENTION_AFTER_MS // queued (active false) never stalls
     // tier agents (rapido/padrao/profundo) say their model and default effort in subagent_type when the description has no prefix
     const tier = TIER_FALLBACK[(a.subagentType ?? '').replace(/^.*:/, '').toLowerCase()]
     const model = p.model ?? a.model ?? tier?.model
@@ -238,6 +238,18 @@ export type RunModel = {
 }
 
 export const RUN_STATE: Record<State, RunState> = { pending: 'queued', running: 'running', attention: 'stalled', failed: 'failed', done: 'done', inactive: 'stopped' }
+
+// Lifecycle arrows (flow-rules §3). `tool` is any new activity (it also clears a stall). Pure: no arrow = state unchanged.
+export type LifeEvent = 'tool' | 'finish' | 'error' | 'stop' | 'retry' | 'permission' | 'answer' | 'pause' | 'resume' | 'stall'
+const LIFE: Partial<Record<RunState, Partial<Record<LifeEvent, RunState>>>> = {
+  queued: { tool: 'running' },
+  running: { finish: 'done', error: 'failed', stop: 'stopped', permission: 'needs-you', stall: 'stalled' },
+  stalled: { tool: 'running', finish: 'done', error: 'failed', stop: 'stopped' },
+  failed: { retry: 'running' },
+  'needs-you': { answer: 'running', pause: 'paused' },
+  paused: { resume: 'running' },
+}
+export const nextState = (s: RunState, e: LifeEvent): RunState => LIFE[s]?.[e] ?? s
 const validTime = (t?: number): number | undefined => (typeof t === 'number' && Number.isFinite(t) ? t : undefined)
 
 // Session tokens = per-agent counts + the main session's own turn.step tokens. Undefined when nothing is known.
