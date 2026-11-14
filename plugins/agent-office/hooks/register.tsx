@@ -451,7 +451,7 @@ export const register: Register = on => {
       startedAt: Date.now(),
       seenAt: Date.now(),
     }
-    await update($, office, list => [...list, entry].slice(-60))
+    await update($, office, list => [...list, entry].slice(-1000) // shortcut: memory bound only, never hides cards in practice; raise if sessions exceed 1000 agents)
     bg(schedule($)) // wake to fast rate
     try {
       const res = await next(e)

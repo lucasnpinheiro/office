@@ -67,3 +67,9 @@ test('regression: cards view never drops a finished agent, however long ago it e
   const t = renderCompact(old, T + 3_600_000, { ...base, maxLines: 200 }).map(l => l.map(s => s.t).join('')).join('\n')
   for (let i = 0; i < 5; i++) expect(t).toContain(`Dev: o${i}`)
 })
+
+test('70 agents: every card renders in cards view (no 60 cap)', () => {
+  const ag = Array.from({ length: 70 }, (_, i) => mk(`z${i}`))
+  const t = renderCompact(ag, T + 5000, { ...base, maxLines: 2000 }).map(l => l.map(s => s.t).join('')).join('\n')
+  for (let i = 0; i < 70; i++) expect(t).toContain(`Dev: z${i}`)
+})
