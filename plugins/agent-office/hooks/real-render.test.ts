@@ -10,6 +10,10 @@ const mount = ($: any, cols: number, rows = 80) =>
 // every drawn row is a row Box whose text is the whole line; the outer column Box is skipped
 const rowsOf = async (ui: any): Promise<string[]> =>
   (await ui.findAll({ type: 'Box' })).filter((b: any) => b.props?.flexDirection === 'row' && typeof b.text === 'string' && b.text !== '').map((b: any) => b.text as string)
+const mountApp = ($: any, cols: number) => $.ui.mount({
+  plugin: 'agent-office', surface: 'desktop', component: 'Pane', requestId: 'agent-office',
+  props: { bodyColumns: cols, bodyRows: 60 } as any, viewport: { columns: cols, rows: 60 } as any,
+})
 function setup($: any, on: any) {
   let n = 0
   on('command.register', async () => ({ value: undefined }) as any)
@@ -58,11 +62,36 @@ test('real pane, 12 agents, 200 cols: 5 siblings per row, all 12 visible, no ove
   expect(out).not.toContain('cards ocultos')
 })
 
-test('a compact view left over from the previous session does not survive session.start: the map opens', async ($, on) => {
+test('terminal session.start opens the cards of the design (TELA 8), whatever view the previous session left', async ($, on) => {
   await boot($, on, 2)
+  await $.command.run({ command: 'office', args: 'view map' } as any)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toContain('Claude Code'); expect(out).toMatch(/┌[─┴]{28}┐/)
+  expect(out).toContain('Office · meuapp'); expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/)
+  expect(out).not.toContain('Progresso geral')
+})
+
+test('terminal, session.start without a surface field: the first render still lands on the cards (surface read at render)', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', isInteractive: true } as any)
+  for (let i = 1; i <= 3; i++) await $.agent.spawn({ tool_use_id: `s${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
+  const out = (await rowsOf(await mount($, 120))).join('\n')
+  expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/); expect(out).toMatch(/[├╰]┄+┬/)
+})
+
+test('desktop, session.start without a surface field: the map (org chart of Box cards) still opens', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', isInteractive: true } as any)
+  for (let i = 1; i <= 2; i++) await $.agent.spawn({ tool_use_id: `d${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
+  const keys = (await (await mountApp($, 120)).findAll({ type: 'Box' })).map((b: any) => String(b.key ?? b.props?.key ?? ''))
+  expect(keys.some((k: string) => k.startsWith('map-'))).toBe(true)
+})
+
+test('terminal: /office view map still draws the boxed org chart', async ($, on) => {
+  await boot($, on, 2)
+  await $.command.run({ command: 'office', args: 'view map' } as any)
+  const out = (await rowsOf(await mount($, 110))).join('\n')
+  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toMatch(/┌[─┴]{28}┐/)
 })
 
 test('desktop surface: the map view draws the org chart as Box cards (root, children), clickable', async ($, on) => {
@@ -109,27 +138,22 @@ test('desktop pane: header, tabs with Mapa selected, map card content, side deta
   expect(t).toContain('Mapa') // tree stays beside the detail
 })
 
-test('real pane, fresh session (0 agents, as right after a reload): the box map is drawn, not the one-line text map', async ($, on) => {
+test('real pane, fresh session (0 agents, as right after a reload): the cards header and the waiting line, not the one-line text map', async ($, on) => {
   setup($, on)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 100, 40))).join('\n')
-  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Claude Code'); expect(out).toContain('Aguardando agentes')
-  expect(out).toMatch(/┌─+┐/)
+  expect(out).toContain('Office · meuapp'); expect(out).toContain('Aguardando agentes')
   expect(out).not.toContain('0 rodando')
 })
 
-test('real pane, narrow side pane (34 cols, 3 agents): boxes shrink, still the box map', async ($, on) => {
+test('real pane, narrow side pane (34 cols, 3 agents): every agent is listed', async ($, on) => {
   setup($, on)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   for (let i = 1; i <= 3; i++) await $.agent.spawn({ tool_use_id: `n${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
   const out = (await rowsOf(await mount($, 34, 60))).join('\n')
-  expect(out).toContain('Office Agent Monitor'); expect(out).toMatch(/┌─+┐/); expect(out).toContain('teste 3')
+  expect(out).toContain('teste 1'); expect(out).toContain('teste 3')
 })
 
-const mountApp = ($: any, cols: number) => $.ui.mount({
-  plugin: 'agent-office', surface: 'desktop', component: 'Pane', requestId: 'agent-office',
-  props: { bodyColumns: cols, bodyRows: 60 } as any, viewport: { columns: cols, rows: 60 } as any,
-})
 const boxKeys = async (ui: any) => (await ui.findAll({ type: 'Box' })).map((b: any) => String(b.key ?? b.props?.key ?? ''))
 
 test('desktop map: a single top-level agent with no children is drawn as the root card, not "Aguardando agentes"', async ($, on) => {

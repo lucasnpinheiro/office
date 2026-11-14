@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.6 (agent-office, the terminal opens on the cards of the design)
+
+- Terminal: a session now opens on the cards view (design Term5, TELA 8: header box, `Geral` bar, parent card, dotted bus, 34-col sibling cards, legend) instead of the boxed org chart. The app surfaces (desktop, vscode, mobile) keep opening on the map of Proto5. The surface is read at session start or, when the event does not carry it, at the first render; an explicit `v`, `/office view` or `OFFICE_VIEW` always wins.
+- The boxed org chart stays one `v` away in the terminal (`/office view map`).
+
 ## 0.19.5 (agent-office, the app map follows the terminal rules)
 
 - App surfaces (desktop, vscode, mobile): siblings that do not fit one row now split into rows of `(cols - 2 + 2) / 36` cards hung off a dashed trunk on the left, each row under its own dashed bus (same rule as the terminal 0.19.4). Siblings that fit keep the single solid bus of Proto5. Before, `flexWrap` broke the bus mid-row.
