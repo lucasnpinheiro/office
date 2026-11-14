@@ -182,3 +182,14 @@ test('footer: no orphan "x:" rows, every row fits the width, j/k are visible ite
   expect(footerRows(ui, false, 160)).toHaveLength(1)
   expect(footerRows(ui, false, 60).length).toBeGreaterThan(1)
 })
+
+test('detail footer: b voltar, p/n irmão, j/k rolar, q fechar, in that order, no orphan rows', () => {
+  const ui = { ...initialUi(), view: 'compact' as const, mode: 'cards' as const, selected: 'a1' }
+  for (const cols of [60, 80, 160]) {
+    const texts = footerRows(ui, false, cols).map(r => r.map(x => x.t).join(''))
+    for (const t of texts) { expect(t.trim()).not.toMatch(/^[a-z]:$/i); expect([...t].length).toBeLessThanOrEqual(cols) }
+    const all = texts.join('\n')
+    const pos = ['b: ', 'p/n', 'j: rolar', 'k: rolar', 'q: '].map(k => all.indexOf(k))
+    expect(pos.every(p => p >= 0)).toBe(true); expect([...pos].sort((x, y) => x - y)).toEqual(pos)
+  }
+})

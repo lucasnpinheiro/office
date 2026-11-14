@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.11 (agent-office, root rule and detail scroll)
+
+- Root rule from the design legend: one top-level agent keeps the Orquestrador root; two or more get a `Claude Code` root above them (terminal and app, `buildGraph`). Tests that locked "Orquestrador always" were updated.
+- Detail: `j`/`k` scroll the body 3 lines per press; footer `b: voltar · p/n irmão · j: rolar ↓ · k: rolar ↑ · q: fechar`. Cards `j`/`k` confirmed as `scrollDown`/`scrollUp` (one card block per press).
+
 ## 0.28.10 (agent-office, 30 s expiry, detail redesign, docs)
 
 - Concluído cards leave every view 30 s after the agent ends; Falhou and Precisa de você stay; a finished parent stays while a child shows. Header counters still count all (`hiddenIds`, failed no longer expires).

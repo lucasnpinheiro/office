@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detailScreen, detailView, progressText } from './view-detail'
+import { detailScreen, detailView, progressText, detailScrollStep } from './view-detail'
 import { buildGraph, etaOf } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
 import { MASK } from './mask'
@@ -180,4 +180,12 @@ test('detail redesign: sections in order, k tokens, no orphan rows, no double br
     expect(order.every(p => p >= 0)).toBe(true); expect([...order].sort((x, y) => x - y)).toEqual(order)
     expect(out).toMatch(/Irmãos 1\/12/)
   }
+})
+
+test('detail scroll: j/k move the body by 3 lines, clamped to 0 and to the last line', () => {
+  expect(detailScrollStep(0, 'scrollDown', 20)).toBe(3)
+  expect(detailScrollStep(18, 'scrollDown', 20)).toBe(19)
+  expect(detailScrollStep(3, 'scrollUp', 20)).toBe(0)
+  expect(detailScrollStep(0, 'scrollUp', 20)).toBe(0)
+  expect(detailScrollStep(5, 'scrollDown', 0)).toBe(0)
 })

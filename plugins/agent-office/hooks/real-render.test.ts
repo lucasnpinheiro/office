@@ -43,7 +43,7 @@ test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, s
   const out = rows.join('\n')
   expect(out).toContain('Office · meuapp · #abcdef')
   expect(out).toContain('Árvore') // view tabs
-  expect(out).toContain('Orquestrador'); expect(out).toMatch(/orquestrador/i) // main session = parent card (role row kept in every form)
+  expect(out).toContain('Claude Code'); expect(out).toMatch(/orquestrador/i) // main session = parent card (role row kept in every form)
   expect(out).toMatch(/^\d\d:\d\d:\d\d · \d+ rodando · /m) // counts line of the design header
   expect(rows.some(r => /^ *╭┄+/.test(r))).toBe(true) // bus from the parent card, hung off the trunk
   expect(Math.max(...boxTops(rows))).toBe(3) // 3 x 34 + 2 gaps + trunk = 108 <= 110
@@ -116,7 +116,7 @@ test('desktop surface: the map view draws the org chart as Box cards (root, chil
     props: { bodyColumns: 120, bodyRows: 40 } as any, viewport: { columns: 120, rows: 40 } as any,
   })
   const texts = (await ui.findAll({ type: 'Text' })).map((t: any) => t.text as string)
-  expect(texts.some(t => t.includes('Orquestrador'))).toBe(true)
+  expect(texts.some(t => t.includes('Claude Code') || t.includes('Orquestrador'))).toBe(true)
   expect(texts.filter(t => t.includes('QA: teste')).length).toBe(2)
   const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => String(b.key ?? b.props?.key ?? ''))
   expect(keys.filter(k => k.startsWith('app-open-')).length).toBe(2)
