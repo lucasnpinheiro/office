@@ -55,9 +55,10 @@ test('video layout: every visible card is whole in each step (status row present
   }
 })
 
-test('video layout: 24 finished children stay in the cards view long after they end (no 30 s expiry)', () => {
+test('video layout: 24 finished children stay in the cards view until 30 s after they end', () => {
   const done = Array.from({ length: 24 }, (_, i) => mk(`d${i}`, { status: 'done', endedAt: T + 10_000, description: `Calc ${i}`, parentAgentId: 'g-root' }))
   const ag = [mk('root', { description: 'Claude Code' }), ...done]
-  const all = steps(ag, {}, T + 200_000).join('\n')
+  const all = steps(ag, {}, T + 30_000).join('\n')
   for (let i = 0; i < 24; i++) expect(all).toContain(`Calc ${i}`)
+  expect(steps(ag, {}, T + 41_000).join('\n')).not.toContain('Calc 0')
 })
