@@ -30,11 +30,11 @@ test('pane footer has one-letter hotkeys; s opens search and silences them; v to
     props: { bodyColumns: 120, bodyRows: 40 } as any, viewport: { columns: 120, rows: 40 } as any,
   })
   let ui = await mount()
-  // session starts in the map (default): only v and q
-  expect(await ui.find({ key: 'h-g' })).toBeUndefined()
+  // the terminal has one view (the cards): every hotkey is there from the start
+  expect(await ui.find({ key: 'h-g' })).toBeDefined()
   expect(await ui.find({ key: 'h-v' })).toBeDefined()
   expect(await ui.find({ key: 'h-q' })).toBeDefined()
-  await ui.press({ key: 'h-v' }) // mapa -> árvore
+  await ui.press({ key: 'h-v' }) // cards -> árvore
   await ui.unmount(); ui = await mount()
   expect(await ui.find({ key: 'h-g' })).toBeDefined()
   await ui.press({ key: 'h-s' })

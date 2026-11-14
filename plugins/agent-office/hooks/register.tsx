@@ -1,7 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import { isAppSurface, appCards, appMap } from './app-cards'
 import type { AppCard, AppMapNode } from './app-cards'
-import { renderBoxMap } from './map-boxes'
 import { spinnerGlyph } from './motion'
 import { detailData } from './view-detail'
 import type { Register, EngineInterface } from 'claude-code'
@@ -42,10 +41,12 @@ const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'map')
 const autoViewAt = atom({ plugin: 'agent-office', key: 'autoView' } as const, false)
 let seenSurface: string | undefined // surface of the last render (module memory, not state)
 // the view in effect: until the user picks one, the surface decides (terminal: cards; app surfaces: map)
+const onTerminal = () => seenSurface !== undefined && !isAppSurface(seenSurface)
 const curView = async ($: EngineInterface): Promise<string> => {
   const stored: string = await read($, viewAt)
-  if (!(await read($, autoViewAt)) || seenSurface === undefined) return stored
-  return isAppSurface(seenSurface) ? 'map' : 'compact'
+  if (seenSurface === undefined) return stored
+  if (onTerminal()) return 'compact' // one view in the terminal: the map is an app view
+  return (await read($, autoViewAt)) ? 'map' : stored
 }
 const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, DEFAULT_MODE as string)
 const filterAt = atom({ plugin: 'agent-office', key: 'filter' } as const, 'all')
@@ -224,11 +225,6 @@ async function gitView($: EngineInterface) {
 // seat by itself (no flag forces inline); a request only, and the person's own drag wins.
 // compact view: size by its own rendered lines (not the old mind map), 80 columns, capped like the inline pane
 async function wantSize($: EngineInterface, list: OfficeAgent[], collapsed: string[], sgit: GitInfo | undefined, st: { tool?: string; recent?: string[] }, thumbs: boolean) {
-  if ((await curView($)) === 'map') {
-    const mcols = (await read($, colsAt)) || 110
-    const box = renderBoxMap(list, Date.now(), { width: mcols, project: '', ascii: (await capsOf($)).ascii, color: true, query: await read($, queryAt), filter: await read($, filterAt), git: sgit })
-    if (box) return { rows: Math.min(40, Math.max(8, box.length + 3)), columns: mcols }
-  }
   if ((await curView($)) !== 'compact') return inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
   const caps = await capsOf($)
   const wcols = (await read($, colsAt)) || 80
@@ -305,7 +301,7 @@ async function dispatch($: EngineInterface, a: string) {
   const ui = await readUi($)
   // a selection that left the list (agent dropped by the 60-entry cap, /office reset) is cleared by the next action, whichever it is
   if (ui.selected && !((await read($, office)) as OfficeAgent[]).some(x => x.id === ui.selected)) ui.selected = ''
-  const r = applyAction(ui, a, a === 'group' ? await groupCtx($, ui) : {})
+  const r = applyAction(ui, a, a === 'group' ? await groupCtx($, ui) : { terminal: onTerminal() })
   if (r.close) return closeOffice($)
   await writeUi($, r.state)
   $.ui.invalidate('ui.render')
@@ -361,6 +357,7 @@ export const register: Register = on => {
       const cur = await curView($)
       const v = want === 'map' ? 'map' : want ? 'compact' : cur === 'map' ? 'compact' : 'map'
       await update($, viewAt, () => v)
+      if (want === 'map' && onTerminal()) await update($, modeAt, () => 'cards') // the terminal's map is the centred cards
       await update($, autoViewAt, () => false) // an explicit choice is never overridden by the surface default
       $.ui.invalidate('ui.render')
       bg(resizeIfNeeded($))
@@ -667,10 +664,16 @@ export const register: Register = on => {
     const px = canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined
     const side = view === 'compact' && !!selected && !attach && sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' })
     // footer hotkeys for the current view (actions.ts): one letter each, none while the search Input has the keys
-    const keysRow = draw([
-      ...hotkeysFor(ui, side).flatMap((h, i) => [...(i ? [{ t: FOOTER_SEP }] : []), { t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }]),
-      { t: footerTail(ui), fg: '#9ca3af' },
-    ])
+    // the hint tail is dropped before the row can wrap; then the labels shrink to the bare keys
+    const hks = hotkeysFor(ui, side)
+    const keysFull = hks.flatMap((h, i) => [...(i ? [{ t: FOOTER_SEP }] : []), { t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }])
+    const lenOf = (l: { t: string }[]) => l.reduce((k, q) => k + [...q.t].length, 0)
+    const tailSeg = { t: footerTail(ui), fg: '#9ca3af' }
+    const keysRow = draw(
+      lenOf(keysFull) + [...tailSeg.t].length <= cols ? [...keysFull, tailSeg]
+        : lenOf(keysFull) <= cols ? keysFull
+          : hks.flatMap((h, i) => [...(i ? [{ t: ' ' }] : []), { t: h.key, act: h.act, hotkey: h.key }]),
+    )
     // one app card (design Chips5): glyph + title, chips, git, status, progress bar, % and time; border and bar carry the state tone
     const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
     // motion on the app surfaces: spinner glyph, a sweeping indeterminate bar and a pulse along the dashed buses (off with reduced motion)
@@ -883,15 +886,6 @@ export const register: Register = on => {
         <Box flexDirection="column">
           {selected || gone ? backBtn : field}
           {compactFrame.map(draw)}
-          {keysRow}
-        </Box>
-      )
-    }
-    if (view === 'map' && !detail && !gone) {
-      const bm = renderBoxMap(all, now, { width: cols, project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback, git: sgit, ascii: caps.ascii, color: caps.color !== 'mono', query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
-      if (bm) return (
-        <Box flexDirection="column">
-          {bm.map(draw)}
           {keysRow}
         </Box>
       )
