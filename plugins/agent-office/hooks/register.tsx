@@ -37,6 +37,15 @@ const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as con
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
 const selectedAt = atom({ plugin: 'agent-office', key: 'selected' } as const, '')
 const viewAt = atom({ plugin: 'agent-office', key: 'view' } as const, 'map')
+// true from session.start until the first render: the surface picks the opening view (terminal: cards of TELA 8; app: map)
+const autoViewAt = atom({ plugin: 'agent-office', key: 'autoView' } as const, false)
+let seenSurface: string | undefined // surface of the last render (module memory, not state)
+// the view in effect: until the user picks one, the surface decides (terminal: cards; app surfaces: map)
+const curView = async ($: EngineInterface): Promise<string> => {
+  const stored: string = await read($, viewAt)
+  if (!(await read($, autoViewAt)) || seenSurface === undefined) return stored
+  return isAppSurface(seenSurface) ? 'map' : 'compact'
+}
 const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, DEFAULT_MODE as string)
 const filterAt = atom({ plugin: 'agent-office', key: 'filter' } as const, 'all')
 const sortAt = atom({ plugin: 'agent-office', key: 'sort' } as const, 'time')
@@ -140,7 +149,7 @@ async function schedule($: EngineInterface) {
   const list: OfficeAgent[] = await read($, office)
   bg(resizeIfNeeded($))
   const caps = await capsOf($)
-  const delay = nextDelay(list, Date.now(), { reducedMotion: caps.reducedMotion, compact: (await read($, viewAt)) === 'compact' })
+  const delay = nextDelay(list, Date.now(), { reducedMotion: caps.reducedMotion, compact: (await curView($)) === 'compact' })
   if (!tick.current(gen)) return // a newer schedule() or a close took over while this one awaited
   bg($.ui.status(statusText(list, Date.now(), caps.ascii)))
   if (delay === undefined) return // nothing running: no animation, no timer
@@ -214,12 +223,12 @@ async function gitView($: EngineInterface) {
 // seat by itself (no flag forces inline); a request only, and the person's own drag wins.
 // compact view: size by its own rendered lines (not the old mind map), 80 columns, capped like the inline pane
 async function wantSize($: EngineInterface, list: OfficeAgent[], collapsed: string[], sgit: GitInfo | undefined, st: { tool?: string; recent?: string[] }, thumbs: boolean) {
-  if ((await read($, viewAt)) === 'map') {
+  if ((await curView($)) === 'map') {
     const mcols = (await read($, colsAt)) || 110
     const box = renderBoxMap(list, Date.now(), { width: mcols, project: '', ascii: (await capsOf($)).ascii, color: true, query: await read($, queryAt), filter: await read($, filterAt), git: sgit })
     if (box) return { rows: Math.min(40, Math.max(8, box.length + 3)), columns: mcols }
   }
-  if ((await read($, viewAt)) !== 'compact') return inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
+  if ((await curView($)) !== 'compact') return inlineSize(list, Date.now(), { width: 100, frame: 0, collapsed: new Set(collapsed), project: '', sessionId: '', git: sgit, sessionTool: st, thumbs })
   const caps = await capsOf($)
   const wcols = (await read($, colsAt)) || 80
   const now = Date.now()
@@ -273,14 +282,14 @@ async function closeOffice($: EngineInterface) {
 
 async function readUi($: EngineInterface): Promise<Ui> {
   return {
-    view: (await read($, viewAt)) === 'map' ? 'map' : 'compact', mode: (await read($, modeAt)) as Mode,
+    view: (await curView($)) === 'map' ? 'map' : 'compact', mode: (await read($, modeAt)) as Mode,
     filter: (await read($, filterAt)) === 'failed' ? 'failed' : 'all', sort: (await read($, sortAt)) as Ui['sort'],
     searching: await read($, searchingAt), selected: await read($, selectedAt), attach: await read($, attachAt),
     query: await read($, queryAt), expanded: await read($, expandedAt), modeChosen: await read($, modeChosenAt),
   }
 }
 async function writeUi($: EngineInterface, n: Ui) {
-  await update($, viewAt, () => n.view); await update($, modeAt, () => n.mode); await update($, filterAt, () => n.filter)
+  await update($, viewAt, () => n.view); await update($, autoViewAt, () => false); await update($, modeAt, () => n.mode); await update($, filterAt, () => n.filter)
   await update($, sortAt, () => n.sort); await update($, searchingAt, () => n.searching); await update($, selectedAt, () => n.selected)
   await update($, attachAt, () => n.attach); await update($, queryAt, () => n.query); await update($, expandedAt, () => n.expanded)
   await update($, modeChosenAt, () => n.modeChosen)
@@ -318,7 +327,12 @@ export const register: Register = on => {
     // sid fallback: this session's id when the engine gives one, never a previous session's
     const sid = await $.session.id().catch(() => '')
     await update($, sidAt, () => sid || '')
-    await update($, viewAt, () => start.view)
+    // the design differs per surface: the terminal opens on the cards (Term5 TELA 8), the app on the map (Proto5).
+    // session.start may not carry the surface, so the first render settles it (autoViewAt)
+    const surf = (e as { surface?: string }).surface
+    await update($, viewAt, () => (surf && !isAppSurface(surf) ? 'compact' : start.view))
+    await update($, autoViewAt, () => !surf)
+    seenSurface = surf
     await update($, filterAt, () => start.filter)
     await update($, searchingAt, () => start.searching)
     await update($, queryAt, () => start.query)
@@ -329,7 +343,7 @@ export const register: Register = on => {
     const m = ((await $.env.get('OFFICE_MODE').catch(() => undefined)) ?? '').trim().toLowerCase()
     if ((MODES as string[]).includes(m)) { await update($, modeAt, () => m); await update($, modeChosenAt, () => true) }
     const vw = ((await $.env.get('OFFICE_VIEW').catch(() => undefined)) ?? '').trim().toLowerCase()
-    if (vw === 'map' || vw === 'compact') await update($, viewAt, () => vw)
+    if (vw === 'map' || vw === 'compact') { await update($, viewAt, () => vw); await update($, autoViewAt, () => false) }
     const w = parseInt((await $.env.get('OFFICE_WIDTH').catch(() => undefined)) ?? '', 10)
     if (w > 0) await update($, colsAt, () => w)
     await openOffice($)
@@ -343,9 +357,10 @@ export const register: Register = on => {
     if (w0 === 'view') {
       const want = arg.toLowerCase()
       if (want && !['map', 'compact', 'cards'].includes(want)) return { text: 'Uso: /office view [map|compact] (sem valor alterna).' }
-      const cur = await read($, viewAt)
+      const cur = await curView($)
       const v = want === 'map' ? 'map' : want ? 'compact' : cur === 'map' ? 'compact' : 'map'
       await update($, viewAt, () => v)
+      await update($, autoViewAt, () => false) // an explicit choice is never overridden by the surface default
       $.ui.invalidate('ui.render')
       bg(resizeIfNeeded($))
       return { text: `Visão: ${v}.` }
@@ -590,7 +605,9 @@ export const register: Register = on => {
     // otherwise the compact view fell through to the map layout with no way back
     const selRaw: string = await read($, selectedAt)
     const selected = selRaw && all.some(a => a.id === selRaw) ? selRaw : ''
-    const view: string = await read($, viewAt)
+    // drawing is pure: the surface default is resolved here and by curView, never written during render
+    seenSurface = (e as { surface?: string }).surface ?? 'terminal'
+    const view: string = await curView($)
     const caps = await capsOf($)
     const attach: string = await read($, attachAt)
     const sidFallback: string = await read($, sidAt)

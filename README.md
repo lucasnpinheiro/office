@@ -143,7 +143,7 @@ at about 45% of the terminal), `/office collapse | expand`, `/office status`, `/
 
 | Variable | Effect |
 | --- | --- |
-| `OFFICE_VIEW` | `map` (default) or `compact`: the view at session start |
+| `OFFICE_VIEW` | the view at session start: `compact` (terminal default, the cards of the design) or `map` (default on desktop, vscode and mobile) |
 | `OFFICE_MODE` | `cards` (default), `tree`, `grouped`, `waterfall`, `cost`, `tools`, `workflow` |
 | `OFFICE_WIDTH` | requested pane width in columns |
 | `OFFICE_ASCII=1` | ASCII glyphs (also automatic for `TERM=linux\|dumb`, non-UTF-8 locales, legacy Windows conhost) |

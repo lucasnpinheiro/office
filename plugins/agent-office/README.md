@@ -66,7 +66,7 @@ executed there, and no parity is claimed. The 93% coverage target is not measura
 
   | Variable | Effect |
   |---|---|
-  | `OFFICE_VIEW` | `map` (default) or `compact` |
+  | `OFFICE_VIEW` | `compact` (terminal default: the cards) or `map` (app default) |
   | `OFFICE_MODE` | initial mode (`cards` default) |
   | `OFFICE_WIDTH` | pane width in columns |
   | `OFFICE_ASCII=1` | ASCII glyphs only |
