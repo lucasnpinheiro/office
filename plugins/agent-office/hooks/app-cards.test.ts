@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { isAppSurface, appCards, appMap } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid } from './app-cards'
 import type { AgentLike } from './office'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES } from './capabilities'
@@ -107,4 +107,14 @@ test('parity: one RunModel, Terminal pills and App cards carry the same agents, 
 test('appMap: orchestrator card matches the design: title Orquestrador, chips persona · modelo · esforço', () => {
   const m = appMap([], T, {})
   expect([m.card.title, ...m.card.chips]).toEqual(['Orquestrador', '🧭 Squad Leader', '👑 Opus', '🟢 baixo'])
+})
+
+test('grid: cards wrap into rows by pane width (horizontal and vertical), never one endless row', () => {
+  const ids = Array.from({ length: 7 }, (_, i) => String(i))
+  const rowsOf = (cols: number) => appGrid(ids, cols).map(r => r.length)
+  expect(rowsOf(120)).toEqual([3, 3, 1]) // 34-wide cards + gap 2: 3 fit in 120
+  expect(rowsOf(200)).toEqual([5, 2])
+  expect(rowsOf(10)).toEqual([1, 1, 1, 1, 1, 1, 1]) // narrower than one card: one per row, none dropped
+  expect(appGrid(['a'], 120)).toEqual([['a']])
+  expect(appGrid([], 120)).toEqual([])
 })

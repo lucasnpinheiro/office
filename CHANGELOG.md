@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.8 (agent-office, cards grid on the app surfaces)
+
+- Desktop/VS Code/mobile card view now lays cards out in explicit rows by pane width (`appGrid`, 34-wide cards + gap 2) instead of relying on flex wrap, which rendered every card in one horizontal row. Narrower than one card: one per row, none dropped.
+
 ## 0.28.7 (agent-office, last card gaps vs the design image)
 
 - A long branch wraps onto a second row (`⧉ spec/checkout-` / `api`), the role stays on the first; past two rows it ends in `…`.

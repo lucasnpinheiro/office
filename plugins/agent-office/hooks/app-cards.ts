@@ -74,3 +74,12 @@ export function appMap(agents: AgentRecord[], now: number, o: { query?: string; 
   })
   return walk(g.root) // design 2026-11-14: the Orquestrador box is always the root, even over a single agent
 }
+
+// Card grid: rows of as many 34-wide cards (gap 2) as the pane holds; an explicit row per chunk, so the layout never depends on flex wrap.
+export const APP_CARD_W = 34, APP_GAP = 2
+export const appPerRow = (cols: number): number => Math.max(1, Math.floor((cols - 2 + APP_GAP) / (APP_CARD_W + APP_GAP)))
+export function appGrid<T>(items: readonly T[], cols: number): T[][] {
+  const n = appPerRow(cols), rows: T[][] = []
+  for (let i = 0; i < items.length; i += n) rows.push(items.slice(i, i + n))
+  return rows
+}
