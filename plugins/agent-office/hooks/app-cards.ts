@@ -76,7 +76,7 @@ export function appMap(agents: AgentRecord[], now: number, o: { query?: string; 
 }
 
 // Card grid: rows of as many 34-wide cards (gap 2) as the pane holds; an explicit row per chunk, so the layout never depends on flex wrap.
-export const APP_CARD_W = 34, APP_GAP = 2
+export const APP_CARD_W = 26, APP_GAP = 2 // 25% under the old 34 (user: cards too big with many agents)
 export const appPerRow = (cols: number): number => Math.max(1, Math.floor((cols - 2 + APP_GAP) / (APP_CARD_W + APP_GAP)))
 export function appGrid<T>(items: readonly T[], cols: number): T[][] {
   const n = appPerRow(cols), rows: T[][] = []
@@ -89,3 +89,10 @@ export function mapRows<T>(kids: readonly T[], cols: number): { bus: 'solid' | '
   const rows = appGrid(kids, cols)
   return { bus: rows.length > 1 ? 'dashed' : 'solid', rows }
 }
+
+// Card line motion and tint (design Chips5 v2): the running segment blinks with the frame, waiting is white, failure tints the whole card.
+export const WAIT_WHITE = '#FFFFFF'
+export const segTone = (t: Tone, fr: number): Tone => (t === 'suggestion' && fr % 2 ? 'subtle' : t)
+export const barTone = (s: State): Tone | typeof WAIT_WHITE => (s === 'pending' || s === 'attention' || s === 'failed' ? WAIT_WHITE : TONE[s]) // failed: white, red would vanish on the red card
+export const onCard = (s: State, t: Tone): Tone | typeof WAIT_WHITE => (cardBg(s) === t ? WAIT_WHITE : t) // a segment never matches its card background
+export const cardBg = (s: State): Tone | undefined => (s === 'failed' ? 'error' : undefined)

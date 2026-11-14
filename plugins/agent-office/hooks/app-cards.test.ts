@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { isAppSurface, appCards, appMap, appGrid, mapRows } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, segTone, barTone, cardBg, onCard, WAIT_WHITE } from './app-cards'
 import type { AgentLike } from './office'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES } from './capabilities'
@@ -112,18 +112,18 @@ test('appMap: orchestrator card matches the design: title Orquestrador, chips pe
 test('grid: cards wrap into rows by pane width (horizontal and vertical), never one endless row', () => {
   const ids = Array.from({ length: 7 }, (_, i) => String(i))
   const rowsOf = (cols: number) => appGrid(ids, cols).map(r => r.length)
-  expect(rowsOf(120)).toEqual([3, 3, 1]) // 34-wide cards + gap 2: 3 fit in 120
-  expect(rowsOf(200)).toEqual([5, 2])
+  expect(rowsOf(120)).toEqual([4, 3]) // 26-wide cards + gap 2: 4 fit in 120
+  expect(rowsOf(200)).toEqual([7])
   expect(rowsOf(10)).toEqual([1, 1, 1, 1, 1, 1, 1]) // narrower than one card: one per row, none dropped
   expect(appGrid(['a'], 120)).toEqual([['a']])
   expect(appGrid([], 120)).toEqual([])
 })
 
-test('map wrap: siblings that fit one row get a solid bus; otherwise rows of floor((w-2+2)/36) hang off a dashed trunk, one dashed bus per row', () => {
+test('map wrap: siblings that fit one row get a solid bus; otherwise rows of floor((w-2+2)/28) hang off a dashed trunk, one dashed bus per row', () => {
   const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
-  expect(mapRows(ids.slice(0, 3), 112)).toEqual({ bus: 'solid', rows: [['a', 'b', 'c']] }) // 3 per row at 112 cols
-  expect(mapRows(ids, 112)).toEqual({ bus: 'dashed', rows: [['a', 'b', 'c'], ['d', 'e', 'f'], ['g']] })
-  expect(mapRows(ids.slice(0, 4), 112).bus).toBe('dashed')
+  expect(mapRows(ids.slice(0, 3), 112)).toEqual({ bus: 'solid', rows: [['a', 'b', 'c']] }) // 4 per row at 112 cols
+  expect(mapRows(ids, 112)).toEqual({ bus: 'dashed', rows: [['a', 'b', 'c', 'd'], ['e', 'f', 'g']] })
+  expect(mapRows(ids.slice(0, 5), 112).bus).toBe('dashed')
   expect(mapRows(ids.slice(0, 2), 10)).toEqual({ bus: 'dashed', rows: [['a'], ['b']] }) // narrower than a card: one per row
   expect(mapRows([], 112)).toEqual({ bus: 'solid', rows: [] })
 })
@@ -139,4 +139,16 @@ test('root rule (design legend): one top agent keeps the Orquestrador root; two 
   expect(appMap([], T, {}).card.title).toBe('Orquestrador')
   // subagents do not count: one top agent with two children is still a single top-level agent
   expect(appMap([mk('a'), mk('k1', { parentAgentId: 'g-a', agentId: 'g-k1' }), mk('k2', { parentAgentId: 'g-a', agentId: 'g-k2' })].map((x, i) => i === 0 ? { ...x, agentId: 'g-a' } : x), T + 5000, {}).card.title).toBe('Orquestrador')
+})
+
+test('cards 25% smaller: 26-wide (was 34), line blinks while running, white while waiting, red card on failure', () => {
+  expect(APP_CARD_W).toBe(26)
+  expect(appGrid(Array.from({ length: 7 }, (_, i) => i), 120).map(r => r.length)).toEqual([4, 3])
+  expect([segTone('suggestion', 0), segTone('suggestion', 1), segTone('success', 1)]).toEqual(['suggestion', 'subtle', 'success'])
+  expect(barTone('pending')).toBe(WAIT_WHITE)
+  expect(barTone('attention')).toBe(WAIT_WHITE)
+  expect(barTone('running')).toBe('suggestion')
+  expect(cardBg('failed')).toBe('error')
+  expect(cardBg('running')).toBeUndefined()
+  expect([barTone('failed'), onCard('failed', 'error'), onCard('running', 'error')]).toEqual([WAIT_WHITE, WAIT_WHITE, 'error']) // review: no red line on the red card
 })

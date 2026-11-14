@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import { isAppSurface, appCards, appMap, appGrid, mapRows } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, segTone, barTone, cardBg, onCard } from './app-cards'
 import type { AppCard, AppMapNode } from './app-cards'
 import { spinnerGlyph } from './motion'
 import { detailData } from './view-detail'
@@ -699,14 +699,14 @@ export const register: Register = on => {
     const fr = caps.reducedMotion ? 0 : frameFor(all, now)
     const glyphOf = (c: AppCard) => (c.state === 'running' && !caps.reducedMotion ? spinnerGlyph(fr, false) : c.glyph)
     const appCardBox = (c: AppCard, kids = false) => (
-      <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} paddingX="sm" width={34}>
+      <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} backgroundColor={cardBg(c.state)} width={APP_CARD_W}>
         <Box flexDirection="row" justifyContent="space-between">
-          {c.id === 'session' ? <Text color={c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
+          {c.id === 'session' ? <Text color={cardBg(c.state) ? undefined : c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
             <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
-              <Text color={c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text>
+              <Text color={cardBg(c.state) ? undefined : c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text>
             </Button>
           )}
-          <Text color={c.tone}>{PILL[c.state] ?? ''}</Text>
+          <Text color={cardBg(c.state) ? undefined : c.tone}>{PILL[c.state] ?? ''}</Text>
         </Box>
         <Text dimColor>{c.chips.join(' · ')}</Text>
         <Box flexDirection="row" justifyContent="space-between">
@@ -715,12 +715,12 @@ export const register: Register = on => {
         </Box>
         {c.steps ? (
           <Box flexDirection="row" height={1} gap="xs">
-            {c.steps.map((sg, i) => <Box key={`st-${c.id}-${i}`} flexGrow={sg.weight} height={1} backgroundColor={sg.tone} />)}
+            {c.steps.map((sg, i) => <Box key={`st-${c.id}-${i}`} flexGrow={sg.weight} height={1} backgroundColor={onCard(c.state, segTone(sg.tone, fr))} />)}
           </Box>
         ) : (
           <Box flexDirection="row" height={1} backgroundColor="subtle">
             {c.pct === undefined && fr ? <Box width={`${(fr * 10) % 80}%`} /> : null}
-            <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
+            <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.pct === undefined ? segTone(c.tone, fr) : barTone(c.state)} />
           </Box>
         )}
         <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.status ?? ' '}</Text><Text dimColor>{`${c.pctText}  ${c.time}`}</Text></Box>

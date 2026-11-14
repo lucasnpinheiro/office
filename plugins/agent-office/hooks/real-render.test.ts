@@ -183,10 +183,10 @@ test('desktop map: siblings that do not fit wrap into rows hung off a dashed tru
   await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
   for (let i = 1; i <= 8; i++) await $.agent.spawn({ tool_use_id: `w${i}`, prompt: 'p', description: `🛠️ Mid-level · 🪶 Haiku · 🟢 baixo: tarefa ${i}` } as any)
   const u1 = await mountApp($, 112)
-  const k = await boxKeys(u1) // (112 - 2) / 36 = 3 per row -> 3 rows
+  const k = await boxKeys(u1) // (112 - 2 + 2) / 28 = 4 per row -> 2 rows
   await u1.unmount()
   expect(k.filter(x => x.startsWith('trunk-'))).toEqual(['trunk-session'])
-  expect(k.filter(x => x.startsWith('rowbus-')).length).toBe(3)
+  expect(k.filter(x => x.startsWith('rowbus-')).length).toBe(2)
   const k2 = await boxKeys(await mountApp($, 400)) // everything fits: one solid bus, no trunk
   expect(k2.filter(x => x.startsWith('trunk-')).length).toBe(0)
   expect(k2.filter(x => x.startsWith('rowbus-')).length).toBe(0)

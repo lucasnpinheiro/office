@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.12 (agent-office, smaller cards, line states)
+
+- App cards 25% smaller: `APP_CARD_W` 34 -> 26 and no `paddingX`, so 4 fit in 120 cols (was 3). Content unchanged. Terminal cells have no font size, so text and icons keep the cell size; the box shrinks.
+- Card line: the running segment blinks with the frame (`segTone`, off with reduced motion), waiting states draw white (`barTone`), a failed card gets the `error` background (`cardBg`) and its title/pill drop the tone color to stay readable.
+
 ## 0.28.11 (agent-office, root rule and detail scroll)
 
 - Root rule from the design legend: one top-level agent keeps the Orquestrador root; two or more get a `Claude Code` root above them (terminal and app, `buildGraph`). Tests that locked "Orquestrador always" were updated.
