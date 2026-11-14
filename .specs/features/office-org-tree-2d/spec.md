@@ -1,4 +1,4 @@
-# Spec: office-org-tree-2d (agent-office 0.28.5)
+# Spec: office-org-tree-2d (agent-office 0.28.5, cards 0.28.6)
 
 ## Problema
 Em 0.28.4 o mapa de cards desenha todos os níveis na horizontal: os filhos de cada card (inclusive subagentes)
@@ -23,6 +23,16 @@ Screenshot do usuário `Screen Shot 2026-11-14 at 13.24.21 PM.png`:
 | >= 2 subagentes | empilhados um por linha na coluna do pai; 1 filho = conector `┊` reto; vários = tronco à esquerda com `╭ ├ ╰` | `layout: 'column'`: coluna centralizada sob o pai, stub de 1 célula entre filhos |
 
 Orquestrador: persona `🧭 Squad Leader` (não `🎯 Orquestrador`), modelo Opus, esforço baixo.
+
+## Card do terminal (0.28.6, fiel à imagem do design 2026-11-14)
+- Linha de chips em texto, igual ao Desktop: `🧭 Squad Leader · 👑 Opus · 🟢 baixo` (modelos 🪶 Haiku, 🎼 Sonnet,
+  👑 Opus; esforço 🟢 baixo, 🟡 médio, 🔴 alto). Sem glifo de modelo (`◇ ◆ ■`) nem barras de esforço (`▁▃▅`).
+- Chips longos quebram por palavra para a 2ª linha (ex.: `… 👑 Opus · 🟢` / `baixo`); o card tem 8 linhas fixas
+  (linha 2 de chips em branco quando cabe), o excedente da 2ª linha termina em `…`.
+- Linha de branch: `⎇ main` / `⧉ worktree` à esquerda, papel `orquestrador`/`agente`/`subagente` à direita (sem `L{n}`).
+- Barra segmentada por passo; rodapé: `concluído`/última ferramenta à esquerda, `~$0,30 · 00:16` à direita.
+- ASCII: `Squad Leader - Opus - baixo` (emoji da persona removido, nunca `??`).
+- AC-6 Testes: `cards-centered.test.ts` (anatomia e quebra), `compact.test.ts` (chips por persona).
 
 ## Overflow / painel estreito
 Nenhum card é descartado nem encolhido. Linha de nível 1 que não cabe quebra em linhas (tronco pontilhado);

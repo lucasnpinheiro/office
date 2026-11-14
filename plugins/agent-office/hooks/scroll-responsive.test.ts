@@ -50,7 +50,7 @@ test('tabs scroll horizontally on a narrow pane and keep the active one visible'
   expect(strWidth(tabs)).toBeLessThanOrEqual(60)
 })
 
-test('50 sub-levels: every card reachable by scrolling, none hidden, L badge and n/total shown', () => {
+test('50 sub-levels: every card reachable by scrolling, none hidden, n/total shown', () => {
   const chain = Array.from({ length: 50 }, (_, i) => ({ ...mk(`d${i}`), ...(i ? { parentAgentId: `g-d${i - 1}` } : {}) }) as AgentLike)
   const seen = new Set<string>()
   for (let scroll = 0; scroll <= 420; scroll += 96) {
@@ -59,7 +59,7 @@ test('50 sub-levels: every card reachable by scrolling, none hidden, L badge and
     expect(t).toMatch(/\d+\/\d+/)
   }
   expect(seen.size).toBe(50)
-  expect(rows(chain, { maxLines: 500 }).join('\n')).toContain('L49')
+  expect(rows(chain, { maxLines: 500 }).join('\n')).toContain('Dev: d49')
 })
 
 test('regression: cards view never drops a finished agent, however long ago it ended', () => {

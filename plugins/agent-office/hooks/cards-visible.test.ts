@@ -54,8 +54,8 @@ test('B5 orchestrator card is Concluído when every agent is done, and its time 
 
 test('B4 a branch cut by the card width ends in an ellipsis, with a gap before the role', () => {
   const ag = [mk('b0', { git: { branch: 'spec/andamento-2026-11-14-long-branch-name' } } as object)]
-  const row = lines(ag, { width: 120 }).find(l => l.includes('agente L1'))!
-  expect(row).toMatch(/…\s+agente L1/)
+  const row = lines(ag, { width: 120 }).find(l => l.includes(' agente'))!
+  expect(row).toMatch(/…\s+agente│/)
 })
 
 test('R2 a deep card at a narrow pane keeps its right border: nothing clipped by the pane edge', () => {

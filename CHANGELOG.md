@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.6 (agent-office, terminal cards like the design image)
+
+- Terminal card chips read as text like the design and the Desktop chips: `🧭 Squad Leader · 👑 Opus · 🟢 baixo` (was `■ Opus ▁` glyph + bars), word-wrapped onto a second row when too long; cards are now 8 rows.
+- Role on the branch row is just `orquestrador` / `agente` / `subagente` (no `L{n}` badge). ASCII mode drops the session persona emoji (no `??`).
+
 ## 0.28.5 (agent-office, org tree in 2D like the design)
 
 - Map: top-level agents in one row under the Orquestrador; subagents stack vertically in their parent's column (terminal and Desktop). Spec `.specs/features/office-org-tree-2d`.

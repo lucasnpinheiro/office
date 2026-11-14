@@ -12,7 +12,7 @@ import type { Capabilities } from './capabilities'
 import { worktreePartition, groupDivider, restDivider, agentsLine } from './view-worktrees'
 import type { AheadInfo } from './git'
 import { buildRunModel, RUN_STATE } from './run-model'
-import { chips, MODEL_GLYPH, EFFORT_BARS } from './persona'
+import { chips } from './persona'
 import type { RunModel, RunNode } from './run-model'
 import { costLines, fmtTokens, fmtUsd } from './view-cost'
 import { toolLines } from './view-tools'
@@ -370,7 +370,7 @@ function groupedLines(g: Graph, agents: AgentLike[], nm: Map<string, string>, ke
 // Layout (ref. design v8): card 34 cols x 6 rows, gap 2, child indent 5. Leaf siblings fill rows of
 // per_row = max(1, floor((cols - x_parent - 5 + 2) / 36)); branch siblings take one row each after the leaves, their
 // subtree indented below. A dotted bus under the parent has a drop per card. Worktree flows get a heavy divider.
-export const CARD_W = 34, CARD_H = 7, CARD_GAP = 2, CARD_INDENT = 5
+export const CARD_W = 34, CARD_H = 8, CARD_GAP = 2, CARD_INDENT = 5
 export const perRowOf = (cols: number, xParent: number): number => Math.max(1, Math.floor((cols - xParent - CARD_INDENT + CARD_GAP) / (CARD_W + CARD_GAP)))
 
 type Cell = { ch: string; s: Seg }
@@ -472,7 +472,7 @@ function stepBar(run: RunNode | undefined, n: Node, cells: number, c: Caps, fram
   return segs.flatMap((x, i) => [...(i ? sp(1) : []), seg(c, H.repeat(ws[i]!), x.fg)])
 }
 // Design card (Proto5 / Chips5, the same anatomy in the terminal): title + state pill, chips, worktree + role,
-// step segments, status + cost and time. Always these 5 rows: the pane scrolls instead of shrinking a card.
+// step segments, status + cost and time. Always these 6 rows (chips take two): the pane scrolls instead of shrinking a card.
 function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number, tag: CardTag = {}, run?: RunNode): Line[] {
   const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
@@ -515,20 +515,24 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   const edgeLine = (l: string, r: string, joint: string | undefined): Line =>
     joint ? [seg(c, l + b.h.repeat(mid), edge), seg(c, joint, edge), seg(c, b.h.repeat(inner - mid - 1) + r, edge)] : [seg(c, l + b.h.repeat(inner) + r, edge)]
   const pill = c.ascii ? asciiText(PILL[n.state] ?? '') : PILL[n.state] ?? ''
-  const chipTxt = (() => {
-    const parts = (c.ascii ? [n.persona, n.model, n.effort] : [ch.persona, ch.model, ch.effort]).filter((x): x is string => !!x)
-    const dotted = parts.join(' · ')
-    return strWidth(dotted) <= inner ? dotted : parts.join(' ') // a long persona drops the dots before anything is cut
+  // design 2026-11-14: "🧭 Squad Leader · 👑 Opus · 🟢 baixo" as text, word-wrapped onto a second row (the rest clipped with …)
+  const chipRows = (() => {
+    const parts = (c.ascii ? [n.persona?.replace(/^\P{ASCII}+\s*/u, ''), n.model, n.effort] : [ch.persona, ch.model, ch.effort]).filter((x): x is string => !!x)
+    const words = (c.ascii ? asciiText(parts.join(' · ')) : parts.join(' · ')).split(' ')
+    const out = ['']
+    for (const w of words) {
+      const cur = out[out.length - 1]!, next = cur ? `${cur} ${w}` : w
+      if (strWidth(next) <= inner || !cur || out.length === 2) out[out.length - 1] = next
+      else out.push(w)
+    }
+    return [out[0]!, out[1] ?? '']
   })()
   const wtTxt = tag.wt ? `${c.ascii ? 'wt' : '⧉'} ${tag.wt}` : n.git?.branch ? `${c.ascii ? 'br' : '⎇'} ${n.git.branch}` : ''
   return [
     edgeLine(b.tl, b.tr, tag.up ? (c.ascii ? '+' : '┴') : undefined),
     // the title wins the row: the pill is drawn only when the whole title fits beside it (glyph and border already carry the state)
     split([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, full, undefined, { bold: true, node: id })], strWidth(full) + 3 + strWidth(pill) <= inner ? [seg(c, pill, col_, { bold: true })] : [], true), // a cut title ends in … (video: "Operações bitwise 0b1010 e shi")
-    body(c.ascii ? [seg(c, chipTxt, DIM, { node: id })] : (() => {
-      const mg = MODEL_GLYPH[(n.model ?? '').toLowerCase()], bars = n.effort ? EFFORT_BARS[n.effort] : undefined
-      return [seg(c, ch.persona ?? '', DIM, { node: id }), ...(n.model ? [seg(c, ` · ${mg ? mg.g + ' ' : ''}${n.model}`, mg?.color, { node: id })] : []), ...(bars ? [seg(c, ` ${bars}`, DIM, { node: id })] : [])]
-    })()),
+    ...chipRows.map(t => body(clip([seg(c, t, DIM, { node: id })], inner))),
     split([...(tag.wf ? [seg(c, `${c.ascii ? '@' : '⟳'} ${tag.wf}`, WORKFLOW_COLOR, { bold: true }), ...sp(wtTxt ? 2 : 0)] : []), ...(wtTxt ? [seg(c, wtTxt, WORKTREE_COLOR)] : [])], tag.role ? [seg(c, tag.role, DIM)] : [], true),
     body(bar),
     split([status], [seg(c, meta, DIM)]),
@@ -579,7 +583,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     const m = memo.get(n)!
     const tm = m.rows.length > 1 ? TM : 0
     const bx = x0 + tm + Math.floor((m.w - tm - CARD_W) / 2), pcx = bx + CARD_W / 2 // centred over the rows, not the trunk
-    const role = `${n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente'} L${depth}`
+    const role = n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente'
     starts?.push(y0)
     card(n, nm, c, now, frame, idx++, { role, wt: flowOf(n), wf: n.workflow, up, down: m.rows.length > 0 }, runs?.get(n.id)).forEach((l, r) => put(bx, y0 + r, l))
     if (!m.rows.length) return

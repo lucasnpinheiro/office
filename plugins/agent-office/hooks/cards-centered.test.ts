@@ -40,8 +40,8 @@ test('centred: connectors leave the parent bottom centre (┬) and enter each ch
 
 test('roles beside the worktree row: orquestrador (session), agente (top level), subagente (deeper); worktree on the left', () => {
   const t = rows([...tree, mk('w', { git: { branch: 'feat/x', worktree: 'wt' } } as any)], { width: 200 }).join('\n')
-  expect(t).toMatch(/ orquestrador L0│/); expect(t).toMatch(/ agente L1│/); expect(t).toMatch(/ subagente L2│/)
-  expect(t).toMatch(/│⧉ feat\/x +agente L1│/)
+  expect(t).toMatch(/ orquestrador│/); expect(t).toMatch(/ agente│/); expect(t).toMatch(/ subagente│/)
+  expect(t).toMatch(/│⧉ feat\/x +agente│/)
   const a = rows(tree, { caps: detectCaps({ OFFICE_ASCII: '1' }) }).join('\n')
   expect(a).toContain('subagente'); expect(a).not.toMatch(/[╭╮╰╯│┬┴┄┊]/)
 })
@@ -92,10 +92,10 @@ test('cards never shrink and none is dropped: a short pane shows a window of ful
   const first = rows(many, { maxLines: 20 })
   expect(first.join('\n')).toMatch(/1\/\d+/); expect(first.join('\n')).not.toContain('cards ocultos')
   expect(last.join('\n')).toMatch(/(\d+)\/\1/)
-  // a card is always 7 rows: top border, 5 body rows, bottom border
+  // a card is always 8 rows: top border, 6 body rows, bottom border
   const top = first.findIndex(l => /╭─{32}╮/.test(l) && !l.startsWith('╭'))
-  for (let r = 1; r <= 5; r++) expect(first[top + r]).toContain('│')
-  expect(first[top + 6]).toContain('╰')
+  for (let r = 1; r <= 6; r++) expect(first[top + r]).toContain('│')
+  expect(first[top + 7]).toContain('╰')
 })
 
 test('design card anatomy: title + state pill, chips, worktree + role, step segments, status + cost and time', () => {
@@ -104,10 +104,22 @@ test('design card anatomy: title + state pill, chips, worktree + role, step segm
   const t = rows([a])
   const y = t.findIndex(l => l.includes('API de cupom') && l.includes('│'))
   expect(t[y]).toMatch(/│✓ API de cupom +Concluído│/)
-  expect(t[y + 1]).toMatch(/│🦉 Senior · ◆ Sonnet ▁ *│/)
-  expect(t[y + 2]).toMatch(/│⧉ spec\/checkout-api +agente L1│/)
-  expect(t[y + 3]).toMatch(/│━+ ━+│/)
-  expect(t[y + 4]).toMatch(/│concluído +~\$0,30 · 00:16│/)
+  expect(t[y + 1]).toMatch(/│🦉 Senior · 🎼 Sonnet · 🟢 baixo│/)
+  expect(t[y + 2]).toMatch(/│ +│/) // chips fit on one row: the wrap row stays blank
+  expect(t[y + 3]).toMatch(/│⧉ spec\/checkout-api +agente│/)
+  expect(t[y + 4]).toMatch(/│━+ ━+│/)
+  expect(t[y + 5]).toMatch(/│concluído +~\$0,30 · 00:16│/)
+})
+
+test('design 2026-11-14: chips too long wrap to the next row, as text (no model glyph, no effort bars)', () => {
+  const a = mk('o', { description: '🧭 Squad Leader · 👑 Opus · 🟢 baixo: Orquestrar' } as any)
+  const t = rows([a])
+  const y = t.findIndex(l => l.includes('Orquestrar') && l.includes('│'))
+  expect(t[y + 1]).toMatch(/│🧭 Squad Leader · 👑 Opus · 🟢 +│/)
+  expect(t[y + 2]).toMatch(/│baixo +│/)
+  expect(t.join('\n')).not.toMatch(/[■◆◇▁▃▅]/)
+  const asc = rows([a], { caps: { ...detectCaps({} as any), ascii: true, color: false } }).join('\n')
+  expect(asc).toMatch(/\|Squad Leader - Opus - baixo +\|/); expect(asc).not.toContain('??')
 })
 
 test('no scroll buttons or j/k hotkeys: j/k scroll invisibly; the footer lists none', () => {
