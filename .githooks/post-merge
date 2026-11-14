@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# After a pull/merge that touched a plugin manifest, refresh the installed plugins (marketplace + user scope).
+git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^plugins/.*/\.claude-plugin/plugin\.json$' || exit 0
+"$(git rev-parse --show-toplevel)/scripts/update-installed-plugins.sh"

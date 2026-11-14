@@ -83,3 +83,9 @@ export function appGrid<T>(items: readonly T[], cols: number): T[][] {
   for (let i = 0; i < items.length; i += n) rows.push(items.slice(i, i + n))
   return rows
 }
+
+// Map siblings: one solid bus when they fit a single row, else rows under a dashed trunk, each with its own dashed bus.
+export function mapRows<T>(kids: readonly T[], cols: number): { bus: 'solid' | 'dashed'; rows: T[][] } {
+  const rows = appGrid(kids, cols)
+  return { bus: rows.length > 1 ? 'dashed' : 'solid', rows }
+}
