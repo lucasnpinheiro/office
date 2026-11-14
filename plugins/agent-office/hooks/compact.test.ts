@@ -38,7 +38,7 @@ test('tree: one line per agent, glyphs, unique names, ETA calculando, legend', (
   const out = txt(renderCompact(ag, T + 9000, v))
   expect(out).toMatch(/✓ .*Dev|✓ a/); expect(out).toContain('✗'); expect(out).toContain('⠹')
   expect(out).toContain('ETA calculando'); expect(out).toContain('Office')
-  expect(out).toMatch(/Níveis de profundidade: 1\/10/)
+  expect(out).toMatch(/Níveis de profundidade: 1\/20/)
 })
 test('tree: ASCII fallback has no unicode box/glyphs', () => {
   const a = detectCaps({ OFFICE_ASCII: '1' })
@@ -59,10 +59,10 @@ test('search filters by name', () => {
   const out = txt(renderCompact([mk('alpha'), mk('beta')], T + 1000, { ...v, query: 'alp' }))
   expect(out).not.toContain('beta')
 })
-test('ungrouped: rounded cards with +N hint when overflowing', () => {
+test('ungrouped: rounded cards, all 30 drawn even when the pane is short (dense), never a +N hint', () => {
   const ag = Array.from({ length: 30 }, (_, i) => mk('ag' + i))
   const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 100, maxCardRows: 2 }))
-  expect(out).toContain('╭'); expect(out).toMatch(/↓ \+\d+ cards/)
+  expect(out).toContain('╭'); expect(out).not.toMatch(/↓ \+\d+ cards/); expect((out.match(/Dev: ag\d+/g) ?? []).length).toBe(30)
 })
 test('status line and quota error', () => {
   expect(statusText([mk('a'), mk('b', { status: 'done', endedAt: T + 1 })], T + 10)).toMatch(/^⠹ 1 ativos · \d+%/)
@@ -183,10 +183,10 @@ test('card border colors by state (blue running, red failed, gray done/pending)'
   const fg = cardsOut(ag).flatMap(l => l.filter(s => /^╭─+$/.test(s.t))).map(s => s.fg)
   expect(fg).toContain('#7FA9FF'); expect(fg).toContain('#FF8A80'); expect(fg).toContain('#4b5563')
 })
-test('footer box with +N cards hint, / buscar, g modo; legend below', () => {
+test('short pane: no hidden-cards box, every card drawn dense; legend below', () => {
   const ag = Array.from({ length: 30 }, (_, i) => mk('x' + i))
   const o = txt(cardsOut(ag, { maxCardRows: 2 }))
-  expect(o).toMatch(/│↓ \+\d+ cards ocultos.*s buscar · o ordenar│/)
+  expect(o).not.toContain('cards ocultos'); for (let i = 0; i < 30; i++) expect(o).toContain('Dev: x' + i)
   expect(o).toMatch(/✓ Concluído\s+⠹ Rodando\s+▲ Parado sem sinal\s+○ Na fila\s+✗ Falhou/)
 })
 test('ASCII header/footer use plain ascii only', () => {
@@ -194,10 +194,12 @@ test('ASCII header/footer use plain ascii only', () => {
   expect(o).not.toMatch(/[^\x00-\x7F·ç-úÀ-Úã-õ…]/)
 })
 
-test('maxLines caps card lines so footer always fits', () => {
+test('maxLines: a short pane halves the card rows (dense) instead of cutting cards; the footer is still drawn', () => {
   const ag = Array.from({ length: 12 }, (_, i) => mk('m' + i))
   const ls = renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 80, maxCardRows: 99, maxLines: 20 })
-  expect(ls.length).toBeLessThanOrEqual(20 + 4 + 7)
+  const tall = renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 80, maxCardRows: 99, maxLines: 999 })
+  expect(ls.length).toBeLessThan(tall.length / 2 + 8)
+  expect((txt(ls).match(/Dev: m\d+/g) ?? []).length).toBe(12)
   expect(txt(ls)).toMatch(/✓ Concluído\s+⠹ Rodando/)
 })
 
@@ -241,17 +243,11 @@ test('detail has hotkeys for back and sibling navigation', () => {
   expect(hot).toEqual(expect.arrayContaining(['n']))
 })
 
-// ---- review round: hidden-cards hint counts cards (not rows) and nested rows are cut at their real line ----
-test('cards hint counts hidden cards, not hidden rows', () => {
+// ---- no cut: a pane too short for the full cards draws them dense, never fewer ----
+test('cards never cut: 6 siblings in a 7-line budget are all drawn', () => {
   const ag = Array.from({ length: 6 }, (_, i) => mk('h' + i))
   const o = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 7 }))
-  expect(o).toContain('+3 cards ocultos')
-})
-test('cards cut: nested child rows use their absolute line, never a dangling bus or +0 hint', () => {
-  const ag = [mk('p', { agentId: 'P' }), ...Array.from({ length: 4 }, (_, i) => mk('c' + i, { parentAgentId: 'P' }))]
-  const o = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 24 }))
-  expect(o).not.toContain('+0 cards')
-  expect(o).toContain('+1 cards ocultos')
+  expect(o).not.toContain('cards ocultos'); for (let i = 0; i < 6; i++) expect(o).toContain('Dev: h' + i)
 })
 
 test('detail: nota de captura desligada também no detalhe compacto', () => {

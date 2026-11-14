@@ -237,14 +237,13 @@ function filterBar(g: Graph, v: CView): Line {
     ...btn(`Falhas ${bad}`, 'failed', v.filter === 'failed'), ...(v.query ? [seg(c, `busca: ${v.query}`, DIM)] : [])], v.width)
 }
 
-// Footer per design (Rodada 4): scroll-hint box, legend, bus legend. The hotkey row is drawn by the pane
+// Footer per design (Rodada 4): legend, bus legend. The hotkey row is drawn by the pane
 // from the view state (actions.ts hotkeysFor), so keys stay unique and go quiet while searching.
-function footer(g: Graph, v: CView, hint = ''): Line[] {
+function footer(g: Graph, v: CView): Line[] {
   const c = v.caps
   const states: State[] = ['done', 'running', 'attention', 'pending', 'failed']
   const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${stateLabel(c, s)}`, stateColor(s))])
   const out: Line[] = []
-  if (hint) out.push(...ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, `${keyOf('search')} ${labelOf('search')} · ${keyOf('sort')} ${labelOf('sort')}`, DIM)]))
   out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], v.mode === 'cards' ? centre(fit(legend, v.width), v.width) : fit(legend, v.width))
   if (v.mode === 'cards') out.push(centre(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · borda inferior: papel e wt worktree' : '┊ ┄ ┬ ┴ barramento pai→filhos · borda inferior: papel (orquestrador, agente, subagente) e ⧉ worktree', DIM)], v.width), v.width))
   if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
@@ -441,7 +440,7 @@ function chipRows(n: Node, ch: ReturnType<typeof chips>, c: Caps, inner: number,
   if (strWidth(joined) <= inner) return [joined, rest]
   return [takeWidth(parts[0] ?? '', inner), takeWidth(parts.slice(1).filter(Boolean).join(' · '), inner)]
 }
-export type CardTag = { role?: string; wt?: string; up?: boolean; down?: boolean }
+export type CardTag = { role?: string; wt?: string; up?: boolean; down?: boolean; dense?: boolean }
 function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number, tag: CardTag = {}): Line[] {
   const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
@@ -490,6 +489,13 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
     seg(c, tag.down ? (c.ascii ? '+' : '┬') : b.h, edge),
     seg(c, b.h.repeat(Math.max(0, rightFill)), edge), ...(wt ? [seg(c, wt, WORKTREE_COLOR)] : []), seg(c, b.h + b.br, edge),
   ]
+  if (tag.dense) {
+    // short pane: one body row (glyph, name, metric and time), so every card still fits; nothing is ever hidden
+    const meta = `${pctText} ${time}`
+    const name = truncRunes(full, Math.max(4, inner - 2 - strWidth(meta) - 1))
+    const gap = Math.max(1, inner - 2 - strWidth(name) - strWidth(meta))
+    return [topEdge, body([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, name, undefined, { bold: true, node: id }), ...sp(gap), seg(c, meta, DIM)]), bottomEdge]
+  }
   return [
     topEdge,
     body([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, truncRunes(title, inner - 2), undefined, { bold: true, node: id })]),
@@ -500,11 +506,11 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   ]
 }
 
-// tops: absolute line of each card row's top border + how many cards that row holds (for the hidden-cards hint)
 // Centred tree (user decision 2026-11-13, "TELA 8 centralizada"): each parent card sits centred over its children, the
 // whole block is centred in the pane. Siblings that do not fit wrap into rows hung off a dotted trunk on the left of the
-// block. Every level is CARD_H + 1 rows, so card tops share one lattice and a cut never slices a card.
-function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): { lines: Line[]; tops: { at: number; n: number }[] } {
+// block. Nothing is cut: `dense` draws 3-row cards for a pane too short for the full ones.
+function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, dense = false): Line[] {
+  const CH = dense ? 3 : CARD_H
   const c = v.caps, frame = v.frame ?? 0
   const V = c.ascii ? ':' : '┊', H = c.ascii ? '.' : '┄'
   const J = c.ascii ? { d: '+', u: '+', x: '+', tl: '+', tr: '+', l: '+', bl: '+' } : { d: '┬', u: '┴', x: '┼', tl: '╭', tr: '╮', l: '├', bl: '╰' }
@@ -526,21 +532,20 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     if (cur.length) rows.push(cur)
     const rowW = rows.map(r => r.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0))
     const tm = rows.length > 1 ? TM : 0
-    const m = { w: Math.max(CARD_W, tm + Math.max(0, ...rowW)), h: CARD_H + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows }
+    const m = { w: Math.max(CARD_W, tm + Math.max(0, ...rowW)), h: CH + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows }
     memo.set(n, m); return m
   }
   const grid: { x: number; w: number; l: Line }[][] = []
   const put = (x: number, y: number, l: Line) => { (grid[y] ??= []).push({ x, w: l.reduce((a, q) => a + strWidth(q.t), 0), l }) }
-  const tops = new Map<number, number>()
   let idx = 0
   const draw = (n: Node, x0: number, y0: number, depth: number, up: boolean) => {
     const m = memo.get(n)!
     const tm = m.rows.length > 1 ? TM : 0
     const bx = x0 + tm + Math.floor((m.w - tm - CARD_W) / 2), pcx = bx + CARD_W / 2 // centred over the rows, not the trunk
     const role = n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente'
-    card(n, nm, c, now, frame, idx++, { role, wt: flowOf(n), up, down: m.rows.length > 0 }).forEach((l, r) => put(bx, y0 + r, l))
+    card(n, nm, c, now, frame, idx++, { role, wt: flowOf(n), up, down: m.rows.length > 0, dense }).forEach((l, r) => put(bx, y0 + r, l))
     if (!m.rows.length) return
-    let y = y0 + CARD_H
+    let y = y0 + CH
     const busYs: number[] = []
     m.rows.forEach((row, ri) => {
       const rw = row.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0)
@@ -566,7 +571,6 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
         if (last && last.fg === sg.fg) last.t += ch; else bus.push(sg)
       }
       put(lo, y, bus); busYs.push(y)
-      tops.set(y + 1, (tops.get(y + 1) ?? 0) + row.length)
       row.forEach((k, i) => draw(k, slots[i]!, y + 1, depth + 1, true))
       y += 1 + Math.max(...row.map(k => memo.get(k)!.h))
     })
@@ -583,7 +587,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
       lines.push(out)
     }
   }
-  return { lines, tops: [...tops.entries()].sort((a, b) => a[0] - b[0]).map(([at, n]) => ({ at, n })) }
+  return lines
 }
 
 function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
@@ -636,11 +640,10 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const nm = names(g)
   const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
-  let hint = ''
   const out: Line[] = [...header(g, agents, now, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
   if (agents.length === 0) {
     // empty session: the orchestrator card alone, centred, with the waiting line under it (never a bare line of text)
-    if (v.mode === 'cards') out.push(...cardLines(g, nm, keep, now, v).lines, [])
+    if (v.mode === 'cards') out.push(...cardLines(g, nm, keep, now, v), [])
     const wait: Line = [seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)]
     out.push(v.mode === 'cards' ? centre(wait, w) : wait)
   } else {
@@ -652,16 +655,10 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         seg(v.caps, nm.get(n.id) ?? n.name, undefined, { bold: true, node: n.id }), seg(v.caps, n.error ? '  ' + n.error : '', DIM)], w))
     }
     if (v.mode === 'cards') {
-      const { lines, tops } = cardLines(g, nm, keep, now, v)
+      // no card is ever hidden: when the full cards do not fit the pane height, every card goes dense (3 rows)
       const cap = Math.max(CARD_H + 1, v.maxLines ?? v.maxCardRows * (CARD_H + 2))
-      if (lines.length > cap) {
-        const cut = tops.filter(t => t.at + CARD_H <= cap)
-        const at = cut.length ? cut[cut.length - 1]!.at + CARD_H : cap
-        const sum = (ts: { n: number }[]) => ts.reduce((k, t) => k + t.n, 0)
-        const shown = cut.length ? sum(cut) : (tops[0]?.n ?? 0)
-        out.push(...lines.slice(0, at))
-        hint = `${v.caps.ascii ? '+' : '↓ +'}${sum(tops) - shown} cards ocultos (painel sem altura para mostrar todos)`
-      } else out.push(...lines)
+      const fullCards = cardLines(g, nm, keep, now, v)
+      out.push(...(fullCards.length > cap ? cardLines(g, nm, keep, now, v, true) : fullCards))
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))
     else if (v.mode === 'tools') out.push(...toolLines(model, now, { width: w, caps: v.caps }, v.captureIo === true))
@@ -671,7 +668,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     } else if (v.mode === 'grouped') out.push(...groupedLines(g, agents, nm, keep, now, v))
     else out.push(...treeLines(g, nm, keep, now, v))
   }
-  out.push(...footer(g, v, hint))
+  out.push(...footer(g, v))
   return out.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
 }
 

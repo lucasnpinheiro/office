@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.21.1 (agent-office, no card is ever hidden, 20 levels)
+
+- Cards view: the "+N cards ocultos" cut is gone. When the full 7-row cards do not fit the pane height, every card is drawn dense (3 rows: border, one line with state, name, metric and time, border with role and worktree), so all agents stay on screen.
+- Depth: agents nest up to 20 levels (was 10); every level is drawn under its parent.
+
 ## 0.21.0 (agent-office, one view in the terminal)
 
 - Terminal: the boxed org chart is gone. The centred cards are the only map of the terminal and always the opening view; `v` alternates cards and tree, and `/office view map` or `OFFICE_VIEW=map` land on the cards too. The app surfaces keep their own map.
