@@ -70,7 +70,7 @@ const TIER_FALLBACK: Record<string, { model: string }> = { rapido: { model: 'hai
 // state comes from status/endedAt/seenAt, tasks from the agent's own todos.
 export function buildGraph(agents: readonly AgentRecord[], now: number, sessionGit?: GitInfo, sessionTool?: ToolNote): Graph {
   const root: Node = {
-    id: 'session', parentId: '', name: 'Orquestrador', persona: '🎯 Orquestrador', model: 'Opus', effort: 'baixo', kind: 'session',
+    id: 'session', parentId: '', name: 'Orquestrador', persona: '🧭 Squad Leader', model: 'Opus', effort: 'baixo', kind: 'session',
     state: 'running', depth: 0, children: [], dependsOn: [], git: sessionGit, tool: sessionTool?.tool, recent: sessionTool?.recent,
   }
   const g: Graph = { root, nodes: new Map([[root.id, root]]) }

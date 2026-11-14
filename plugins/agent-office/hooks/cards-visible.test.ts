@@ -46,7 +46,7 @@ test('B5 orchestrator card is Concluído when every agent is done, and its time 
   expect(g.root.state).toBe('done')
   expect(durationOf(g.root, now)).toBe(elapsedOf(g, now))
   const t = lines(done, {}, now)
-  const card = t.find(l => l.includes('Orquestrador') && !l.includes('🎯'))!
+  const card = t.find(l => l.includes('Orquestrador') && !l.includes('🧭'))!
   expect(card).toContain('Concluído')
   expect(card).not.toContain('Rodando')
   expect(t.join('\n')).toContain('0 rodando')

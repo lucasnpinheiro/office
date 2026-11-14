@@ -543,8 +543,8 @@ const clipOf = (c: Caps) => (l: Seg[], w: number): Seg[] => {
 }
 
 // Centred tree (user decision 2026-11-13, "TELA 8 centralizada"): each parent card sits centred over its children, the
-// whole block is centred in the pane. Siblings that do not fit wrap into rows hung off a dotted trunk on the left of the
-// block. Nothing is cut and no card shrinks: a pane too short scrolls (renderCompact windows these lines).
+// whole block is centred in the pane. Top-level siblings that do not fit wrap into rows hung off a dotted trunk on the left of the
+// block. Nothing is cut and no card shrinks: a pane too short scrolls (renderCompact windows these lines). Subagents (depth >= 2) stack one per row in their parent column (design 2026-11-14).
 function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, runs?: Map<string, RunNode>, starts?: number[]): Line[] {
   const CH = CARD_H
   const c = v.caps, frame = v.frame ?? 0
@@ -560,9 +560,10 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     const hit = memo.get(n); if (hit) return hit
     const kids = agentKids(n), inner = Math.max(CARD_W, avail - TM), rows: Node[][] = []
     let cur: Node[] = [], used = 0
+    const stack = n !== g.root // design 2026-11-14: agents in one row under the root, subagents stacked in their parent's column
     for (const k of kids) {
       const w = measure(k, inner).w
-      if (cur.length && (used + CARD_GAP + w > inner || cur.length >= maxPer)) { rows.push(cur); cur = []; used = 0 }
+      if (cur.length && (stack || used + CARD_GAP + w > inner || cur.length >= maxPer)) { rows.push(cur); cur = []; used = 0 }
       used += (cur.length ? CARD_GAP : 0) + w; cur.push(k)
     }
     if (cur.length) rows.push(cur)

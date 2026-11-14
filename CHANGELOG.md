@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.5 (agent-office, org tree in 2D like the design)
+
+- Map: top-level agents in one row under the Orquestrador; subagents stack vertically in their parent's column (terminal and Desktop). Spec `.specs/features/office-org-tree-2d`.
+- Orquestrador card persona is `🧭 Squad Leader`; the app always keeps the Orquestrador box as root.
+
 ## 0.28.4 (agent-office, orchestrator card like the design)
 
 - The orchestrator card is titled `Orquestrador` and its chip row reads `🎯 Orquestrador · Opus · baixo`, like every agent card, in the terminal and the Desktop app (was `Claude Code / Orquestrador`).

@@ -62,7 +62,7 @@ test('appMap: session root, agents under their parent, tones and pct never inven
 
 test('appMap: query prunes branches', () => {
   const m = appMap([mk('alfa'), mk('beta')], T + 1000, { query: 'beta' })
-  expect(m.card.id).toBe('beta') // one visible top-level agent: it is the root box (design), no session box above it
+  expect(m.card.id).toBe('session'); expect(m.children.map(n => n.card.id)).toEqual(['beta']) // design 2026-11-14: Orquestrador always on top
 })
 
 test('appMap: several top-level agents keep the Orquestrador session box as their parent', () => {
@@ -81,8 +81,7 @@ test('appMap: every card carries its role by depth: orquestrador (session), agen
   expect(m.card.role).toBe('orquestrador')
   const pai = m.children.find(n => n.card.title === 'Dev: pai')!
   expect(pai.card.role).toBe('agente'); expect(pai.children[0]!.card.role).toBe('subagente')
-  // a lone top-level agent promoted to root keeps its own role
-  expect(appMap([mk('solo')], T + 1000, {}).card.role).toBe('agente')
+  expect(appMap([mk('solo')], T + 1000, {}).children[0]!.card.role).toBe('agente')
 })
 
 test('parity: one RunModel, Terminal pills and App cards carry the same agents, states and stalled flags', () => {
@@ -107,5 +106,5 @@ test('parity: one RunModel, Terminal pills and App cards carry the same agents, 
 
 test('appMap: orchestrator card matches the design: title Orquestrador, chips persona · modelo · esforço', () => {
   const m = appMap([], T, {})
-  expect([m.card.title, ...m.card.chips]).toEqual(['Orquestrador', '🎯 Orquestrador', '👑 Opus', '🟢 baixo'])
+  expect([m.card.title, ...m.card.chips]).toEqual(['Orquestrador', '🧭 Squad Leader', '👑 Opus', '🟢 baixo'])
 })

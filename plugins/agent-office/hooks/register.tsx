@@ -754,7 +754,15 @@ export const register: Register = on => {
         <Box key={key} flexDirection="column" alignItems="center">
           {appCardBox(n.card, kids.length > 0)}
           {kids.length ? <Box width={1} height={1} backgroundColor="subtle" /> : null}
-          {rows.length === 1 ? (
+          {n.layout === 'column' ? (
+            // design 2026-11-14: subagents stack in the parent's own column, a stub into each one
+            <Box flexDirection="column" alignItems="center">{kids.map((k, i) => (
+              <Box key={`mc-${k.card.id}`} flexDirection="column" alignItems="center">
+                {i ? <Box width={1} height={1} backgroundColor="subtle" /> : null}
+                {mapTree(k, `mt-${k.card.id}`)}
+              </Box>
+            ))}</Box>
+          ) : rows.length === 1 ? (
             <Box flexDirection="row" justifyContent="center" gap="sm">{rows[0]!.map((k, i) => childCol(k, i, rows[0]!.length, true))}</Box>
           ) : rows.length > 1 ? (
             <Box flexDirection="row" width="100%">

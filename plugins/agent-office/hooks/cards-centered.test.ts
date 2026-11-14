@@ -125,5 +125,5 @@ test('depth: a chain of 20 nested agents is drawn, each under its parent', () =>
 test('orchestrator card (terminal) reads Orquestrador with persona · modelo · esforço, never Claude Code', () => {
   const o = rows([mk('a')]).join('\n')
   expect(o).not.toContain('Claude Code')
-  expect(o).toMatch(/Orquestrador/); expect(o).toMatch(/🎯 Orquestrador · .*Opus/)
+  expect(o).toMatch(/Orquestrador/); expect(o).toMatch(/🧭 Squad Leader · .*Opus/)
 })

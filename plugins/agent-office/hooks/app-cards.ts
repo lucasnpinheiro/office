@@ -62,7 +62,7 @@ export function appCards(agents: AgentRecord[], now: number, o: { query?: string
 }
 
 // Org chart for the app surfaces: the session card on top, each agent under its parent. Same Graph as the terminal map.
-export type AppMapNode = { card: AppCard; children: AppMapNode[] }
+export type AppMapNode = { card: AppCard; children: AppMapNode[]; layout: 'row' | 'column' } // row under the root, column deeper
 export function appMap(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; git?: GitInfo; model?: RunModel }): AppMapNode {
   const g = buildGraph(agents, now, o.git)
   const nm = names(g), keep = visibleSet(g, o.query ?? '', new Set<string>(), o.filter), by = runsOf(agents, now, o.model)
@@ -70,9 +70,7 @@ export function appMap(agents: AgentRecord[], now: number, o: { query?: string; 
     card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Orquestrador', status: undefined, role: 'orquestrador' }
       : { ...cardOf(n, nm, now, by.get(n.id)), role: depth <= 1 ? 'agente' : 'subagente' },
     children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(k => walk(k, depth + 1)),
+    layout: depth === 0 ? 'row' : 'column',
   })
-  const top = walk(g.root)
-  // design (Term5 / Proto5 "Mapa"): the root box IS the orchestrating agent; the session box only appears when
-  // several top-level agents need a common parent
-  return top.children.length === 1 ? top.children[0]! : top
+  return walk(g.root) // design 2026-11-14: the Orquestrador box is always the root, even over a single agent
 }

@@ -101,14 +101,14 @@ test('cards: siblings per row follow the pane width: 120 -> 3, 200 -> 5, 34-col 
   expect(bot - top + 1).toBe(7)
 })
 test('cards: wrapped sibling rows hang off a dotted trunk on the left, each child under its own drop', () => {
-  const ag = [mk('p', { agentId: 'P' }), ...many(4, 'P')]
-  const lines = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n')
+  const lines = txt(renderCompact(many(4), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n') // top-level row wraps
   const first = lines.find(l => /^ *╭┄/.test(l))!, last = lines.find(l => /^ *╰┄/.test(l))!
   expect(first).toBeDefined(); expect(last).toBeDefined()
   expect(first.match(/[┬┼╮]/g)!.length).toBe(3) // three children on the first row
   expect(last.match(/[┬╮]/g)!.length).toBe(1) // the fourth wraps
   expect(lines.some(l => /^ *┊ ╭/.test(l))).toBe(true) // the trunk runs beside the first row
-  expect(lines.some(l => /^ +┊$/.test(l))).toBe(true) // single child (session -> P): a straight dotted drop
+  const one = txt(renderCompact([mk('p', { agentId: 'P' })], T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n')
+  expect(one.some(l => /^ +┊$/.test(l))).toBe(true) // single child (session -> P): a straight dotted drop
 })
 test('cards: branch siblings take one row each after leaves, subtree below', () => {
   const ag = [mk('p', { agentId: 'P' }), mk('leaf1', { parentAgentId: 'P' }), mk('br', { parentAgentId: 'P', agentId: 'B' }), mk('gk', { parentAgentId: 'B' })]
