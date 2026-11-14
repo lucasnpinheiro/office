@@ -631,7 +631,7 @@ export const register: Register = on => {
       containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,
     }
     // detail screen (view-detail.ts, T-009) for both the compact and the map view; an agent that left the list falls back to the list with a warning
-    const detailOf = (id: string) => detailView(all, id, now, { captureIo: ioFlag, ascii: caps.ascii })
+    const detailOf = (id: string, width = cols) => detailView(all, id, now, { captureIo: ioFlag, ascii: caps.ascii, width, frame: caps.reducedMotion ? 0 : frameFor(all, now) })
     const gone = !!selRaw && !selected
     const goneWarning: typeof f.lines = gone ? [[{ t: detailOf(selRaw).warning ?? '', fg: '#eab308' }]] : []
     let compactFrame: typeof f.lines | undefined
@@ -883,20 +883,20 @@ export const register: Register = on => {
       const field = searching ? (
         <Input key="office-search" autoFocus label="s " placeholder="buscar agente (Enter)" value={await read($, queryAt)} onSubmit={(v: string) => void (async () => { await update($, queryAt, () => v.trim()); await dispatch($, 'back') })()} />
       ) : null
-      const backBtn = <Button key="office-back" onPress={() => void act('back')}>{attach ? '[← fechar preview]' : '[← voltar]'}</Button>
+      const backBtn = <Button key="office-back" onPress={() => void act('back')}>{attach ? '← fechar preview' : '← voltar'}</Button>
       // wide pane (desktop app, or a very wide terminal): cards on the left, the detail of the selected agent on the right
       if (side) {
         const left = renderCompact(all, now, { ...compactView, width: cols - 50 })
         return (
           <Box flexDirection="row">
             <Box flexDirection="column" width={cols - 49}>{field}{left.map(draw)}{keysRow}</Box>
-            <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{backBtn}{detailOf(selected).lines.map(draw)}</Box>
+            <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{detailOf(selected, 46).lines.map(draw)}</Box>
           </Box>
         )
       }
       return (
         <Box flexDirection="column">
-          {selected || gone ? backBtn : field}
+          {attach || gone ? backBtn : selected ? null : field}
           {compactFrame.map(draw)}
           {keysRow}
         </Box>
@@ -913,7 +913,7 @@ export const register: Register = on => {
     }
     return (
       <Box flexDirection="column">
-        {gone ? <Button key="office-back-gone" onPress={() => void act('back')}>{'[← voltar]'}</Button> : null}
+        {gone ? <Button key="office-back-gone" onPress={() => void act('back')}>{'← voltar'}</Button> : null}
         {goneWarning.map(draw)}
         {f.header.map(draw)}
         {f.body.map(draw)}

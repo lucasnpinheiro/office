@@ -19,12 +19,13 @@ test('AC-027 detalhe: breadcrumb, linha de estado, resultado e linha do tempo na
     recent: ['Read tests/checkout', 'Bash npm test'], prompt: 'Rodar os testes de checkout.',
   })
   const lines = detailScreen([a], 'a1', T0 + 8000).lines
-  expect(lines[0]).toMatch(/^Office › .*Tester {2,}b voltar$/)
-  expect(lines[1]).toBe('✗ Falhou · Agente · Haiku · baixo · ⧉ spec/checkout-api · 00:07 · — · ~$ —')
-  expect(lines[2]).toMatch(/^▬{10}$/)
-  expect(lines[3]).toBe('2 de 14 testes falham: cupom não aplicado')
+  expect(lines[0]).toMatch(/^← voltar \(b\) +Office › Tester$/)
+  expect(lines[1]).toBe('✗ Falhou   Agente · Haiku · baixo')
+  expect(lines[2]).toBe('⧉ spec/checkout-api  ⏱ 00:07')
+  expect(lines[3]).toMatch(/^░{20}  sem total conhecido$/)
+  expect(lines.join('\n')).toContain('2 de 14 testes falham: cupom não aplicado')
   const out = lines.join('\n')
-  const order = ['Linha do tempo', '—  Bash npm test', 'Prompt · segredos mascarados']
+  const order = ['SOLICITAÇÃO', '—  Bash npm test', 'CONCLUSÃO']
   const pos = order.map(k => out.indexOf(k))
   expect(pos.every(p => p >= 0)).toBe(true)
   expect([...pos].sort((x, y) => x - y)).toEqual(pos)
@@ -40,17 +41,15 @@ test('AC-027 detalhe: breadcrumb, linha de estado, resultado e linha do tempo na
 test('AC-027 linha do tempo: mm:ss, ferramenta, argumento e duração', () => {
   const a = mk('a1', { steps: [{ id: 's1', tool: 'Read', label: 'tests/checkout', startedAt: T0, durationMs: 2000 }, { id: 's2', tool: 'Bash', label: 'npm test', startedAt: T0 + 2000, durationMs: 5000 }] })
   const out = text(detailScreen([a], 'a1', T0 + 7000).lines)
-  expect(out).toContain('00:00  Read  tests/checkout  2s')
-  expect(out).toContain('00:02  Bash  npm test  5s')
+  expect(out).toMatch(/00:00 ✓ Read  tests\/checkout +2s/)
+  expect(out).toMatch(/00:02 ✓ Bash  npm test +5s/)
 })
 
 // AC-027: mini-barra com total conhecido preenche proporcionalmente; sem total fica vazia
 test('AC-027 mini-barra: proporção só com total conhecido', () => {
   const a = mk('a1', { todos: [{ content: 'a', status: 'completed' }, { content: 'b', status: 'completed' }, { content: 'c', status: 'completed' }, { content: 'd', status: 'pending' }, { content: 'e', status: 'pending' }] })
-  const bar = detailScreen([a], 'a1', T0 + 1).lines[2]
-  expect(bar).toMatch(/^▬{10}$/)
-  const filled = detailView([a], 'a1', T0 + 1).lines[2]!.filter(x => x.fg !== '#A9ADB5').map(x => x.t).join('')
-  expect(filled.length).toBe(6)
+  const bar = detailScreen([a], 'a1', T0 + 1).lines[3]
+  expect(bar).toMatch(/^█{12}░{8}  60%$/)
 })
 
 // AC-027: prompt is masked before it is shown
@@ -155,4 +154,30 @@ test('detalhe: links de pai e filhos honram o vocabulário ASCII', () => {
   expect(asc.length).toBeGreaterThan(0)
   for (const t of asc) expect(t).toMatch(/^(\.\.|\[\S+\]|\|\|) /)
   expect(asc.join('')).not.toMatch(/[⠹○✓✗▲■]/u)
+})
+
+// 0.28.10 redesign: SOLICITAÇÃO / ANDAMENTO / CONCLUSÃO / CONTEXTO, no double brackets, no orphan "x:" rows, k tokens, nothing wider than the pane.
+const sw = (l: string) => [...l].length
+test('detail redesign: sections in order, k tokens, no orphan rows, no double brackets, no line wider than the width, tool name once', () => {
+  const kids = Array.from({ length: 11 }, (_, i) => mk(`s${i}`, { agentId: `S${i}`, parentAgentId: 'P', description: `Dev: irmao${i}`, status: 'done', endedAt: T0 + 3000 }))
+  const a = mk('a1', {
+    agentId: 'A', parentAgentId: 'P', description: 'Dev: fns-misc.js', status: 'done', endedAt: T0 + 8000, usage: { tokens: 30983 },
+    prompt: '[spec-research] respond in caveman full.\nDir: /Users/x/some/very/long/path/to/the/repo\nEscreva as funções utilitárias de fns-misc.js seguindo o CONTRACT.md e rode os testes antes de entregar o resultado final ao orquestrador.',
+    steps: [{ id: '1', tool: 'Write', label: 'Write fns-misc.js', startedAt: T0 + 3000, durationMs: 400, ok: true }],
+    files: ['/Users/x/proj/scratchpad/work/with/a/really/long/nested/path/that/goes/on/and/on/fns-misc.js'],
+    git: { branch: 'fix/office-map-wrap' },
+  })
+  for (const width of [80, 160]) {
+    const t = detailScreen([mk('p1', { agentId: 'P' }), a, ...kids], 'a1', T0 + 9000, { width }).lines
+    const out = t.join('\n')
+    expect(out).not.toMatch(/\[ ?\[/)
+    expect(out).not.toMatch(/Write +Write/)
+    expect(out).toContain('31k tok')
+    expect(out).not.toMatch(/~\$ —/)
+    expect(out).not.toContain('caveman')
+    for (const l of t) { expect(sw(l)).toBeLessThanOrEqual(width); expect(l.trim()).not.toMatch(/^[a-z]:$/i) }
+    const order = ['SOLICITAÇÃO', 'ANDAMENTO', 'CONCLUSÃO', 'CONTEXTO'].map(k => out.indexOf(k))
+    expect(order.every(p => p >= 0)).toBe(true); expect([...order].sort((x, y) => x - y)).toEqual(order)
+    expect(out).toMatch(/Irmãos 1\/12/)
+  }
 })
