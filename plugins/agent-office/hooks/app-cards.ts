@@ -21,6 +21,7 @@ export type AppCard = {
   pctText: string; time: string; status?: string
   git?: string[] // gitLabel lines: '⎇ branch' then '⧉ worktree' in a linked worktree
   hasKids?: boolean
+  role?: 'orquestrador' | 'agente' | 'subagente' // by depth: main session, top-level agent, anything deeper
   steps?: { weight: number; tone: Tone }[] // one segment per tool step (flex by duration); absent = single pct bar
 }
 
@@ -58,9 +59,10 @@ export type AppMapNode = { card: AppCard; children: AppMapNode[] }
 export function appMap(agents: AgentLike[], now: number, o: { query?: string; filter?: 'all' | 'failed'; git?: GitInfo }): AppMapNode {
   const g = buildGraph(agents, now, o.git)
   const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = new Map(agents.map(a => [a.id, a]))
-  const walk = (n: Node): AppMapNode => ({
-    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code', chips: ['Orquestrador'], status: undefined } : cardOf(n, nm, now, by.get(n.id)),
-    children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(walk),
+  const walk = (n: Node, depth = 0): AppMapNode => ({
+    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code', chips: ['Orquestrador'], status: undefined, role: 'orquestrador' }
+      : { ...cardOf(n, nm, now, by.get(n.id)), role: depth <= 1 ? 'agente' : 'subagente' },
+    children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(k => walk(k, depth + 1)),
   })
   const top = walk(g.root)
   // design (Term5 / Proto5 "Mapa"): the root box IS the orchestrating agent; the session box only appears when

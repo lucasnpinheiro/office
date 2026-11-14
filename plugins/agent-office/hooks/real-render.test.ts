@@ -178,3 +178,16 @@ test('desktop map: siblings that do not fit wrap into rows hung off a dashed tru
   expect(k2.filter(x => x.startsWith('trunk-')).length).toBe(0)
   expect(k2.filter(x => x.startsWith('rowbus-')).length).toBe(0)
 })
+
+test('desktop map: role on every card and a lit pulse on the dashed bus of a row with a running child', async ($, on) => {
+  setup($, on)
+  on('tool.call', async () => ({ result: { stdout: 'ok', stderr: '' } }) as any)
+  await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
+  for (let i = 1; i <= 8; i++) await $.agent.spawn({ tool_use_id: `r${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
+  await $.tool.call({ tool: 'Bash', tool_use_id: 'rc1', agentId: 'ag-1', command: 'ls' } as any).catch(() => undefined) // ag-1 is now running
+  const ui = await mountApp($, 112)
+  const t = (await ui.findAll({ type: 'Text' })).map((x: any) => String(x.text))
+  expect(t).toContain('orquestrador'); expect(t.filter((x: string) => x === 'agente').length).toBe(8)
+  const lit = (await ui.findAll({ type: 'Box' })).filter((b: any) => String(b.key ?? b.props?.key ?? '').startsWith('dash-rowbus-') && b.props?.backgroundColor === 'suggestion')
+  expect(lit.length).toBeGreaterThan(0)
+})
