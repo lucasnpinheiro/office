@@ -96,5 +96,5 @@ test('AC-017: rodapé deriva letra e rótulo do KEY_MAP', () => {
 test('AC-017: dicas desenhadas nas telas usam as letras do KEY_MAP', () => {
   // the cards view no longer draws a hidden-cards box (nothing is hidden); its search and sort keys live in the pane footer (hotkeysFor)
   const d = txt(detailCompact([mk('a'), mk('b')], 'a', T + 5000, detectCaps({})) ?? [])
-  expect(d).toContain(`${keyOf('nextSibling')}: próximo`)
+  expect(d).toContain(`${keyOf('nextSibling')}: ›`)
 })

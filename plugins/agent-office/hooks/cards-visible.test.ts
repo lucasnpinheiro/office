@@ -33,10 +33,29 @@ test('B1 pane too short for every card: scrolls in whole cards, no card cut mid-
   }
 })
 
-test('B2 tree view: a finished agent older than 30 s stays visible, like in the cards view', () => {
-  const old = Array.from({ length: 3 }, (_, i) => mk(`o${i}`, { status: 'done', endedAt: T + 1000 }))
-  const t = lines(old, { mode: 'tree' }, T + 3_600_000).join('\n')
-  for (let i = 0; i < 3; i++) expect(t).toContain(`Dev: o${i}`)
+// 0.28.10 (user): Concluído cards leave the panel 30 s after they end; Falhou and Precisa de você stay; a parent stays while a child shows.
+test('B2 done cards disappear 30 s after they end (cards and tree), the header still counts them', () => {
+  const ag = [mk('a', { status: 'done', endedAt: T + 1000 })]
+  for (const mode of ['cards', 'tree'] as const) {
+    expect(lines(ag, { mode }, T + 1000 + 29_000).join('\n')).toContain('Dev: a')
+    const gone = lines(ag, { mode }, T + 1000 + 31_000).join('\n')
+    expect(gone).not.toContain('Dev: a')
+    expect(gone).toContain('1 concluído')
+  }
+})
+
+test('B2 failed cards are never auto-removed', () => {
+  const ag = [mk('f', { status: 'failed', endedAt: T + 1000 })]
+  for (const mode of ['cards', 'tree'] as const) expect(lines(ag, { mode }, T + 3_600_000).join('\n')).toContain('Dev: f')
+})
+
+test('B2 a done parent with a live child stays; once the subtree is done it leaves 30 s after the last child ended', () => {
+  const parent = mk('p', { status: 'done', endedAt: T + 1000 })
+  const live = mk('k', { parentAgentId: 'g-p' })
+  expect(lines([parent, live], { mode: 'cards' }, T + 100_000).join('\n')).toContain('Dev: p')
+  const kDone = mk('k', { parentAgentId: 'g-p', status: 'done', endedAt: T + 50_000 })
+  expect(lines([parent, kDone], { mode: 'cards' }, T + 70_000).join('\n')).toContain('Dev: p') // child ended 20 s ago
+  expect(lines([parent, kDone], { mode: 'cards' }, T + 81_000).join('\n')).not.toContain('Dev: p') // 31 s
 })
 
 test('B5 orchestrator card is Concluído when every agent is done, and its time matches the header elapsed', () => {

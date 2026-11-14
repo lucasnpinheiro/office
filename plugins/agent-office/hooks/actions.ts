@@ -78,6 +78,7 @@ export function footerText(s: Ui, side: boolean): string {
 }
 export function footerTail(s: Ui): string {
   if (s.searching) return 'Enter aplica a busca (vazio limpa)'
+  if (s.selected) return `${FOOTER_SEP}p/n irmão`
   if (s.view === 'map' && !s.selected) return `${FOOTER_SEP}Tab mover · Enter abrir · ctrl+x tab foca o painel`
   return `${FOOTER_SEP}Tab entre cards · Enter detalhe · ctrl+x tab foca o painel`
 }

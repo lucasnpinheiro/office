@@ -194,14 +194,14 @@ export function etaOf(g: Graph): number | undefined {
   return mean * Math.ceil(remaining / maxOverlap(xs))
 }
 
-// Finished agents leave the map HIDE_AFTER_MS after they end (tasks go with them), unless a child agent is still visible.
+// Concluído agents leave the map HIDE_AFTER_MS after they end (tasks go with them), unless a child agent is still visible; failed ones stay.
 export function hiddenIds(g: Graph, now: number): Set<string> {
   const hidden = new Set<string>()
   const visit = (n: Node): boolean => { // true = stays visible
     const kids = n.children.filter(k => k.kind === 'agent').map(visit)
     if (n.kind !== 'agent') return true
-    const final = n.state === 'done' || n.state === 'failed'
-    const expired = final && n.end !== undefined && now - n.end > HIDE_AFTER_MS
+    const expired = n.state === 'done' && // Falhou and Precisa de você are never auto-removed
+       n.end !== undefined && now - n.end > HIDE_AFTER_MS
     const vis = !expired || kids.some(Boolean)
     if (!vis) hidden.add(n.id)
     return vis

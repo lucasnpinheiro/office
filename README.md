@@ -113,6 +113,104 @@ with sample agents (`scripts/render-docs.ts`).
 | --- | --- |
 | ![detail render](docs/images/detail.svg) | ![ascii render](docs/images/ascii.svg) |
 
+### Views (0.28.x)
+
+### Mapa (default on the app surfaces)
+
+The session is always the single root card, titled **Orquestrador** (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`, branch of the
+session cwd on the left, `orquestrador` on the right). It is the same card over one agent or over many: there is no separate
+"Claude Code" card.
+
+- **Depth grows downward.** The level-1 agents sit in one row under the root, joined by a solid bus. Each agent's subagents
+  hang directly below that parent, in the parent's column, joined by a short vertical line (a parent never shares a row with its
+  children).
+- **Many siblings.** When the level-1 agents do not fit one row they wrap into rows of `floor((width - 2 + 2) / 36)` cards
+  (cards are 34 wide plus a gap of 2; 3 per row at 112 columns). A dashed trunk on the left links the rows; each row has its own
+  dashed bus above it with a short drop into every card. When they all fit in one row the bus is solid. A pane narrower than one
+  card shows one card per row; no card is ever dropped.
+- **Motion.** The running glyph spins, the bar sweeps, and a lit dash runs along the dashed path that leads to a running agent
+  (static with `OFFICE_REDUCED_MOTION=1`).
+- Card anatomy: bold title (wraps to 2 lines) with a status pill, `persona · model · effort`, branch or worktree (purple, can
+  wrap) with the role on the right (`orquestrador`, `agente`, `subagente`), a segmented progress bar, and a footer with the last
+  tool, `~$cost` and `mm:ss`.
+
+#### Cards (flat grid)
+
+Mode `cards` on the app surfaces lays every card in rows by pane width (the same `floor((width - 2 + 2) / 36)` rule), rows stacked
+top to bottom, so cards fill the pane horizontally and vertically instead of running off in one row. On the terminal the cards
+view is the centred tree described above.
+
+#### Detail (Enter on a card)
+
+```
+← voltar (b)                         Office › fns-misc.js
+✓ Concluído   Mid-level · Haiku · médio
+⧉ fix/office-map-wrap  ⏱ 00:08  31k tok  ~$0,02
+████████████████████ 100%
+
+▌ SOLICITAÇÃO
+  summary of the prompt (boilerplate and Dir: lines stripped, 3 lines max)
+▌ ANDAMENTO                                    3 passos · 8s
+  00:03 ✓ Bash  cat CONTRACT.md                            1s
+  Entrada/saída das ferramentas: desligado. Defina OFFICE_CAPTURE_IO=1 para ligar.
+▌ CONCLUSÃO
+  error, final report or "em andamento…"; 📎 attachments shortened (middle ellipsis)
+▌ CONTEXTO
+  Pai: sessão  ·  Filhos: —  ·  Bloqueio: —
+  Irmãos 9/12: ‹ ✓ Engine  ✓ Testes  ✓ UI ›
+```
+
+Tokens read `31k tok`; cost is hidden while unknown; the tool name appears once per step; every line is cut to the pane width
+(never wrapped mid-word or mid-path). `← voltar (b)` is clickable. The final report in CONCLUSÃO comes from the agent record's
+`report` field when present (the engine does not store the handback text today, so a finished agent shows `concluído`).
+
+#### Footer and keys
+
+Three centred rows: the status legend, the glyph legend, then the keys, grouped as filtros (`g o f s`) | visão (`v`) | sair
+(`b q`) with the navigation hints last (`j: descer`, `k: subir`, `Tab`, `Enter`, `ctrl+x tab`). Key letters are buttons, the
+hints are dim. Rows wrap by width one whole item at a time, so a lone `x:` never appears. In a detail the footer reads
+`b voltar | p/n irmão | q fechar`.
+
+#### Statuses
+
+| Status | Glyph | Color (dark) |
+|---|---|---|
+| Rodando | `⠹` spinner | blue `#7FA9FF` |
+| Concluído | `✓` | green `#6FD08C` |
+| Falhou | `✗` | red `#FF8A80` |
+| Precisa de você / Parado sem sinal | `◆` / `▲` | amber `#F2B84B` |
+| Na fila / Pausado / Interrompido | `○` / `‖` / `■` | grey `#A9ADB5` |
+
+State is always carried by glyph and label as well as color.
+
+#### Finished cards leave after 30 seconds
+
+A **Concluído** card disappears 30 s after the agent ends (all views). **Falhou** and **Precisa de você** cards are never removed
+automatically. A finished parent stays while any child is still shown, and leaves 30 s after its last child leaves, so the
+tree never has orphans. The header counters (`concluídos`) keep counting every finished agent.
+
+#### Keeping the install current
+
+`scripts/update-installed-plugins.sh` (repo root) refreshes the marketplace and the user-scope install of every plugin whose
+`plugin.json` version differs from the installed one; it is idempotent and silent when `claude` is missing. A `post-merge` hook
+runs it after a pull or merge that touches a manifest. Enable the hook once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Self-check: `bash scripts/test-update-installed.sh`. **Restart Claude Code after an update** (or run `/reload-plugins`): the
+running session keeps the old code until then.
+
+#### Changelog summary
+
+- **0.28.8**: card view on app surfaces lays out in explicit rows by pane width (flex wrap did not wrap, so all cards sat in one row).
+- **0.28.9**: map wrap rule (`mapRows`: solid vs dashed bus, rows by width) and root rule covered by tests; footer regrouped,
+  centred and wrapped, `j`/`k` are visible items (they rendered as empty `j:` / `k:` lines); the installed-plugin updater and hook.
+- **0.28.10**: Concluído cards expire after 30 s; detail view redesigned (Solicitação / Andamento / Conclusão / Contexto).
+
+Full history: [CHANGELOG.md](CHANGELOG.md).
+
 ### Layout, breakpoints and scrolling
 
 Follows the Claude Design board "Office Agent Monitor Redesign" (Rodada 5). The pane height is the terminal height (no fixed
@@ -129,7 +227,7 @@ cap) and the layout is recomputed on every resize.
   cards re-wrap one column narrower to make room, and a stale scroll offset is clamped after a resize.
 - Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
 - Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
-- Keys: `j` scroll down, `k` scroll up (one card row per press), plus the hotkeys below.
+- Keys: `j` scroll down, `k` scroll up (one card row per press, shown in the footer), plus the hotkeys below.
 
 ### Hotkeys
 
@@ -223,7 +321,3 @@ Details: [docs/privacy.md](docs/privacy.md).
 MIT (each plugin carries its own `LICENSE`). Exception: `plugins/learning/skills/task-observer` is by Eoghan Henn
 ([rebelytics.com](https://rebelytics.com)), licensed CC BY 4.0, original
 https://github.com/rebelytics/one-skill-to-rule-them-all (see the NOTICE in [plugins/learning](plugins/learning/README.md)).
-
-## Keeping installed plugins current
-
-`scripts/update-installed-plugins.sh` refreshes the marketplace and the user-scope install of every plugin whose `plugin.json` version differs from the installed one (idempotent, silent without `claude`). The `post-merge` hook in `.githooks/` runs it after a pull or merge that touches a manifest. Enable once per clone: `git config core.hooksPath .githooks`. Self-check: `scripts/test-update-installed.sh`.

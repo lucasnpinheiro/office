@@ -20,3 +20,8 @@ A imagem do usuário (Image #7) não estava acessível; a fidelidade segue o des
 - `mapRows(kids, cols)` (app-cards.ts) decide o barramento do mapa: `solid` se cabe numa fileira, senão `dashed` com fileiras de `appPerRow(cols)`, tronco e barramento tracejados por fileira (register.tsx `mapTree`).
 - Raiz: a sessão é sempre o único card raiz (Orquestrador) sobre um ou vários agentes de topo; não existe nó "Claude Code" separado no modelo de dados.
 - Testes: `app-cards.test.ts` (map wrap, root rule).
+
+## 0.28.10
+- Concluído expira em 30 s (`hiddenIds`, só `done`); Falhou/Precisa de você ficam; pai segue visível enquanto um filho aparece. Testes: `cards-visible.test.ts` (B2).
+- Detalhe: layout Solicitação/Andamento/Conclusão/Contexto, `detailView(..., { width })`; teste `view-detail.test.ts` (80 e 160 colunas).
+- Rodapé: `footerRows` (actions.ts), teste em `actions.test.ts`.

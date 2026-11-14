@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.10 (agent-office, 30 s expiry, detail redesign, docs)
+
+- Concluído cards leave every view 30 s after the agent ends; Falhou and Precisa de você stay; a finished parent stays while a child shows. Header counters still count all (`hiddenIds`, failed no longer expires).
+- Detail view redesigned: `← voltar (b)` + breadcrumb, state, `⧉ branch ⏱ time 31k tok ~$cost` (cost hidden while unknown), bar, then SOLICITAÇÃO / ANDAMENTO / CONCLUSÃO / CONTEXTO. Fixes: double `[ ]` around voltar and duplicated `b voltar`, bare token count, `~$ —`, stray `_` under the bar, repeated tool name in the timeline, prompt cut mid-word, sibling row wrapping and glued chips, long paths wrapping mid-path. Every line is cut to the pane width.
+- Footer: `footerRows` groups keys (filtros | visão | sair | navegação), centres and wraps by width; `j`/`k` are visible items instead of empty hidden buttons.
+- README (plugin and root): views, footer and keys, statuses, 30 s expiry, auto-update hook, restart note. `docs/images` renders were not regenerated (scripts/render-docs.ts needs bun or tsx, not installed here).
+
 ## 0.28.9 (agent-office, map wrap rule tested)
 
 - The map's sibling layout is now the pure `mapRows` (solid bus when siblings fit one row, else rows of floor((w-2+2)/36) under a dashed trunk with a dashed bus per row), with tests. Root rule locked by test: the session is always the single root card (Orquestrador) over one or several top agents.

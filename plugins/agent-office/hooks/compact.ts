@@ -2,7 +2,7 @@
 // attachment preview and terminal capability detection. Pure (no engine APIs): the caller passes `now`.
 // Terminal and app share this state model; only the drawing of the Lines differs.
 import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, maxDepthOf, fmtMMSS, fmtHMS,
-  truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError } from './monitor'
+  truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError, hiddenIds } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
 import { spinnerGlyph } from './motion'
@@ -676,14 +676,14 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const g = buildGraph(agents, now)
   if (layoutLevel(w) === 'line') {
     // abaixo de 60 colunas só a lista: falha e decisão primeiro, depois as linhas da árvore
-    const nm0 = names(g), keep0 = visibleSet(g, v.query, new Set<string>(), v.filter)
+    const nm0 = names(g), keep0 = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
     if (agents.length === 0) return [fit([seg(v.caps, 'Aguardando agentes…', DIM)], w)]
     const list = [...pinnedLines(g, nm0, keep0, v), ...treeLines(g, nm0, keep0, now, { ...v, mode: 'tree' })]
     return list.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
   }
   const nm = names(g)
-  // no compact view expires a finished agent: the header counts them all, so every view must draw them (B2)
-  const keep = visibleSet(g, v.query, new Set<string>(), v.filter)
+  // Concluído cards leave 30 s after they end (hiddenIds); the header still counts them all
+  const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
   // order of the design: header, alert banners, view tabs, then the view itself
   const out: Line[] = [...header(g, agents, now, v), ...(agents.length && (v.mode === 'tree' || v.mode === 'cards') ? pinnedLines(g, nm, keep, v) : []), tabsLine(agents, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
