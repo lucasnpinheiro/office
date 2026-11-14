@@ -73,7 +73,7 @@ test('hotkeys are unique per view and off while searching', async () => {
     }
   }
   expect(hotkeysFor({ ...s0, searching: true }, false)).toEqual([])
-  expect(hotkeysFor(c0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q'])
+  expect(hotkeysFor(c0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'j', 'k', 'q'])
   expect(hotkeysFor({ ...c0, selected: 'a' }, false).map(h => h.key)).toEqual(['b', 'q'])
   expect(hotkeysFor({ ...c0, selected: 'a' }, true).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'b', 'q'])
   expect(hotkeysFor(s0, false).map(h => h.key)).toEqual(['v', 'f', 'q']) // map footer: visão · falhas · fechar
@@ -94,7 +94,7 @@ test('session start always opens the map view, clearing persisted filters and se
 
 test('footer: hotkeys separated by " · " and tail hint set off, never glued', async () => {
   const line = footerText(c0, false)
-  expect(line).toBe('g: modo · o: ordenar · f: só falhas · s: buscar · v: visão · q: fechar')
+  expect(line).toBe('g: modo · o: ordenar · f: só falhas · s: buscar · v: visão · j: descer · k: subir · q: fechar')
   expect(line).not.toMatch(/visão q:/)
   expect(footerTail(c0)).toMatch(/^ · Tab entre cards/)
   const searching = { ...c0, searching: true }

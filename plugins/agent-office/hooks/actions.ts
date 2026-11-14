@@ -60,7 +60,9 @@ export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
   const hk = (act: string): Hotkey => ({ key: keyOf(act) ?? '', label: labelOf(act) ?? act, act })
   // Custo, Ferramentas e Workflow não passam pelo filtro de falhas nem pela busca: f e s não são desenhados nem ligados ali.
   const filterable = s.mode !== 'cost' && s.mode !== 'tools' && s.mode !== 'workflow'
-  const list: Hotkey[] = [hk('group'), hk('sort'), ...(filterable ? [hk('failed'), hk('search')] : []), hk('view')]
+  // j/k scroll the cards when the tree is taller than the pane (they are bound only in the cards view)
+  const scroll = s.mode === 'cards' && s.view === 'compact' && !s.selected ? [hk('scrollDown'), hk('scrollUp')] : []
+  const list: Hotkey[] = [hk('group'), hk('sort'), ...(filterable ? [hk('failed'), hk('search')] : []), hk('view'), ...scroll]
   const back: Hotkey = { ...hk('back'), label: s.attach ? 'fechar preview' : hk('back').label }
   const close = hk('close')
   const view = hk('view')
