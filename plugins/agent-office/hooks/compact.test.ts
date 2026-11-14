@@ -300,7 +300,7 @@ test('card chips: too wide with the dots drops the dots, never the model or the 
 })
 test('card title: one row; a long task takes the whole row and the state pill gives way (the detail view has the whole text)', () => {
   const o = txt(cardsOut([mk('t', { description: '🧪 QA · 🪶 Haiku · 🟢 baixo: Atualizar a documentação completa do plugin office' })]))
-  expect(o).toContain('Atualizar a documentação compl'); expect(o).not.toMatch(/Atualizar a doc[^\n│]*Rodando│/)
+  expect(o).toContain('Atualizar a documentação comp…'); expect(o).not.toMatch(/Atualizar a doc[^\n│]*Rodando│/)
 })
 test('card chips: no prefix in the description, subagent_type rapido gives Haiku low', () => {
   const o = txt(cardsOut([mk('t', { description: 'Varrer docs', subagentType: 'rapido' })]))

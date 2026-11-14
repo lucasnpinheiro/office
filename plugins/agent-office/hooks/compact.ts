@@ -509,7 +509,7 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   const rows = [
     edgeLine(b.tl, b.tr),
     // the title wins the row: the pill is drawn only when the whole title fits beside it (glyph and border already carry the state)
-    split([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, full, undefined, { bold: true, node: id })], strWidth(full) + 3 + strWidth(pill) <= inner ? [seg(c, pill, col_, { bold: true })] : []),
+    split([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, full, undefined, { bold: true, node: id })], strWidth(full) + 3 + strWidth(pill) <= inner ? [seg(c, pill, col_, { bold: true })] : [], true), // a cut title ends in … (video: "Operações bitwise 0b1010 e shi")
     body(c.ascii ? [seg(c, chipTxt, DIM, { node: id })] : (() => {
       const mg = MODEL_GLYPH[(n.model ?? '').toLowerCase()], bars = n.effort ? EFFORT_BARS[n.effort] : undefined
       return [seg(c, ch.persona ?? '', DIM, { node: id }), ...(n.model ? [seg(c, ` · ${mg ? mg.g + ' ' : ''}${n.model}`, mg?.color, { node: id })] : []), ...(bars ? [seg(c, ` ${bars}`, DIM, { node: id })] : [])]

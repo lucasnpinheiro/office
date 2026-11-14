@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.2 (agent-office, video regressions: titles and cards)
+
+- A card title cut by the card width ends in `…` (it used to stop mid-word: "Operações bitwise 0b1010 e shi"). The title row takes the same ellipsis rule as the branch row (B4). Test: `hooks/cards-video.test.ts` (scenario of the 2026-11-14 video, 150 cols x 55 rows).
+- Video check (0.25.0 installed): the cards cut at the pane bottom, finished cards gone after 30 s and the orchestrator stuck on `Rodando` were already fixed on 0.28.1 (B1, B2, B5); the `j: descer / k: subir` footer and the `↑/↓ mais cards` hints are not in 0.27+ code.
+
 ## 0.28.1 (agent-office, every card visible at any pane size)
 
 - Pane rows: the cards view measures its own chrome (header, tabs, banners, footer) against the pane's `bodyRows` (or the viewport rows) instead of a fixed 9. The footer sits on the last row; blank rows fill what the cards leave (B1). The old 10-row floor is gone.

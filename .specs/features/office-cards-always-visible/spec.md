@@ -50,3 +50,19 @@ Suíte: baseline 439 passando; depois 445 passando, 0 falhando (`claude plugin t
 
 - Mudança de expiração do renderer antigo do mapa (`monitor.ts`, teste 'completed agents hide 30s') mantida.
 - Largura de container no app (`containerWidth`, ADR 0002) não tratada.
+
+## Vídeo 2026-11-14 (0.25.0 instalado, spec-2)
+
+Versão vista: 0.25.0 (rodapé `j: descer · k: subir` e `k sobe · j desce` não existem em main 0.27 nem em 0.28.1). 1182 quadros distintos (mpdecimate), 99 folhas revisadas, 0–93 s.
+
+| Tempo | Sintoma | No 0.28.1? | Agora |
+|---|---|---|---|
+| 0–25 s | cards cortados na borda inferior, `mais cards abaixo` sobre a borda, metade do painel vazia | sim (B1) | verificado (55 linhas, passos por card) |
+| 29.8–30.8 s | título cortado no meio sem `…`: "Operações bitwise 0b1010 e shi", "Conversões bin/oct/hex 255 e 4" | não | corrigido: `compact.ts` título com `split(…, true)` |
+| 33–34 s | card pela metade na borda inferior | sim (B1) | verificado |
+| 37–42 s | 3 cards desenhados; cabeçalho 8 rodando / 16 concluídos | não reproduzido | depende do estado dos agentes |
+| 48–63 s | orquestrador `Rodando 100%` com filhos concluídos | sim para raiz concluída (B5) | não reproduzido (dado de status) |
+| 56–92 s | filhos concluídos somem; só o orquestrador fica | sim (B2, sem expiração) | verificado: 24 concluídos seguem |
+| 46–63 s | notificação do Claude Code sobre o painel | fora do plugin | — |
+
+Testes: baseline 445 pass / 0 fail. Novo `hooks/cards-video.test.ts` (4 testes): 2 vermelhos antes da correção (título cortado), 2 verdes. Total 449. Ajuste: `compact.test.ts` "card title" agora espera `comp…` (a reticência custa uma coluna). Flake: "depth 50" roda em 4.5–5.8 s contra limite de 5 s (baseline 4.7 s, sem correção 4.97 s); pré-existente, não alterado.
