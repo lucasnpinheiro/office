@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.3 (agent-office, Warp video: back to the centred cards of the design)
+
+- Regression from 0.28.0/0.28.1 (video 2026-11-14 12:41, Warp side pane): the cards view drew an indented column of narrow cards and, on a short pane, dropped the persona/model/effort row (dense/tight forms). The design (TELA 8, video 12:45) is the centred org chart with full cards.
+- Cards view is the centred tree again: parent centred over its children, `┬ ┴ ┄` bus, siblings wrap into rows off a trunk; the app surfaces cap a row by `appColumns(containerPx)` again.
+- Dense and tight card forms are gone: every card keeps its 7 rows; a short pane scrolls one card row per step (`scrollInfo.units`). Kept from 0.28.1/0.28.2: footer on the last row (B1), no expiry (B2), ellipsis on title and branch (B4), orchestrator freeze (B5), `⟳` workflow badge.
+- Tests: `hooks/cards-centered.test.ts` restored; `hooks/cards-tree.test.ts` removed.
+
 ## 0.28.2 (agent-office, video regressions: titles and cards)
 
 - A card title cut by the card width ends in `…` (it used to stop mid-word: "Operações bitwise 0b1010 e shi"). The title row takes the same ellipsis rule as the branch row (B4). Test: `hooks/cards-video.test.ts` (scenario of the 2026-11-14 video, 150 cols x 55 rows).
