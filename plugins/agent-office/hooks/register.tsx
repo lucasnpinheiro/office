@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import { isAppSurface, appCards, appMap } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, appPerRow } from './app-cards'
 import type { AppCard, AppMapNode } from './app-cards'
 import { spinnerGlyph } from './motion'
 import { detailData } from './view-detail'
@@ -721,8 +721,7 @@ export const register: Register = on => {
     )
     // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
     // Connectors are Boxes (a 1-cell bar), tone `suggestion` into a running child, `subtle` otherwise.
-    const APP_CARD_W = 34, APP_GAP = 2
-    const perRowApp = Math.max(1, Math.floor((cols - 2 + APP_GAP) / (APP_CARD_W + APP_GAP)))
+    const perRowApp = appPerRow(cols)
     const dashes = (key: string, dir: 'row' | 'column', n: number, live = false) => (
       <Box key={key} flexDirection={dir} gap="xs" {...(dir === 'row' ? { height: 1, width: '100%' } : { width: 1 })}>
         {Array.from({ length: n }, (_, i) => <Box key={`dash-${key}-${i}`} flexGrow={1} {...(dir === 'row' ? { height: 1 } : { width: 1 })} backgroundColor={live && !caps.reducedMotion && i === fr % n ? 'suggestion' : 'subtle'} />)}
@@ -879,8 +878,8 @@ export const register: Register = on => {
         <Box flexDirection="column" gap="sm">
           {appChrome()}
           {cards.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : null}
-          <Box flexDirection="row" flexWrap="wrap" gap="sm">
-            {cards.map(c => appCardBox(c))}
+          <Box flexDirection="column" gap="sm">
+            {appGrid(cards, cols).map((row, ri) => <Box key={`grid-${ri}`} flexDirection="row" gap="sm">{row.map(c => appCardBox(c))}</Box>)}
           </Box>
           {keysRow}
         </Box>
