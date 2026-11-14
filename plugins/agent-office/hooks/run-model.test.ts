@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { buildRunModel, buildGraph, progressOf, overallProgress, durationOf, elapsedOf, etaOf, hiddenIds, maxDepthOf } from './run-model'
+import { buildRunModel, buildGraph, progressOf, overallProgress, durationOf, elapsedOf, etaOf, hiddenIds, maxDepthOf, nextState } from './run-model'
+import type { RunState, LifeEvent } from './run-model'
 import * as monitor from './monitor'
 import type { AgentRecord } from './office'
 import type { Capabilities } from './capabilities'
@@ -173,4 +174,28 @@ test('ETA: modelo desconhecido nunca vira "mesmo modelo"', () => {
   const nm = (id: string, from: number, to: number): AgentRecord => mk(id, { description: 'sem persona', status: 'done', startedAt: T0 + from, endedAt: T0 + to })
   const ag = [nm('a', 0, 60_000), nm('b', 100_000, 160_000), nm('c', 200_000, 260_000), mk('d', { description: 'sem persona' })]
   expect(etaOf(buildGraph(ag, T0 + 300_000))).toBeUndefined()
+})
+
+// flow-rules §3: "Parado sem sinal" only from Rodando; a queued agent (active false) never stalls
+test('agente na fila não vira parado sem sinal, mesmo sem atividade há 10 min', () => {
+  const m = buildRunModel([mk('q', { active: false, seenAt: T0 })], T0 + 11 * 60 * 1000, caps)
+  expect(m.nodes.find(n => n.id === 'q')?.state).toBe('queued')
+  expect(m.attention).toEqual([])
+})
+
+// flow-rules §3: every lifecycle arrow exists in the pure reducer; any other event leaves the state unchanged
+test('nextState: cada seta do ciclo de vida existe e o resto fica', () => {
+  const cases: [RunState, LifeEvent, RunState][] = [
+    ['queued', 'tool', 'running'], ['running', 'finish', 'done'], ['running', 'error', 'failed'],
+    ['failed', 'retry', 'running'], ['running', 'stop', 'stopped'], ['running', 'permission', 'needs-you'],
+    ['needs-you', 'answer', 'running'], ['needs-you', 'pause', 'paused'], ['paused', 'resume', 'running'],
+    ['running', 'stall', 'stalled'], ['stalled', 'tool', 'running'],
+    ['stalled', 'finish', 'done'], ['stalled', 'error', 'failed'], ['stalled', 'stop', 'stopped'],
+  ]
+  for (const [s, e, to] of cases) expect(nextState(s, e)).toBe(to)
+  expect(nextState('queued', 'stall')).toBe('queued') // parado sem sinal vale só a partir de Rodando
+  expect(nextState('paused', 'stall')).toBe('paused')
+  expect(nextState('done', 'tool')).toBe('done') // final: nenhuma atividade o tira do estado
+  expect(nextState('stopped', 'retry')).toBe('stopped')
+  expect(nextState('done', 'retry')).toBe('done') // repetir só sai de Falhou
 })
