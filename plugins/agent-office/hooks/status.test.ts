@@ -3,7 +3,7 @@ import { statusLines, toggleAction } from './status'
 import type { AgentLike } from './office'
 
 const T0 = 1_700_000_000_000
-const D = '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo'
+const D = '🛠️ Mid-level · 🎼 Sonnet · 🟢 baixo'
 const mk = (id: string, over: Partial<AgentLike> = {}): AgentLike => ({
   id, agentId: `g-${id}`, description: `${D}: tarefa ${id}`, status: 'working', startedAt: T0, ...over,
 })

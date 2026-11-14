@@ -7,10 +7,10 @@ export type Persona = {
 export const PERSONAS: Persona[] = [
   { key: 'po', name: 'Product Owner', icon: '🎯' },
   { key: 'sl', name: 'Squad Leader', icon: '🧭' },
-  { key: 'esp', name: 'Especialista', icon: '🧠' },
-  { key: 'arq', name: 'Arquiteto', icon: '📐' },
+  { key: 'esp', name: 'Specialist', icon: '🧠' },
+  { key: 'arq', name: 'Architect', icon: '📐' },
   { key: 'sr', name: 'Senior', icon: '🦉' },
-  { key: 'pl', name: 'Pleno', icon: '🛠️' },
+  { key: 'pl', name: 'Mid-level', icon: '🛠️' },
   { key: 'qa', name: 'QA', icon: '🧪' },
   { key: 'dba', name: 'DBA', icon: '🗄️' },
   { key: 'appsec', name: 'AppSec', icon: '🛡️' },
@@ -22,8 +22,18 @@ export const PERSONAS: Persona[] = [
   { key: 'bi', name: 'Data/BI', icon: '📊' },
   { key: 'jr', name: 'Junior', icon: '🌱' },
   { key: 'tw', name: 'Tech Writer', icon: '✍️' },
-  { key: 'est', name: 'Estagiário', icon: '🐣' },
+  { key: 'est', name: 'Intern', icon: '🐣' },
 ]
+
+// pt-BR names from before the English rename; same persona, kept as aliases.
+export const PERSONA_ALIASES: Record<string, string> = {
+  especialista: 'esp', arquiteto: 'arq', pleno: 'pl', 'estagiário': 'est', estagiario: 'est',
+}
+const byName = (n?: string): Persona | undefined => {
+  const k = (n ?? '').trim().toLowerCase()
+  const key = PERSONA_ALIASES[k]
+  return PERSONAS.find(p => (key ? p.key === key : p.name.toLowerCase() === k))
+}
 
 export const GENERIC: Persona = {
   key: 'gen', name: 'Agente', icon: '🤖',
@@ -72,6 +82,9 @@ export function parseDescription(desc: string): Parsed {
       else if (Object.values(TIER_OF).includes(w)) tier = w
     }
   }
+  const head2 = stripVs(head)
+  if (!model) model = Object.keys(MODEL_DISPLAY).find(m => head2.includes(stripVs(MODEL_DISPLAY[m]!.icon)))
+  if (!effort) effort = Object.keys(EFFORT_DISPLAY).find(e => head2.includes(EFFORT_DISPLAY[e]!.icon))
   if (!tier && model) tier = TIER_OF[model]
   if (!model && tier) model = MODELS.find(m => TIER_OF[m] === tier)
   return { persona: found, tier, model, effort, label }
@@ -97,7 +110,7 @@ export type Chips = { persona: string; model?: string; effort?: string }
 // Card chips: icon + label per field, built from the Node strings (persona name, model label, effort label).
 // Unknown values pass through as plain text; missing model/effort stay undefined.
 export function chips(persona?: string, model?: string, effort?: string): Chips {
-  const p = PERSONAS.find(x => x.name === persona) ?? (persona === GENERIC.name ? GENERIC : undefined)
+  const p = byName(persona) ?? (persona === GENERIC.name ? GENERIC : undefined)
   const mk = (model ?? '').toLowerCase()
   const md = MODEL_DISPLAY[mk]
   const ed = Object.values(EFFORT_DISPLAY).find(d => d.label === effort)

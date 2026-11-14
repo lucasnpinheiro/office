@@ -112,7 +112,7 @@ test('desktop surface: the map view draws the org chart as Box cards (root, chil
 test('desktop pane: header, tabs with Mapa selected, map card content, side detail on click', async ($, on) => {
   setup($, on)
   await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
-  for (let i = 1; i <= 2; i++) await $.agent.spawn({ tool_use_id: `t${i}`, prompt: 'p', description: `🛠️ Pleno · 🎼 Sonnet · 🟡 médio: Tarefa ${i}` } as any)
+  for (let i = 1; i <= 2; i++) await $.agent.spawn({ tool_use_id: `t${i}`, prompt: 'p', description: `🛠️ Mid-level · 🎼 Sonnet · 🟡 médio: Tarefa ${i}` } as any)
   const mountD = () => $.ui.mount({
     plugin: 'agent-office', surface: 'desktop', component: 'Pane', requestId: 'agent-office',
     props: { bodyColumns: 140, bodyRows: 40 } as any, viewport: { columns: 140, rows: 40 } as any,
@@ -125,13 +125,13 @@ test('desktop pane: header, tabs with Mapa selected, map card content, side deta
   for (const k of ['Mapa', 'Árvore', 'Worktrees', 'Workflow', 'Custo', 'Ferramentas']) expect(t).toContain(k)
   const mapa = (await ui.findAll({ type: 'Text' })).find((x: any) => x.text === 'Mapa') as any
   expect(mapa.props?.bold).toBe(true)
-  expect(t.some(x => x.includes('🛠️ Pleno · 🎼 Sonnet · 🟡 médio'))).toBe(true)
+  expect(t.some(x => x.includes('🛠️ Mid-level · 🎼 Sonnet · 🟡 médio'))).toBe(true)
   expect(t).toContain('Na fila')
   const open = (await ui.findAll({ type: 'Button' })).map((b: any) => String(b.key ?? '')).find(k => k.startsWith('app-open-'))!
   await ui.press({ key: open })
   await ui.unmount(); ui = await mountD()
   t = await texts()
-  expect(t.some(x => x.includes('Office › ') && x.includes('Pleno'))).toBe(true) // crumb
+  expect(t.some(x => x.includes('Office › ') && x.includes('Mid-level'))).toBe(true) // crumb
   expect(t).toContain('Linha do tempo'); expect(t).toContain('Tempo'); expect(t).toContain('Tokens'); expect(t).toContain('Custo')
   expect(t.some(x => x.includes('Prompt'))).toBe(true)
   expect(await ui.find({ key: 'office-back' })).toBeDefined() // [Fechar]
@@ -168,7 +168,7 @@ test('desktop map: a single top-level agent with no children is drawn as the roo
 test('desktop map: siblings that do not fit wrap into rows hung off a dashed trunk, each row with a dashed bus (same rule as the terminal)', async ($, on) => {
   setup($, on)
   await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
-  for (let i = 1; i <= 8; i++) await $.agent.spawn({ tool_use_id: `w${i}`, prompt: 'p', description: `🛠️ Pleno · 🪶 Haiku · 🟢 baixo: tarefa ${i}` } as any)
+  for (let i = 1; i <= 8; i++) await $.agent.spawn({ tool_use_id: `w${i}`, prompt: 'p', description: `🛠️ Mid-level · 🪶 Haiku · 🟢 baixo: tarefa ${i}` } as any)
   const u1 = await mountApp($, 112)
   const k = await boxKeys(u1) // (112 - 2) / 36 = 3 per row -> 3 rows
   await u1.unmount()

@@ -7,7 +7,7 @@ import type { AgentRecord } from './office'
 import type { Capabilities } from './capabilities'
 
 const T0 = 1_700_000_000_000
-const D = '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo'
+const D = '🛠️ Mid-level · 🎼 Sonnet · 🟢 baixo'
 const mk = (over: Partial<AgentRecord> = {}): AgentRecord => ({
   id: 'a', agentId: 'g-a', description: `${D}: tarefa`, status: 'working', startedAt: T0, ...over,
 })

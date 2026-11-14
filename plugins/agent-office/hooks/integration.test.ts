@@ -145,7 +145,7 @@ test('T-010 cabeçalho: tokens com parcial, sem leitura morta de usage e sem cus
 test('T-009 detalhe: ordem do Padrão, nota de captura desligada, e o segredo nunca aparece', async ($, on) => {
   setup($, on)
   await start($)
-  await spawn($, 'tu1', '🛠️ Pleno · 🪶 Haiku · 🟢 baixo: Dev token=abc123secretvalue', { prompt: 'faça isto com password=hunter2xyz' })
+  await spawn($, 'tu1', '🛠️ Mid-level · 🪶 Haiku · 🟢 baixo: Dev token=abc123secretvalue', { prompt: 'faça isto com password=hunter2xyz' })
   await $.command.run({ command: 'office', args: 'open tu1' } as any)
   const ui = await mount($)
   const out = await texts(ui)
@@ -186,8 +186,8 @@ test('T-009 agente selecionado sumiu: volta à lista com aviso', async ($, on) =
 test('T-009 ETA: 3 concluídos de um modelo e só outro modelo rodando = ETA calculando', async ($, on) => {
   setup($, on)
   await start($)
-  const S = '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo'
-  const H = '🛠️ Pleno · 🪶 Haiku · 🟢 baixo'
+  const S = '🛠️ Mid-level · 🎼 Sonnet · 🟢 baixo'
+  const H = '🛠️ Mid-level · 🪶 Haiku · 🟢 baixo'
   for (const i of ['a', 'b', 'c']) {
     await spawn($, `d${i}`, `${S}: ${i}`)
     await $.classic.SubagentStop({ agent_id: `ag-${['a', 'b', 'c'].indexOf(i) + 1}` } as any)
@@ -369,10 +369,10 @@ const mountOn = ($: any, surface: string) =>
 test('app surface: cards viram Box/Text gráficos com chips, sem caixa de texto; terminal mantém a caixa', async ($, on) => {
   setup($, on)
   await start($)
-  await spawn($, 'tu1', '🛠️ Pleno · 🎼 Sonnet · 🟡 médio: Reading edit.php')
+  await spawn($, 'tu1', '🛠️ Mid-level · 🎼 Sonnet · 🟡 médio: Reading edit.php')
   const app = await mountOn($, 'desktop')
   const a = await texts(app)
-  expect(a).toContain('Reading edit.php'); expect(a).toContain('🛠️ Pleno'); expect(a).toContain('🎼 Sonnet'); expect(a).toContain('🟡 médio')
+  expect(a).toContain('Reading edit.php'); expect(a).toContain('🛠️ Mid-level'); expect(a).toContain('🎼 Sonnet'); expect(a).toContain('🟡 médio')
   expect(a).not.toMatch(/[╭╮╰╯│]/)
   await app.unmount()
   const term = await texts(await mountOn($, 'terminal'))

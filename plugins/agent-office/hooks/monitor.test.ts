@@ -5,7 +5,7 @@ import type { AgentLike } from './office'
 import { STATE_TABLE } from './vocabulary'
 
 const T0 = 1_700_000_000_000
-const D = '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo'
+const D = '🛠️ Mid-level · 🎼 Sonnet · 🟢 baixo'
 const mk = (id: string, over: Partial<AgentLike> = {}): AgentLike => ({
   id, agentId: `g-${id}`, description: `${D}: tarefa ${id}`, status: 'working', startedAt: T0, ...over,
 })
@@ -116,7 +116,7 @@ test('thumbs OFF (default): no shot line, no thumbs, size unchanged', () => {
 test('detalhe (view-detail): persona, estado, prompt, tarefas e arquivos de um agente; sem agente = volta à lista', () => {
   const a = mk('a', { prompt: 'faça X\ndepois Y', todos: [{ content: 'passo 1', status: 'completed' }], recent: ['Read', 'Edit'], files: ['a.ts'] })
   const d = detailScreen([a], 'a', T0 + 5000).lines.join('\n')
-  expect(d).toContain('Pleno')
+  expect(d).toContain('Mid-level')
   expect(d).toContain('tarefa a')
   expect(d).toContain('faça X')
   expect(d).toContain('depois Y')
@@ -179,7 +179,7 @@ test('árvore: conectores ├─ e └─, filho aninhado com │, uma linha por
 test('linha do agente: persona · modelo, worktree, barra, custo honesto e tempo mm:ss', () => {
   const f = renderMonitor([mk('a', { git: { branch: 'x', worktree: 'wt-1', repo: '/r' }, tool: 'Bash' })], T0 + 12_000, view({ width: 120 }))
   const row = lineText(f.body[0]!)
-  expect(row).toContain('Pleno · Sonnet')
+  expect(row).toContain('Mid-level · Sonnet')
   expect(row).toContain('⧉ wt-1')
   expect(row).toContain('▸ Bash')
   expect(row).toContain('~$ —')

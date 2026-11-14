@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/model-router.sh\"",
+            "command": "bash \"${MODEL_ROUTER_HOOK:-${CLAUDE_PLUGIN_ROOT}/hooks/model-router.sh}\"",
             "timeout": 10
           }
         ]

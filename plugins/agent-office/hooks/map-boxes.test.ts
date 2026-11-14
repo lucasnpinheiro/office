@@ -12,7 +12,7 @@ const topsOf = (t: string[]) => t.flatMap(l => [...l.matchAll(new RegExp(`┌[�
 const D = (p: string, m: string, e: string) => `${p} · ${m} · ${e}`
 const agents = [
   mk('a', { description: `${D('🧭 Squad Leader', '👑 Opus', '🟢 baixo')}: Orquestrar` }),
-  mk('b', { description: `${D('🛠️ Pleno', '🎼 Sonnet', '🟡 médio')}: Tela`, status: 'done', endedAt: T + 5000 }),
+  mk('b', { description: `${D('🛠️ Mid-level', '🎼 Sonnet', '🟡 médio')}: Tela`, status: 'done', endedAt: T + 5000 }),
   mk('c', { description: 'Dev: filho', parentAgentId: 'g-a' }),
   mk('d', { description: 'Dev: erro', status: 'error' }),
 ].map((a, i) => ({ ...a, agentId: `g-${'abcd'[i]}` }))
@@ -69,7 +69,7 @@ test('map boxes: null only when the pane is narrower than the smallest box (text
 // structure: every connector touches what it joins, in the same display column
 const emo = [
   mk('a', { description: `${D('🧭 Squad Leader', '👑 Opus', '🟢 baixo')}: Orquestrar`, agentId: 'g-a' } as any),
-  mk('b', { description: `${D('🛠️ Pleno', '🎼 Sonnet', '🟡 médio')}: Tela`, status: 'done', endedAt: T + 5000, agentId: 'g-b' } as any),
+  mk('b', { description: `${D('🛠️ Mid-level', '🎼 Sonnet', '🟡 médio')}: Tela`, status: 'done', endedAt: T + 5000, agentId: 'g-b' } as any),
   mk('c', { description: `${D('✍️ Tech Writer', '🪶 Haiku', '🔴 alto')}: Docs`, parentAgentId: 'g-a', agentId: 'g-c' } as any),
   mk('d', { description: `${D('🧪 QA', '🎼 Sonnet', '🟢 baixo')}: Testar`, parentAgentId: 'g-c', agentId: 'g-d' } as any),
   mk('e', { description: 'Dev: erro', status: 'error', agentId: 'g-e' } as any),
@@ -118,9 +118,9 @@ test('map boxes: a narrow side pane (30 cols) shrinks the boxes instead of falli
 })
 
 test('map boxes: a long persona keeps the model whole (dot dropped before any cut)', () => {
-  const a = [mk('x', { description: '🧠 Especialista · 🎼 Sonnet · 🟢 baixo: Revisor' })].map(z => ({ ...z, agentId: 'g-x' }))
+  const a = [mk('x', { description: '🎯 Product Owner · 🎼 Sonnet · 🟢 baixo: Revisor' })].map(z => ({ ...z, agentId: 'g-x' }))
   const t = txt(renderBoxMap(a, T + 1000, { ...base, width: 120 })!)
-  expect(t.some(l => l.includes('🧠 Especialista 🎼 Sonnet'))).toBe(true)
+  expect(t.some(l => l.includes('🎯 Product Owner 🎼 Sonnet'))).toBe(true)
   expect(t.some(l => l.includes('…'))).toBe(false)
 })
 

@@ -4,7 +4,7 @@ import type { AgentLike } from './office'
 
 const T0 = 1_000_000
 const mk = (over: Partial<AgentLike> = {}): AgentLike => ({
-  id: 'a', agentId: 'g1', description: '🛠️ Pleno·padrao·sonnet·low: corrigir bug', status: 'working', startedAt: T0, ...over,
+  id: 'a', agentId: 'g1', description: '🛠️ Mid-level·padrao·sonnet·low: corrigir bug', status: 'working', startedAt: T0, ...over,
 })
 
 test('0s bug: async_launched is a launch ack, not the end; real duration is kept', () => {
@@ -59,11 +59,11 @@ test('pendencias from TodoWrite and TaskCreate/TaskUpdate', () => {
 })
 
 test('dependencias: parent and children it waits on', () => {
-  const parent = mk({ id: 'p', agentId: 'g0', description: '🧠 Especialista·profundo·opus·low: plano' })
+  const parent = mk({ id: 'p', agentId: 'g0', description: '🧠 Specialist·profundo·opus·low: plano' })
   const kid = mk({ id: 'k', agentId: 'g2', parentAgentId: 'g0' })
   const done = mk({ id: 'd', agentId: 'g3', parentAgentId: 'g0', status: 'done', endedAt: T0 + 1 })
   const all = [parent, kid, done]
-  expect(dependencies(kid, all).parent).toBe('Especialista')
+  expect(dependencies(kid, all).parent).toBe('Specialist')
   expect(dependencies(parent, all).parent).toBe('VOCE')
   expect(dependencies(parent, all).waitingOn.map(x => x.id)).toEqual(['k'])
 })

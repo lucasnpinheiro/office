@@ -6,7 +6,7 @@ import type { Capabilities } from './capabilities'
 import * as runModel from './run-model'
 
 const T0 = 1_700_000_000_000
-const D = '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo'
+const D = '🛠️ Mid-level · 🎼 Sonnet · 🟢 baixo'
 const mk = (id: string, over: Partial<AgentRecord> = {}): AgentRecord => ({
   id, agentId: `g-${id}`, description: `${D}: tarefa ${id}`, status: 'working', startedAt: T0, ...over,
 })
@@ -130,8 +130,8 @@ test('T-008 buildRunModel: workflows agrupados por runId na ordem do agentIndex,
 })
 
 // T-009 etaOf honesto: só o mesmo modelo, sem tarefa, sem dupla contagem, paralelismo observado
-const S = '🛠️ Pleno · 🎼 Sonnet · 🟢 baixo'
-const H = '🛠️ Pleno · 🪶 Haiku · 🟢 baixo'
+const S = '🛠️ Mid-level · 🎼 Sonnet · 🟢 baixo'
+const H = '🛠️ Mid-level · 🪶 Haiku · 🟢 baixo'
 const done = (id: string, from: number, to: number, desc = S): AgentRecord => mk(id, { description: `${desc}: ${id}`, status: 'done', startedAt: T0 + from, endedAt: T0 + to })
 const run = (id: string, desc = S, over: Partial<AgentRecord> = {}): AgentRecord => mk(id, { description: `${desc}: ${id}`, ...over })
 

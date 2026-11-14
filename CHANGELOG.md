@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.2 (agent-office) and personas 0.1.2 (English persona names, single router source)
+
+- agent-office: persona names are English (`Specialist`, `Architect`, `Mid-level`, `Intern`; the rest unchanged). The pt-BR names (`Especialista`, `Arquiteto`, `Pleno`, `Estagiário`) stay as aliases for the same persona in `chips()`. Persona, model and effort are also read from their icons when the words are missing.
+- personas: the UserPromptSubmit hook runs the script named by `MODEL_ROUTER_HOOK` when set, else the bundled `hooks/model-router.sh`.
+
 ## 0.20.1 (agent-office, roles and motion on the app map)
 
 - App surfaces (desktop, vscode, mobile): every map card names its role (`orquestrador`, `agente`, `subagente`) on the worktree line, the same depth rule as the terminal cards.
