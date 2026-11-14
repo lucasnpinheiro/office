@@ -12,14 +12,13 @@ const base = { width: 120, caps, mode: 'cards' as const, query: '', expanded: ne
 test('session start opens the map; cards stay the default mode behind v', () => {
   expect(startUi().view).toBe('map'); expect(startUi().mode).toBe('cards'); expect(initialUi().view).toBe('map')
 })
-test('cards at 120 cols: parent card, then 3 sibling boxes per row, 34 cols wide, 4th card on the next row', () => {
+test('cards at 120 cols: indented tree, one 34-col card per block: the session card, then 4 children joined by ├─▸ and └─▸', () => {
   const ag = ['a', 'b', 'c', 'd'].map(id => mk(id))
   const lines = txt(renderCompact(ag, T + 5000, base)).split('\n')
-  const tops = lines.filter(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length === 3)
-  expect(tops.length).toBe(1)
-  expect(lines.filter(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length === 1).length).toBe(2) // parent card + the 4th sibling
-  expect(lines.filter(l => (l.match(/╰─[^╰╭]{31}╯/g) ?? []).length).length).toBe(3)
-  expect(lines.some(l => /^ *[╭╰]┄+/.test(l))).toBe(true) // bus from the parent card
+  expect(lines.filter(l => /╭─{32}╮/.test(l)).length).toBe(5) // session + 4
+  const card = lines.filter(l => l.includes('Dev:')) // the footer legend shows the connectors too
+  expect(card.filter(l => /├[─╌┄┈]▸/.test(l)).length).toBe(3)
+  expect(card.filter(l => /└[─╌┄┈]▸/.test(l)).length).toBe(1)
 })
 test('cards: a failure is a boxed banner above the tabs and the cards, with [Ver] to open it', () => {
   const ag = [mk('a'), mk('b'), mk('f', { status: 'error', error: 'boom' })]

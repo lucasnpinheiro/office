@@ -41,13 +41,16 @@ cap) and the layout is recomputed on every resize.
 
 | Pane width | Layout |
 | --- | --- |
-| 100+ columns | full cards, centred tree, status pill, chips, step bar |
+| 100+ columns | full cards, indented tree (`└─▸` / `├─▸` connectors), status pill, chips, step bar, `⟳` workflow badge |
 | 60 to 99 | compact cards, the "agora" (current tool) shrinks first, cost and time stay |
 | under 60 | list only: failures and decisions first, then rows of status, name and time with indented children |
 | 150+ (110+ in the desktop app) | detail opens as a side panel; below that it covers the list |
 
 - Overflowing cards scroll: a vertical scrollbar (`░` track, `█` thumb; `|` and `#` in ASCII mode) sits on the last column,
-  cards re-wrap one column narrower to make room, and a stale scroll offset is clamped after a resize.
+  the cards are drawn one column narrower to make room, and a stale scroll offset is clamped after a resize.
+- Cards tree: a child sits under its parent, indented 2 cols per level up to L6 and 1 col per level up to L50. The connector of
+  a running child dashes (`╌ ┄ ┈`, one step per frame); other connectors are a static dim `─`; reduced motion and NO_COLOR keep them
+  static. A card of a workflow run shows `⟳ <runId>` in rose (`#FF8FB1`). Cards shrink to 20 cols before they would leave the pane.
 - Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
 - Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
 - Scrolling: the engine exposes no mouse-wheel event, so `j`/`k` stay as invisible keys (no button, not in the footer); the position shows as `n/total` with `↑`/`↓`. Cards encode model (`◇` Haiku, `◆` Sonnet, `■` Opus, coloured), effort (`▁` `▁▃` `▁▃▅`) and depth (`L{n}`, up to 50).
@@ -84,7 +87,7 @@ executed there, and no parity is claimed. The 93% coverage target is not measura
 
   | Variable | Effect |
   |---|---|
-  | `OFFICE_VIEW` | app surfaces only (desktop, vscode, mobile): `map` (default) or `compact`. The terminal has one view, the centred cards |
+  | `OFFICE_VIEW` | app surfaces only (desktop, vscode, mobile): `map` (default) or `compact`. The terminal has one view, the indented-tree cards |
   | `OFFICE_MODE` | initial mode (`cards` default) |
   | `OFFICE_WIDTH` | pane width in columns |
   | `OFFICE_ASCII=1` | ASCII glyphs only |

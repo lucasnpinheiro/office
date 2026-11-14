@@ -1,12 +1,12 @@
 // Office compact view: one-line tree, grouped/ungrouped modes, rounded cards, detail with dependencies,
 // attachment preview and terminal capability detection. Pure (no engine APIs): the caller passes `now`.
 // Terminal and app share this state model; only the drawing of the Lines differs.
-import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, hiddenIds, maxDepthOf, fmtMMSS, fmtHMS,
+import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, maxDepthOf, fmtMMSS, fmtHMS,
   truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
 import { spinnerGlyph } from './motion'
-import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy } from './vocabulary'
+import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy, CONNECTORS } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
 import { worktreePartition, groupDivider, restDivider, agentsLine } from './view-worktrees'
@@ -18,7 +18,7 @@ import { costLines, fmtTokens, fmtUsd } from './view-cost'
 import { toolLines } from './view-tools'
 import { workflowView } from './view-workflow'
 import { detailView } from './view-detail'
-import { termLevel, effectiveCols, appColumns, rowStyle, fitAgora } from './layout'
+import { termLevel, effectiveCols, rowStyle, fitAgora } from './layout'
 
 export { isQuotaError }
 
@@ -149,7 +149,7 @@ const ASCII_MAP: Record<string, string> = {
   '·': '-', '—': '-', '–': '-', '…': '.', '“': '"', '”': '"', '‘': "'", '’': "'", '‹': '<', '›': '>', '▸': '>', '←': '<',
   '→': '>', '↓': 'v', '↑': '^', '×': 'x', '⎇': 'Y', '━': '=', '─': '-', '│': '|', '┊': ':', '┄': '.', '├': '|', '┬': '+',
   '╰': "'", '╭': '.', '╮': '.', '╯': "'", '█': '#', '▒': '.', '░': '.', '▰': '#', '▱': '.', '●': '*', '○': 'o', '✓': 'v',
-  '✗': 'x', '▲': '!', '◌': '-', 'ª': 'a', 'º': 'o',
+  '✗': 'x', '▲': '!', '◌': '-', 'ª': 'a', 'º': 'o', '⟳': '@',
 }
 export function asciiText(t: string): string {
   let out = ''
@@ -247,7 +247,7 @@ function filterBar(g: Graph, v: CView): Line {
     ...btn(`Falhas ${bad}`, 'failed', v.filter === 'failed'), ...(v.query ? [seg(c, `busca: ${v.query}`, DIM)] : [])], v.width)
 }
 
-// Footer per design (Rodada 4): legend, bus legend. The hotkey row is drawn by the pane
+// Footer per design (Rodada 4): state legend, tree legend. The hotkey row is drawn by the pane
 // from the view state (actions.ts hotkeysFor), so keys stay unique and go quiet while searching.
 function footer(g: Graph, v: CView): Line[] {
   const c = v.caps
@@ -255,7 +255,7 @@ function footer(g: Graph, v: CView): Line[] {
   const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${stateLabel(c, s)}`, stateColor(s))])
   const out: Line[] = []
   out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], v.mode === 'cards' ? centre(fit(legend, v.width), v.width) : fit(legend, v.width))
-  if (v.mode === 'cards') out.push(centre(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · wt worktree · br branch' : '┊ ┄ ┬ ┴ barramento pai→filhos · ⧉ worktree · ⎇ branch · papel à direita (orquestrador, agente, subagente)', DIM)], v.width), v.width))
+  if (v.mode === 'cards') out.push(centre(fit([seg(c, c.ascii ? '`-> +-> filho de · @ workflow · wt worktree · br branch · papel à direita' : '└─▸ ├─▸ filho de · ⟳ workflow · ⧉ worktree · ⎇ branch · papel à direita (orquestrador, agente, subagente)', DIM)], v.width), v.width))
   if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
   return out
 }
@@ -367,30 +367,18 @@ function groupedLines(g: Graph, agents: AgentLike[], nm: Map<string, string>, ke
 }
 
 // ---------- cards ----------
-// Layout (ref. design v8): card 34 cols x 6 rows, gap 2, child indent 5. Leaf siblings fill rows of
-// per_row = max(1, floor((cols - x_parent - 5 + 2) / 36)); branch siblings take one row each after the leaves, their
-// subtree indented below. A dotted bus under the parent has a drop per card. Worktree flows get a heavy divider.
-export const CARD_W = 34, CARD_H = 7, CARD_GAP = 2, CARD_INDENT = 5
-export const perRowOf = (cols: number, xParent: number): number => Math.max(1, Math.floor((cols - xParent - CARD_INDENT + CARD_GAP) / (CARD_W + CARD_GAP)))
-
-type Cell = { ch: string; s: Seg }
-const toCells = (l: Line): Cell[] => l.flatMap(s => [...s.t].map(ch => ({ ch, s })))
-const fromCells = (cs: Cell[]): Line => {
-  const out: Line = []
-  for (const c of cs) {
-    const last = out[out.length - 1]
-    if (last && last.fg === c.s.fg && last.bold === c.s.bold && last.node === c.s.node && last.act === c.s.act && last.attach === c.s.attach) last.t += c.ch
-    else out.push({ ...c.s, t: c.ch })
-  }
-  return out
-}
-// Put `ch` at column `col` if it is blank (or past the end); never overwrites a card.
-function putCol(l: Line, col: number, ch: string, fg: string | undefined, c: Caps): Line {
-  const cs = toCells(l)
-  while (cs.length <= col) cs.push({ ch: ' ', s: { t: ' ' } })
-  if (cs[col]!.ch === ' ') cs[col] = { ch, s: { t: ch, fg: quantize(fg, c.color) } }
-  return fromCells(cs)
-}
+// Indented tree (Grafo6): one card per block, top to bottom in tree order. A child's card starts at its parent's indent
+// plus 2 cols per level to L6 and 1 col per level to L50 (L50 = 56 cols). Its connector `└─▸` (last child) or `├─▸`
+// (sibling) sits on the card's title row, 3 cols left of the card, hung from a rail `│` that runs down the parent's
+// children. A block is CARD_H rows plus one gap row (the rail). Cards are CARD_W wide and shrink to CARD_MIN_W before
+// they would leave the pane. shortcut: a pane narrower than indentOf(depth) + CARD_MIN_W clips the deepest cards, a
+// horizontal scroll would fix it.
+export const CARD_W = 34, CARD_H = 7, CARD_MIN_W = 20
+export const CARD_ROWS = [CARD_H, 6, 4] // rows per card by form: full, dense, tight (denser before any scroll)
+export const TREE_BASE = 1 // column of the root card: the depth-1 connector starts at col 0
+export const indentOf = (d: number): number => (d <= 6 ? 2 * d : d + 6)
+const DASH = ['╌', '┄', '┈'] // running edge: the dash cycles one step per frame (SPIN_FPS)
+const WORKFLOW_COLOR = '#FF8FB1' // ⟳ badge of an agent that belongs to a workflow run
 
 const EASE = (x: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3)
 // Staggered growth just after a span starts (ease-out cubic, 80 ms stagger per card index); 1 when motion is reduced.
@@ -448,8 +436,9 @@ const timeline = (g: Graph, now: number) => {
 // Card anatomy (design): name, icon+persona, icon+model · icon+effort, tool/status row, bar + metric + time. Border by state.
 const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: STATE_COLOR.failed, attention: STATE_COLOR.attention, done: '#4b5563', pending: '#4b5563', inactive: '#4b5563' }
 // how far the cards view can scroll right now (module memory set by the last render; the reducer clamps with it)
-export const scrollInfo = { max: 0 }
-export type CardTag = { role?: string; wt?: string; up?: boolean; down?: boolean }
+export const scrollInfo = { max: 0, units: [] as number[] } // units: first row of each card block the window can start at (one card per press)
+const MIN_CARD_ROWS = 6 // a pane shorter than this still gets room for one tight card and its notes
+export type CardTag = { role?: string; wt?: string; w?: number; wf?: string } // w: card width (default CARD_W); wf: workflow run id
 const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
 // Step segments of the design card: one run of cells per tool step (width by duration, colour by result), the live one last.
 function stepBar(run: RunNode | undefined, n: Node, cells: number, c: Caps, frame: number): Line | undefined {
@@ -471,17 +460,19 @@ function stepBar(run: RunNode | undefined, n: Node, cells: number, c: Caps, fram
 }
 // Design card (Proto5 / Chips5, the same anatomy in the terminal): title + state pill, chips, worktree + role,
 // step segments, status + cost and time. Always these 5 rows: the pane scrolls instead of shrinking a card.
-function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number, tag: CardTag = {}, run?: RunNode): Line[] {
-  const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
+function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number, tag: CardTag = {}, run?: RunNode, form = 0): Line[] {
+  const W = tag.w ?? CARD_W
+  const b = boxChars(c), inner = W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
   const id = n.id
   const ch = chips(n.persona, n.model, n.effort)
   const full = nm.get(id) ?? n.name
   const body = (l: Line): Line => [seg(c, b.v, edge), ...fit([...l, ...sp(inner)], inner), seg(c, b.v, edge)]
   // left text, right text, the gap between them never below one cell (the left side gives way)
-  const split = (left: Seg[], right: Seg[]): Line => {
+  const clip = clipOf(c)
+  const split = (left: Seg[], right: Seg[], ellipsis = false): Line => {
     const rw = right.reduce((a, q) => a + strWidth(q.t), 0)
-    const l = fit(left, Math.max(0, inner - rw - (rw ? 1 : 0))), lw = l.reduce((a, q) => a + strWidth(q.t), 0)
+    const l = (ellipsis ? clip : fit)(left, Math.max(0, inner - rw - (rw ? 1 : 0))), lw = l.reduce((a, q) => a + strWidth(q.t), 0)
     return body([...l, ...sp(inner - lw - rw), ...right])
   }
   const kids = n.children.filter(x => x.kind === 'agent').length
@@ -507,10 +498,7 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   const time = n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now))
   const usd = run?.usage.costUsd
   const meta = `${usd === undefined ? pctText : fmtUsd(usd)} · ${time}`
-  // borders carry only the tree: the connector enters at the top centre and leaves at the bottom centre
-  const mid = CARD_W / 2 - 1 // inner index of the centre column
-  const edgeLine = (l: string, r: string, joint: string | undefined): Line =>
-    joint ? [seg(c, l + b.h.repeat(mid), edge), seg(c, joint, edge), seg(c, b.h.repeat(inner - mid - 1) + r, edge)] : [seg(c, l + b.h.repeat(inner) + r, edge)]
+  const edgeLine = (l: string, r: string): Line => [seg(c, l + b.h.repeat(inner) + r, edge)] // the tree lives outside the card: borders are plain
   const pill = c.ascii ? asciiText(PILL[n.state] ?? '') : PILL[n.state] ?? ''
   const chipTxt = (() => {
     const parts = (c.ascii ? [n.persona, n.model, n.effort] : [ch.persona, ch.model, ch.effort]).filter((x): x is string => !!x)
@@ -518,101 +506,72 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
     return strWidth(dotted) <= inner ? dotted : parts.join(' ') // a long persona drops the dots before anything is cut
   })()
   const wtTxt = tag.wt ? `${c.ascii ? 'wt' : '⧉'} ${tag.wt}` : n.git?.branch ? `${c.ascii ? 'br' : '⎇'} ${n.git.branch}` : ''
-  return [
-    edgeLine(b.tl, b.tr, tag.up ? (c.ascii ? '+' : '┴') : undefined),
+  const rows = [
+    edgeLine(b.tl, b.tr),
     // the title wins the row: the pill is drawn only when the whole title fits beside it (glyph and border already carry the state)
-    split([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, full, undefined, { bold: true, node: id })], strWidth(full) + 3 + strWidth(pill) <= inner ? [seg(c, pill, col_, { bold: true })] : []),
+    split([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, full, undefined, { bold: true, node: id })], strWidth(full) + 3 + strWidth(pill) <= inner ? [seg(c, pill, col_, { bold: true })] : [], true), // a cut title ends in … (video: "Operações bitwise 0b1010 e shi")
     body(c.ascii ? [seg(c, chipTxt, DIM, { node: id })] : (() => {
       const mg = MODEL_GLYPH[(n.model ?? '').toLowerCase()], bars = n.effort ? EFFORT_BARS[n.effort] : undefined
       return [seg(c, ch.persona ?? '', DIM, { node: id }), ...(n.model ? [seg(c, ` · ${mg ? mg.g + ' ' : ''}${n.model}`, mg?.color, { node: id })] : []), ...(bars ? [seg(c, ` ${bars}`, DIM, { node: id })] : [])]
     })()),
-    split(wtTxt ? [seg(c, wtTxt, WORKTREE_COLOR)] : [], tag.role ? [seg(c, tag.role, DIM)] : []),
+    split([...(tag.wf ? [seg(c, `${c.ascii ? '@' : '⟳'} ${tag.wf}`, WORKFLOW_COLOR, { bold: true }), ...sp(wtTxt ? 2 : 0)] : []), ...(wtTxt ? [seg(c, wtTxt, WORKTREE_COLOR)] : [])], tag.role ? [seg(c, tag.role, DIM)] : [], true),
     body(bar),
     split([status], [seg(c, meta, DIM)]),
-    edgeLine(b.bl, b.br, tag.down ? (c.ascii ? '+' : '┬') : undefined),
+    edgeLine(b.bl, b.br),
   ]
+  // denser forms (CARD_ROWS): 1 drops the chips row, 2 also the borders; the role row stays in both (it says orquestrador/agente)
+  const keep = form === 0 ? [0, 1, 2, 3, 4, 5, 6] : form === 1 ? [0, 1, 3, 4, 5, 6] : [1, 3, 4, 5]
+  return keep.map(i => rows[i]!)
 }
 
-// Centred tree (user decision 2026-11-13, "TELA 8 centralizada"): each parent card sits centred over its children, the
-// whole block is centred in the pane. Siblings that do not fit wrap into rows hung off a dotted trunk on the left of the
-// block. Nothing is cut and no card shrinks: a pane too short scrolls (renderCompact windows these lines).
-function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, runs?: Map<string, RunNode>): Line[] {
-  const CH = CARD_H
+// Ellipsis when a row is cut, never a bare cut: the reader sees the text goes on (B4).
+const clipOf = (c: Caps) => (l: Seg[], w: number): Seg[] => {
+  if (lineWidth(l) <= w) return l
+  return w <= 0 ? [] : [...fit(l, w - 1), seg(c, '…', DIM)]
+}
+
+// Indented tree (Grafo6): a child sits under its parent at indentOf(depth). Its connector `└─▸` (last child) or `├─▸`
+// (sibling) is on its title row, 3 cols left of its card, hung from the rail `│` that runs down the parent's children.
+// Blocks go top to bottom in tree order (card + gap row); each edge and rail cell is drawn once, nothing is hidden.
+function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, runs?: Map<string, RunNode>, form = 0, starts?: number[]): Line[] {
   const c = v.caps, frame = v.frame ?? 0
-  const V = c.ascii ? ':' : '┊', H = c.ascii ? '.' : '┄'
-  const J = c.ascii ? { d: '+', u: '+', x: '+', tl: '+', tr: '+', l: '+', bl: '+' } : { d: '┬', u: '┴', x: '┼', tl: '╭', tr: '╮', l: '├', bl: '╰' }
+  const K = CONNECTORS[c.ascii ? 'ascii' : 'unicode']
+  const animate = !c.ascii && !c.reducedMotion && c.color !== 'mono' // reduced motion and NO_COLOR keep the edges static
   const flowOf = (n: Node) => (n.git?.worktree ? n.git.branch ?? n.git.worktree : '')
   const agentKids = (n: Node) => sortNodes(n.children.filter(k => k.kind === 'agent' && keep.has(k.id)), v.sort)
-  const maxPer = v.containerPx === undefined ? Infinity : appColumns(v.containerPx)
-  const TM = 2 // trunk column + one blank
-  type M = { w: number; h: number; rows: Node[][] }
-  const memo = new Map<Node, M>()
-  const measure = (n: Node, avail: number): M => {
-    const hit = memo.get(n); if (hit) return hit
-    const kids = agentKids(n), inner = Math.max(CARD_W, avail - TM), rows: Node[][] = []
-    let cur: Node[] = [], used = 0
-    for (const k of kids) {
-      const w = measure(k, inner).w
-      if (cur.length && (used + CARD_GAP + w > inner || cur.length >= maxPer)) { rows.push(cur); cur = []; used = 0 }
-      used += (cur.length ? CARD_GAP : 0) + w; cur.push(k)
-    }
-    if (cur.length) rows.push(cur)
-    const rowW = rows.map(r => r.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0))
-    const tm = rows.length > 1 ? TM : 0
-    const m = { w: Math.max(CARD_W, tm + Math.max(0, ...rowW)), h: CH + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows }
-    memo.set(n, m); return m
-  }
   const grid: { x: number; w: number; l: Line }[][] = []
   const put = (x: number, y: number, l: Line) => { (grid[y] ??= []).push({ x, w: l.reduce((a, q) => a + strWidth(q.t), 0), l }) }
+  // indent of a level, clamped so the card keeps CARD_MIN_W cols inside the pane (B2/R2: a deep card never leaves the pane)
+  const xOf = (d: number): number => Math.max(0, Math.min(TREE_BASE + indentOf(d), v.width - CARD_MIN_W))
+  const H = CARD_ROWS[form]!, T = form === 2 ? 0 : 1 // card height; row of the title inside a card (tight has no top edge)
   let idx = 0
-  const draw = (n: Node, x0: number, y0: number, depth: number, up: boolean) => {
-    const m = memo.get(n)!
-    const tm = m.rows.length > 1 ? TM : 0
-    const bx = x0 + tm + Math.floor((m.w - tm - CARD_W) / 2), pcx = bx + CARD_W / 2 // centred over the rows, not the trunk
+  // draws n's card at row y and its subtree below; returns the first row after the subtree
+  const walk = (n: Node, depth: number, y: number): number => {
+    const x = xOf(depth)
+    const w = Math.max(CARD_MIN_W, Math.min(CARD_W, v.width - x))
     const role = `${n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente'} L${depth}`
-    card(n, nm, c, now, frame, idx++, { role, wt: flowOf(n), up, down: m.rows.length > 0 }, runs?.get(n.id)).forEach((l, r) => put(bx, y0 + r, l))
-    if (!m.rows.length) return
-    let y = y0 + CH
-    const busYs: number[] = []
-    m.rows.forEach((row, ri) => {
-      const rw = row.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0)
-      let sx = x0 + tm + Math.floor((m.w - tm - rw) / 2)
-      const slots = row.map(k => { const q = sx; sx += memo.get(k)!.w + CARD_GAP; return q })
-      const cxs = row.map((k, i) => slots[i]! + Math.floor((memo.get(k)!.w - CARD_W) / 2) + CARD_W / 2)
-      const lo = Math.min(cxs[0]!, ri === 0 ? pcx : Infinity, tm ? x0 : Infinity), hi = Math.max(cxs[cxs.length - 1]!, ri === 0 ? pcx : -Infinity)
-      const live = !c.reducedMotion && row.some(k => k.state === 'running')
-      const pulse = live ? frame % (hi - lo + 1) : -1
-      const bus: Line = []
-      for (let x = lo; x <= hi; x++) {
-        const ci = cxs.indexOf(x), isP = ri === 0 && x === pcx, isT = tm > 0 && x === x0
-        const ch = lo === hi ? V
-          : isT ? (ri === 0 ? J.tl : ri === m.rows.length - 1 ? J.bl : J.l)
-            : ci >= 0 && isP ? J.x
-              : isP ? J.u
-                : ci >= 0 ? (x === lo ? J.tl : x === hi ? J.tr : J.d)
-                  : H
-        const lit = ch === H && pulse >= 0 && (x - lo === pulse || x - lo === (pulse + 1) % (hi - lo + 1))
-        const fg = ci >= 0 ? stateColor(row[ci]!.state) : lit ? lighten(STATE_COLOR.running) : DIM
-        const last = bus[bus.length - 1]
-        const sg = seg(c, ch, fg)
-        if (last && last.fg === sg.fg) last.t += ch; else bus.push(sg)
-      }
-      put(lo, y, bus); busYs.push(y)
-      row.forEach((k, i) => draw(k, slots[i]!, y + 1, depth + 1, true))
-      y += 1 + Math.max(...row.map(k => memo.get(k)!.h))
+    starts?.push(y)
+    card(n, nm, c, now, frame, idx++, { role, wt: flowOf(n), w, wf: n.workflow }, runs?.get(n.id), form).forEach((l, r) => put(x, y + r, l))
+    const kids = agentKids(n), rail = Math.max(0, xOf(depth + 1) - 3) // connector column of this level
+    let top = y + H + 1, from = y + H // top: card row of the next child; from: first rail row (gap under this card)
+    kids.forEach((k, i) => {
+      for (let r = from; r < top + T; r++) put(rail, r, [seg(c, K.pair, DIM)])
+      const run = animate && k.state === 'running'
+      const dash = run ? DASH[frame % DASH.length]! : K.rule
+      const hot = run ? STATE_COLOR.running : DIM
+      put(rail, top + T, [seg(c, i === kids.length - 1 ? K.last : K.branch, DIM), seg(c, dash, hot), seg(c, K.arrow, hot)])
+      from = top + T + 1
+      top = walk(k, depth + 1, top)
     })
-    if (tm) for (let yy = busYs[0]! + 1; yy < busYs[busYs.length - 1]!; yy++) if (!busYs.includes(yy)) put(x0, yy, [seg(c, V, DIM)])
+    return top
   }
+  const total = walk(g.root, 0, 0)
   const lines: Line[] = []
-  {
-    const rm = measure(g.root, v.width)
-    draw(g.root, Math.max(0, Math.floor((v.width - rm.w) / 2)), 0, 0, false)
-    for (let y = 0; y < grid.length; y++) {
-      const out: Line = []
-      let cur = 0
-      for (const p of (grid[y] ?? []).sort((a, b) => a.x - b.x)) { out.push(...sp(p.x - cur), ...p.l); cur = p.x + p.w }
-      lines.push(out)
-    }
+  for (let y = 0; y < total; y++) {
+    const out: Line = []
+    let cur = 0
+    for (const p of (grid[y] ?? []).sort((a, b) => a.x - b.x)) { out.push(...sp(p.x - cur), ...p.l); cur = p.x + p.w }
+    lines.push(out)
   }
   return lines
 }
@@ -642,7 +601,7 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
 // True when the tree (mode tree, g not yet opened) would show at least one `Rodando ×N` group: same rule as treeLines.
 export function treeHasCollapsed(agents: AgentLike[], now: number, v: Pick<CView, 'query' | 'filter'>): boolean {
   const g = buildGraph(agents, now)
-  const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
+  const keep = visibleSet(g, v.query, new Set<string>(), v.filter)
   const pinned = (k: Node) => k.state === 'failed' || k.state === 'attention'
   return [g.root, ...g.nodes.values()].some(n => {
     const counts = new Map<State, number>()
@@ -659,17 +618,18 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const g = buildGraph(agents, now)
   if (layoutLevel(w) === 'line') {
     // abaixo de 60 colunas só a lista: falha e decisão primeiro, depois as linhas da árvore
-    const nm0 = names(g), keep0 = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
+    const nm0 = names(g), keep0 = visibleSet(g, v.query, new Set<string>(), v.filter)
     if (agents.length === 0) return [fit([seg(v.caps, 'Aguardando agentes…', DIM)], w)]
     const list = [...pinnedLines(g, nm0, keep0, v), ...treeLines(g, nm0, keep0, now, { ...v, mode: 'tree' })]
     return list.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
   }
   const nm = names(g)
-  // cards never hide a finished agent after HIDE_AFTER_MS (that expiry cut cards from the map); the other views keep it
-  const keep = visibleSet(g, v.query, v.mode === 'cards' ? new Set<string>() : hiddenIds(g, now), v.filter)
+  // no compact view expires a finished agent: the header counts them all, so every view must draw them (B2)
+  const keep = visibleSet(g, v.query, new Set<string>(), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
   // order of the design: header, alert banners, view tabs, then the view itself
   const out: Line[] = [...header(g, agents, now, v), ...(agents.length && (v.mode === 'tree' || v.mode === 'cards') ? pinnedLines(g, nm, keep, v) : []), tabsLine(agents, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
+  const foot = footer(g, v)
   if (agents.length === 0) {
     // empty session: the orchestrator card alone, centred, with the waiting line under it (never a bare line of text)
     if (v.mode === 'cards') { scrollInfo.max = 0; out.push(...cardLines(g, nm, keep, now, v), []) }
@@ -683,33 +643,50 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         seg(v.caps, nm.get(n.id) ?? n.name, undefined, { bold: true, node: n.id }), seg(v.caps, n.error ? '  ' + n.error : '', DIM)], w))
     }
     if (v.mode === 'cards') {
-      // every card keeps its full anatomy and none is dropped: a pane too short shows a window of the tree that scrolls
-      // one level (card + bus) per step, with a line above and below saying where the rest is
-      let allCards = cardLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r])))
-      const cap = v.maxLines === undefined ? Infinity : Math.max(CARD_H + 3, v.maxLines)
-      if (allCards.length > cap) {
-        // one column goes to the scrollbar: cards are laid out again one column narrower
-        allCards = cardLines(g, nm, keep, now, { ...v, width: w - 1 }, new Map(model.nodes.map(r => [r.id, r])))
-        const room = cap - 2, step = CARD_H + 1
-        const max = Math.ceil((allCards.length - room) / step) * step
-        const off = Math.min(Math.max(0, v.scroll ?? 0), max)
-        scrollInfo.max = max
-        const pos = `${Math.round(off / step) + 1}/${Math.round(max / step) + 1}` // position n/total, one step = one level
+      // every card keeps its full anatomy while it fits the pane's rows; when it does not, denser forms come first (dense,
+      // then tight), and only then a window that scrolls in whole cards (a card and the gap row above it, never cut)
+      const runs = new Map(model.nodes.map(r => [r.id, r]))
+      const place = (form: number, width: number) => { const starts: number[] = []; return { rows: cardLines(g, nm, keep, now, { ...v, width }, runs, form, starts), starts } }
+      const avail = v.maxLines === undefined ? Infinity : Math.max(MIN_CARD_ROWS, v.maxLines - out.length - foot.length)
+      let form = 0, lay = place(0, w)
+      while (form < 2 && lay.rows.length > avail) lay = place(++form, w)
+      if (lay.rows.length <= avail) {
+        // the footer sits on the pane's last row: blank rows fill what the cards leave
+        out.push(...lay.rows, ...Array.from({ length: Number.isFinite(avail) ? avail - lay.rows.length : 0 }, (): Line => []))
+        scrollInfo.max = 0
+        scrollInfo.units = []
+      } else {
+        // one column goes to the scrollbar: cards are laid out again one column narrower (heights do not change with width)
+        lay = place(form, w - 1)
+        const flat = lay.rows, total = flat.length, room = avail - 2 // the two notes
+        const bounds = [0, ...lay.starts.slice(1).map(s => s - 1), total] // unit i = rows bounds[i] .. bounds[i + 1]: a card and its gap row above
+        const n = bounds.length - 1
+        let mi = 0
+        while (mi < n - 1 && total - bounds[mi]! > room) mi++ // the last unit start whose tail still fits the window
+        const maxRow = bounds[mi]!
+        const off = Math.min(Math.max(0, v.scroll ?? 0), maxRow)
+        scrollInfo.max = maxRow
+        scrollInfo.units = bounds.slice(0, mi + 1)
+        let first = 0
+        while (first < n - 1 && bounds[first + 1]! <= off) first++
+        let last = first + 1
+        while (last < n && bounds[last + 1]! - bounds[first]! <= room) last++ // whole units only: the window stops at a card boundary
+        const shown = flat.slice(bounds[first], bounds[last])
+        const stop = Math.min(first, mi)
+        const pos = `${stop + 1}/${mi + 1}` // position in scroll stops (one card each): the last stop reads k/k
         const note = (t: string): Line => centre([seg(v.caps, t, DIM)], w)
-        out.push(note(`${off > 0 ? (v.caps.ascii ? '^ ' : '↑ ') : ''}${pos}`))
-        const from = Math.max(0, off - 1) // off - 1: the window opens on the bus above the row
-        const win = allCards.slice(from, from + room)
+        out.push(note(`${stop > 0 ? (v.caps.ascii ? '^ ' : '↑ ') : ''}${pos}`))
         // scrollbar: track + thumb on the last column, thumb size and place proportional to the window
-        const thumbH = Math.max(1, Math.min(room, Math.round(room * room / allCards.length)))
-        const top = Math.round((room - thumbH) * (max ? Math.min(from, allCards.length - room) / Math.max(1, allCards.length - room) : 0))
+        const thumbH = Math.max(1, Math.min(room, Math.round(room * room / total)))
+        const top = Math.round((room - thumbH) * (maxRow ? Math.min(off, maxRow) / maxRow : 0))
         const [tk, th] = v.caps.ascii ? ['|', '#'] : ['░', '█']
         for (let i = 0; i < room; i++) {
-          const l = fit(win[i] ?? [], w - 1)
-          const used = l.reduce((a, q) => a + strWidth(q.t), 0)
+          const l = fit(shown[i] ?? [], w - 1)
+          const used = lineWidth(l)
           out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM)])
         }
-        out.push(note(`${off < max ? (v.caps.ascii ? 'v ' : '↓ ') : ''}${pos}`))
-      } else { scrollInfo.max = 0; out.push(...allCards) }
+        out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v ' : '↓ ') : ''}${pos}`))
+      }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))
     else if (v.mode === 'tools') out.push(...toolLines(model, now, { width: w, caps: v.caps }, v.captureIo === true))
@@ -719,7 +696,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     } else if (v.mode === 'grouped') out.push(...groupedLines(g, agents, nm, keep, now, v))
     else out.push(...treeLines(g, nm, keep, now, v))
   }
-  out.push(...footer(g, v))
+  out.push(...foot)
   return out.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
 }
 
