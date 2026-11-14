@@ -62,8 +62,14 @@ test('AC-018 árvore: com retry yes a tecla aparece na linha da falha, no topo',
 // AC-019: siblings with the same state above 8 rows collapse into `Rodando ×N`; g opens all
 const siblings = (n: number, o: Partial<AgentLike> = {}) => [mk('o'), ...Array.from({ length: n }, (_, i) => mk('r' + i, { parentAgentId: 'g-o', ...o }))]
 
-test('AC-019 árvore: 9 irmãos rodando colapsam em Rodando ×9', () => {
-  const out = txt(renderCompact(siblings(9), T + 5000, view()))
+test('padrão: todos os cards aparecem abertos, nunca colapsados (21 irmãos)', () => {
+  const out = txt(renderCompact(siblings(21), T + 5000, view()))
+  expect(out).not.toContain('Rodando ×')
+  for (let i = 0; i < 21; i++) expect(out).toContain(`Dev: r${i} `)
+})
+
+test('AC-019 árvore: opt-in (tree:fold): 9 irmãos rodando colapsam em Rodando ×9', () => {
+  const out = txt(renderCompact(siblings(9), T + 5000, view({ expanded: new Set(['tree:fold']) })))
   expect(out).toContain('Rodando ×9')
   expect(rows(out).length).toBe(2) // o pai + o grupo
 })
@@ -74,17 +80,17 @@ test('AC-019 árvore: 8 irmãos rodando ficam abertos (limite é acima de 8)', (
   expect(rows(out).length).toBe(9) // o pai + 8 irmãos
 })
 
-test('AC-019 árvore: com tree:all em expanded os 21 irmãos aparecem, sem grupo', () => {
-  const out = txt(renderCompact(siblings(21), T + 5000, view({ expanded: new Set(['tree:all']) })))
-  expect(out).not.toContain('×21')
-  expect(rows(out).length).toBe(22) // o pai + 21 irmãos
+test('AC-019 árvore: com tree:fold em expanded os 21 irmãos viram um grupo', () => {
+  const out = txt(renderCompact(siblings(21), T + 5000, view({ expanded: new Set(['tree:fold']) })))
+  expect(out).toContain('×21')
+  expect(rows(out).length).toBe(2) // o pai + o grupo
 })
 
-test('AC-019: g em árvore abre todos; a ordem é colapsado, todos, depois o modo seguinte', () => {
+test('AC-019: g em árvore recolhe (opt-in); a ordem é aberto, recolhido, depois o modo seguinte', () => {
   const collapsed = initialUi()
   const a = applyAction({ ...collapsed, view: 'compact', mode: 'tree' }, 'group').state
   expect(a.mode).toBe('tree')
-  expect(a.expanded).toContain('tree:all')
+  expect(a.expanded).toContain('tree:fold')
   expect(applyAction(a, 'group').state.mode).toBe('grouped')
 })
 

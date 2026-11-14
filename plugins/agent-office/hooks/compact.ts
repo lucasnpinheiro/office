@@ -88,8 +88,8 @@ export type CView = {
   sessionUsd?: number // `$.session.usage().cost.usd`, only when the engine gave it
   containerPx?: number // app container width (px), only when the engine reports it (ADR 0002: containerWidth not-verified); absent = terminal rules
 }
-// Árvore: irmãos com o mesmo estado acima de 8 viram `Rodando ×N`; `g` com este item em expanded abre todos (AC-019).
-export const TREE_ALL = 'tree:all'
+// Árvore: por padrão todos os cards aparecem abertos. Opt-in (tecla g, item em expanded): irmãos do mesmo estado acima de 8 viram um grupo `Rodando ×N` (AC-019).
+export const TREE_FOLD = 'tree:fold'
 export const TREE_COLLAPSE_OVER = 8
 
 const sp = (n: number): Seg[] => (n > 0 ? [{ t: ' '.repeat(n) }] : [])
@@ -312,7 +312,7 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
         if (ms.length > 1) items.push({ group: { state: s, ms, key: `grp:${n.id}:${s}` } })
         else ms.forEach(k => items.push({ n: k }))
       }
-    } else if (v.mode === 'tree' && !v.expanded.has(TREE_ALL)) {
+    } else if (v.mode === 'tree' && v.expanded.has(TREE_FOLD)) {
       // irmãos do mesmo estado acima do limite viram um grupo colapsado, na posição do primeiro (AC-019)
       const counts = new Map<State, number>()
       for (const k of kids) if (k.kind === 'agent' && !pinned(k)) counts.set(k.state, (counts.get(k.state) ?? 0) + 1)

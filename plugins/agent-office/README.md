@@ -49,7 +49,7 @@ cap) and the layout is recomputed on every resize.
 - Overflowing cards scroll: a vertical scrollbar (`░` track, `█` thumb; `|` and `#` in ASCII mode) sits on the last column,
   cards re-wrap one column narrower to make room, and a stale scroll offset is clamped after a resize.
 - Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
-- Identical siblings collapse to `Rodando xN`; `g` cycles the view mode.
+- Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
 - Keys: `j` scroll down, `k` scroll up (one card row per press), plus the hotkeys below.
 
 Not shipped: Allow, Decline, Stop, Retry, Pause and open-in-chat controls, and the "needs you" (`◆`) decision state. They stay
