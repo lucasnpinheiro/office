@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, segTone, barTone, cardBg } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, segTone, barTone, cardBg, onCard } from './app-cards'
 import type { AppCard, AppMapNode } from './app-cards'
 import { spinnerGlyph } from './motion'
 import { detailData } from './view-detail'
@@ -715,7 +715,7 @@ export const register: Register = on => {
         </Box>
         {c.steps ? (
           <Box flexDirection="row" height={1} gap="xs">
-            {c.steps.map((sg, i) => <Box key={`st-${c.id}-${i}`} flexGrow={sg.weight} height={1} backgroundColor={segTone(sg.tone, fr)} />)}
+            {c.steps.map((sg, i) => <Box key={`st-${c.id}-${i}`} flexGrow={sg.weight} height={1} backgroundColor={onCard(c.state, segTone(sg.tone, fr))} />)}
           </Box>
         ) : (
           <Box flexDirection="row" height={1} backgroundColor="subtle">

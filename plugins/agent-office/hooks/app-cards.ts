@@ -93,5 +93,6 @@ export function mapRows<T>(kids: readonly T[], cols: number): { bus: 'solid' | '
 // Card line motion and tint (design Chips5 v2): the running segment blinks with the frame, waiting is white, failure tints the whole card.
 export const WAIT_WHITE = '#FFFFFF'
 export const segTone = (t: Tone, fr: number): Tone => (t === 'suggestion' && fr % 2 ? 'subtle' : t)
-export const barTone = (s: State): Tone | typeof WAIT_WHITE => (s === 'pending' || s === 'attention' ? WAIT_WHITE : TONE[s])
+export const barTone = (s: State): Tone | typeof WAIT_WHITE => (s === 'pending' || s === 'attention' || s === 'failed' ? WAIT_WHITE : TONE[s]) // failed: white, red would vanish on the red card
+export const onCard = (s: State, t: Tone): Tone | typeof WAIT_WHITE => (cardBg(s) === t ? WAIT_WHITE : t) // a segment never matches its card background
 export const cardBg = (s: State): Tone | undefined => (s === 'failed' ? 'error' : undefined)

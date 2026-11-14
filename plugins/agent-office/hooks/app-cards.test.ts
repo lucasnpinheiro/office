@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, segTone, barTone, cardBg, WAIT_WHITE } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, segTone, barTone, cardBg, onCard, WAIT_WHITE } from './app-cards'
 import type { AgentLike } from './office'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES } from './capabilities'
@@ -150,4 +150,5 @@ test('cards 25% smaller: 26-wide (was 34), line blinks while running, white whil
   expect(barTone('running')).toBe('suggestion')
   expect(cardBg('failed')).toBe('error')
   expect(cardBg('running')).toBeUndefined()
+  expect([barTone('failed'), onCard('failed', 'error'), onCard('running', 'error')]).toEqual([WAIT_WHITE, WAIT_WHITE, 'error']) // review: no red line on the red card
 })
