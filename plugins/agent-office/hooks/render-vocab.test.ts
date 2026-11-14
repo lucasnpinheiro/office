@@ -94,10 +94,7 @@ test('AC-017: rodapé deriva letra e rótulo do KEY_MAP', () => {
   expect(hotkeysFor(ui, true).map(h => h.act)).toContain('sort')
 })
 test('AC-017: dicas desenhadas nas telas usam as letras do KEY_MAP', () => {
-  const many = Array.from({ length: 30 }, (_, i) => mk('x' + i))
-  const out = txt(renderCompact(many, T + 5000, { ...cview({}, 'cards'), maxCardRows: 2 }))
-  expect(out).toContain(`${keyOf('search')} buscar`)
-  expect(out).toContain(`${keyOf('sort')} ordenar`)
+  // the cards view no longer draws a hidden-cards box (nothing is hidden); its search and sort keys live in the pane footer (hotkeysFor)
   const d = txt(detailCompact([mk('a'), mk('b')], 'a', T + 5000, detectCaps({})) ?? [])
   expect(d).toContain(`${keyOf('nextSibling')}: próximo`)
 })

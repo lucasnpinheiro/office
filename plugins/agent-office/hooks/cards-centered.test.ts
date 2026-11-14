@@ -78,3 +78,26 @@ test('centred chrome: the Geral line and the legend are centred in the cards vie
     expect(Math.abs(lead(l) - (120 - strWidth(l.trim())) / 2)).toBeLessThanOrEqual(1)
   }
 })
+
+test('no card is ever hidden: when the pane is too short the cards go dense (3 rows each) and every agent stays drawn', () => {
+  const many = Array.from({ length: 30 }, (_, i) => mk(`n${i}`))
+  const t = rows(many, { maxLines: 20 })
+  const out = t.join('\n')
+  expect(out).not.toContain('cards ocultos')
+  for (let i = 0; i < 30; i++) expect(out).toContain(`Dev: n${i}`)
+  // dense card: top border, one body row, bottom border
+  const top = t.findIndex(l => /╭[─┴]{32}╮/.test(l) && !l.startsWith('╭'))
+  expect(t[top + 1]).toContain('│'); expect(t[top + 2]).toContain('╰')
+  for (const l of t) expect(strWidth(l)).toBeLessThanOrEqual(120)
+  // tall enough pane: the full 7-row cards stay
+  const full = rows(many.slice(0, 2), { maxLines: 200 })
+  const ft = full.findIndex(l => /╭[─┴]{32}╮/.test(l) && !l.startsWith('╭'))
+  expect(full[ft + 6]).toContain('╰')
+})
+
+test('depth: a chain of 20 nested agents is drawn, each under its parent', () => {
+  const chain = Array.from({ length: 20 }, (_, i) => mk(`d${i}`, i ? { parentAgentId: `g-d${i - 1}` } : {}))
+  const out = rows(chain, { maxLines: 9999 }).join('\n')
+  for (let i = 0; i < 20; i++) expect(out).toContain(`Dev: d${i}`)
+  expect((out.match(/╭[─┴]{32}╮/g) ?? []).length).toBe(21)
+})

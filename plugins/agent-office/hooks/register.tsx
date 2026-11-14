@@ -231,7 +231,7 @@ async function wantSize($: EngineInterface, list: OfficeAgent[], collapsed: stri
   const now = Date.now()
   const usd: number | null = await read($, sessionUsdAt)
   const lines = renderCompact(list, now, {
-    width: wcols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt), expanded: new Set(), maxCardRows: 6,
+    width: wcols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt), expanded: new Set(), maxCardRows: 99,
     model: await runModelOf($, list, now), captureIo: await captureIoOf($), sessionUsd: usd ?? undefined, ahead: aheadNow(),
   })
   return { rows: Math.min(40, Math.max(8, lines.length + 1)), columns: wcols }
@@ -615,7 +615,7 @@ export const register: Register = on => {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
       expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4,
-      maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 12,
+      maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 9, // header box 3 + Geral 1 + rule and legend 3 + hotkeys 1 + 1 spare
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, ahead: aheadNow(),
       containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,
