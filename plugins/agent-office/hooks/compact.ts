@@ -12,7 +12,7 @@ import type { Capabilities } from './capabilities'
 import { worktreePartition, groupDivider, restDivider, agentsLine } from './view-worktrees'
 import type { AheadInfo } from './git'
 import { buildRunModel, RUN_STATE } from './run-model'
-import { chips } from './persona'
+import { chips, MODEL_GLYPH, EFFORT_BARS } from './persona'
 import type { RunModel, RunNode } from './run-model'
 import { costLines, fmtTokens, fmtUsd } from './view-cost'
 import { toolLines } from './view-tools'
@@ -522,7 +522,10 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
     edgeLine(b.tl, b.tr, tag.up ? (c.ascii ? '+' : '┴') : undefined),
     // the title wins the row: the pill is drawn only when the whole title fits beside it (glyph and border already carry the state)
     split([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, full, undefined, { bold: true, node: id })], strWidth(full) + 3 + strWidth(pill) <= inner ? [seg(c, pill, col_, { bold: true })] : []),
-    body([seg(c, chipTxt, DIM, { node: id })]),
+    body(c.ascii ? [seg(c, chipTxt, DIM, { node: id })] : (() => {
+      const mg = MODEL_GLYPH[(n.model ?? '').toLowerCase()], bars = n.effort ? EFFORT_BARS[n.effort] : undefined
+      return [seg(c, ch.persona ?? '', DIM, { node: id }), ...(n.model ? [seg(c, ` · ${mg ? mg.g + ' ' : ''}${n.model}`, mg?.color, { node: id })] : []), ...(bars ? [seg(c, ` ${bars}`, DIM, { node: id })] : [])]
+    })()),
     split(wtTxt ? [seg(c, wtTxt, WORKTREE_COLOR)] : [], tag.role ? [seg(c, tag.role, DIM)] : []),
     body(bar),
     split([status], [seg(c, meta, DIM)]),
@@ -566,7 +569,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     const m = memo.get(n)!
     const tm = m.rows.length > 1 ? TM : 0
     const bx = x0 + tm + Math.floor((m.w - tm - CARD_W) / 2), pcx = bx + CARD_W / 2 // centred over the rows, not the trunk
-    const role = n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente'
+    const role = `${n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente'} L${depth}`
     card(n, nm, c, now, frame, idx++, { role, wt: flowOf(n), up, down: m.rows.length > 0 }, runs?.get(n.id)).forEach((l, r) => put(bx, y0 + r, l))
     if (!m.rows.length) return
     let y = y0 + CH
@@ -690,9 +693,9 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         const max = Math.ceil((allCards.length - room) / step) * step
         const off = Math.min(Math.max(0, v.scroll ?? 0), max)
         scrollInfo.max = max
-        const kd = keyOf('scrollDown') ?? 'j', ku = keyOf('scrollUp') ?? 'k'
+        const pos = `${Math.round(off / step) + 1}/${Math.round(max / step) + 1}` // position n/total, one step = one level
         const note = (t: string): Line => centre([seg(v.caps, t, DIM)], w)
-        out.push(note(off > 0 ? `${v.caps.ascii ? '^' : '↑'} mais cards acima · ${ku} sobe` : `${ku} sobe · ${kd} desce`))
+        out.push(note(`${off > 0 ? (v.caps.ascii ? '^ ' : '↑ ') : ''}${pos}`))
         const from = Math.max(0, off - 1) // off - 1: the window opens on the bus above the row
         const win = allCards.slice(from, from + room)
         // scrollbar: track + thumb on the last column, thumb size and place proportional to the window
@@ -704,7 +707,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
           const used = l.reduce((a, q) => a + strWidth(q.t), 0)
           out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM)])
         }
-        out.push(note(off < max ? `${v.caps.ascii ? 'v' : '↓'} mais cards abaixo · ${kd} desce` : `fim da árvore · ${ku} sobe`))
+        out.push(note(`${off < max ? (v.caps.ascii ? 'v ' : '↓ ') : ''}${pos}`))
       } else { scrollInfo.max = 0; out.push(...allCards) }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))
