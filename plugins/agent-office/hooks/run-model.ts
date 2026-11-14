@@ -28,6 +28,7 @@ export type Node = {
   shot?: { host?: string; has?: boolean }
   tool?: string // only while the card runs
   recent?: string[]
+  workflow?: string // runId of the workflow run this agent belongs to (WfAgent workflow data); no name is given by the engine
   kind: Kind
   state: State
   depth: number
@@ -90,6 +91,7 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
       persona: p.persona.name, model: model ? modelLabel(model) : '', effort: effort ? EFFORT_DISPLAY[effort]?.label : undefined, kind: 'agent', git: a.git,
       state: a.status === 'error' ? (isQuotaError(a.error) ? 'attention' : 'failed') : a.status === 'done' ? (a.endUnknown ? 'inactive' : 'done') : stale ? 'attention' : a.active === false ? 'pending' : 'running',
       depth: parent.depth + 1, start: a.startedAt, end: a.endedAt, children: [], dependsOn: [],
+      workflow: typeof a.workflow?.runId === 'string' && a.workflow.runId.trim() ? a.workflow.runId : undefined,
     }
     if (a.status === 'error') n.error = a.error || 'falha'
     if (n.state === 'running' || n.state === 'attention') { n.tool = a.tool; n.recent = a.recent; n.shot = a.shot }

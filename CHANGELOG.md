@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.0 (agent-office, indented card tree and workflow badge)
+
+- Cards view is an indented tree (Grafo6): each child under its parent, `└─▸` for the last child and `├─▸` for siblings, joined by a `│` rail. Indent 2 cols per level to L6, then 1 col per level to L50 (L50 = 56 cols). The centred bus (`┬┴┄`) is gone. ASCII uses `+->` / `` `-> `` and `:` (CONNECTORS in vocabulary.ts).
+- Nothing is hidden: cards shrink to 20 cols before they would leave the pane. shortcut: a pane narrower than indent + 20 cols clips the deepest cards, a horizontal scroll would fix it.
+- Running edge: only the connector into a running child cycles its dash (`╌ ┄ ┈`) per frame; other edges are a static dim `─`. Reduced motion and NO_COLOR are static.
+- Workflow badge: a card whose agent belongs to a workflow run shows `⟳ <runId>` in #FF8FB1. Node carries `workflow` (runId from the WfAgent data). The engine gives no workflow name, so the run id is the label.
+
 ## 0.27.0 (agent-office, deeper graph, simpler scroll, encoded cards)
 
 - Depth limit 20 to 50. The descer/subir buttons are gone from the footer; the cards pane shows the position as `n/total`.

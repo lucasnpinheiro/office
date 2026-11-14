@@ -37,7 +37,7 @@ const boot = async ($: any, on: any, agents = 12) => {
 const count = (s: string, re: RegExp) => (s.match(re) ?? []).length
 const boxTops = (rows: string[]) => rows.map(r => count(r, /╭[─┴]{32}╮/g))
 
-test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, sibling boxes, legend, one hint row', async ($, on) => {
+test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, indented connectors, legend, one hint row', async ($, on) => {
   await boot($, on)
   const rows = await rowsOf(await mount($, 110, 44)) // 44 rows: the tree is taller than the pane, so it scrolls
   const out = rows.join('\n')
@@ -45,20 +45,19 @@ test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, s
   expect(out).toContain('Árvore') // view tabs
   expect(out).toContain('Claude Code'); expect(out).toContain('Orquestrador') // main session = parent card
   expect(out).toMatch(/^\d\d:\d\d:\d\d · \d+ rodando · /m) // counts line of the design header
-  expect(rows.some(r => /^ *╭┄+/.test(r))).toBe(true) // bus from the parent card, hung off the trunk
-  expect(Math.max(...boxTops(rows))).toBe(3) // 3 x 34 + 2 gaps + trunk = 108 <= 110
-  expect(rows.filter(r => /^[ ┊]*╭[─┴]{32}╮/.test(r)).length).toBeGreaterThan(2) // parent + at least two sibling rows
+  expect(rows.some(r => /[├└][─╌┄┈]▸/.test(r))).toBe(true) // connectors of the indented tree
+  expect(rows.filter(r => /╭─{32}╮/.test(r)).length).toBeGreaterThan(2) // parent + at least two children in the window
   expect(out).not.toContain('cards ocultos'); expect(out).toMatch(/1\/\d+/) // short pane: a scrolling window of full cards
-  expect(out).toContain('Concluído'); expect(out).toContain('barramento')
+  expect(out).toContain('Concluído'); expect(out).toContain('filho de')
   expect(rows.filter(r => r.includes('fechar')).length).toBe(1) // one hotkey row; its hint tail only when it fits
 })
 
-test('real pane, 12 agents, 200 cols: 5 siblings per row, all 12 visible, no overflow box', async ($, on) => {
+test('real pane, 12 agents, 200 cols: indented tree, one card per block, no overflow box', async ($, on) => {
   await boot($, on)
   const rows = await rowsOf(await mount($, 200))
   const out = rows.join('\n')
-  expect(Math.max(...boxTops(rows))).toBe(5)
-  expect(count(out, /│[^│]*QA: teste \d+/g)).toBe(12)
+  expect(count(out, /QA: teste \d+/g)).toBeGreaterThan(2) // the window shows several children, the rest scrolls
+  expect(out).toMatch(/1\/\d+/)
   expect(out).not.toContain('cards ocultos')
 })
 
@@ -76,7 +75,7 @@ test('terminal, session.start without a surface field: the first render still la
   await $.session.start({ cwd: '/work/meuapp', isInteractive: true } as any)
   for (let i = 1; i <= 3; i++) await $.agent.spawn({ tool_use_id: `s${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
   const out = (await rowsOf(await mount($, 120))).join('\n')
-  expect(out).toContain('Árvore'); expect(out).toMatch(/╭─{32}╮/); expect(out).toMatch(/╭┄+[┬┼]/)
+  expect(out).toContain('Árvore'); expect(out).toMatch(/╭─{32}╮/); expect(out).toMatch(/[├└][─╌┄┈]▸/)
 })
 
 test('desktop, session.start without a surface field: the map (org chart of Box cards) still opens', async ($, on) => {

@@ -79,13 +79,14 @@ test('I-044 custo segue visível com largura 0 (modo cost, 80 colunas)', () => {
 test('I-043 container 390 px: cards viram linhas de estado, nome e tempo; 1040 px mantém cards', () => {
   const cards = view({ width: 120, mode: 'cards', maxCardRows: 6 })
   const rows = txt(renderCompact(agents, NOW, { ...cards, containerPx: 390 })), wide = txt(renderCompact(agents, NOW, { ...cards, containerPx: 1040 }))
-  expect(rows).not.toContain('barramento'); expect(rows).toMatch(/[├└]─/); expect(wide).toContain('barramento') // legenda do barramento só existe com cards
+  expect(rows).not.toContain('filho de'); expect(rows).toMatch(/[├└]─/); expect(wide).toContain('filho de') // legenda da árvore só existe com cards
   expect(rows).toContain('01:05'); expect(rows).toContain('boom')
 })
-test('I-042 app: cards por linha seguem as colunas do container', () => {
+test('I-042 app: cards are one indented column whatever the container: every card drawn at 520 and 1040 px', () => {
   const many = Array.from({ length: 6 }, (_, i) => mk(`n${i}`))
   const cards = view({ width: 200, mode: 'cards', maxCardRows: 20 })
-  const tops = (px: number) => renderCompact(many, NOW, { ...cards, containerPx: px }).filter(l => { const t = l.map(s => s.t).join(''); return /╭[─┴]{30,}╮/.test(t) && t.length < 190 }).length
-  // 1 coluna (520>px>=0 vira linhas, 520 = 2 colunas, 1040 = 4): mais colunas, menos fileiras de cards
-  expect(tops(520)).toBeGreaterThan(tops(1040))
+  const tops = (px: number) => renderCompact(many, NOW, { ...cards, containerPx: px }).filter(l => { const t = l.map(s => s.t).join(''); return /╭─{30,}╮/.test(t) }).length
+  // the tree lists one card per block (session + 6), so the container width changes card width, never the card count
+  expect(tops(520)).toBe(7)
+  expect(tops(1040)).toBe(7)
 })

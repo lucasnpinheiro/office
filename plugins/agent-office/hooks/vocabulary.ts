@@ -25,9 +25,10 @@ export const TOKENS = {
   light: { bg: '#F6F7F8', surface: '#FFFFFF', line: '#DDE0E4', text: '#17191C', muted: '#5A5F68' },
 } as const
 
+// Cards tree: `branch` is the sibling connector, `last` the last child's, `rule` the dash, `arrow` the tip, `pair` the rail.
 export const CONNECTORS = {
-  unicode: { branch: '├', rule: '─', pair: '│' },
-  ascii: { branch: '+', rule: '-', pair: ':' },
+  unicode: { branch: '├', last: '└', rule: '─', arrow: '▸', pair: '│' },
+  ascii: { branch: '+', last: '`', rule: '-', arrow: '>', pair: ':' },
 } as const
 
 // 0/false/no/off/empty are false, everything else true (one rule for OFFICE_* flags, shared with compact.ts detectCaps)

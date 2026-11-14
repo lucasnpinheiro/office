@@ -92,33 +92,34 @@ test('preview: colored diff, text, image fallback', () => {
 
 const many = (n: number, parent?: string) => Array.from({ length: n }, (_, i) => mk('s' + i, parent ? { parentAgentId: parent } : {}))
 const cardCount = (out: string) => out.split('\n').map(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length).filter(k => k > 0)
-test('cards: siblings per row follow the pane width: 120 -> 3, 200 -> 5, 34-col cards, 7 rows each', () => {
+test('cards: one card per row of the indented tree at any width, 34-col cards, 7 rows each', () => {
   const o120 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 }))
-  expect(cardCount(o120)).toEqual([1, 3, 3, 1]) // the parent card (main session), then the wrapped sibling rows
+  expect(cardCount(o120)).toEqual([1, 1, 1, 1, 1, 1, 1, 1]) // the session card, then the 7 children, one per block
   const o200 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 200, maxCardRows: 99 }))
-  expect(cardCount(o200)).toEqual([1, 5, 2])
-  const lines = o120.split('\n'); const top = lines.findIndex(l => /^ +╭─{32}╮/.test(l)); const bot = lines.findIndex((l, i) => i > top && /^ +╰/.test(l))
+  expect(cardCount(o200)).toEqual([1, 1, 1, 1, 1, 1, 1, 1])
+  const lines = o120.split('\n'); const top = lines.findIndex(l => /╭─{32}╮/.test(l))
+  const bot = lines.findIndex((l, i) => i > top && /╰─{32}╯/.test(l))
   expect(bot - top + 1).toBe(7)
 })
-test('cards: wrapped sibling rows hang off a dotted trunk on the left, each child under its own drop', () => {
+test('cards: the children of a parent hang from one rail: ├─▸ for each sibling, └─▸ for the last, each 2 cols right per level', () => {
   const ag = [mk('p', { agentId: 'P' }), ...many(4, 'P')]
   const lines = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n')
-  const first = lines.find(l => /^ *╭┄/.test(l))!, last = lines.find(l => /^ *╰┄/.test(l))!
-  expect(first).toBeDefined(); expect(last).toBeDefined()
-  expect(first.match(/[┬┼╮]/g)!.length).toBe(3) // three children on the first row
-  expect(last.match(/[┬╮]/g)!.length).toBe(1) // the fourth wraps
-  expect(lines.some(l => /^ *┊ ╭/.test(l))).toBe(true) // the trunk runs beside the first row
-  expect(lines.some(l => /^ +┊$/.test(l))).toBe(true) // single child (session -> P): a straight dotted drop
+  const tees = lines.filter(l => /[├└][─╌┄┈]▸/.test(l) && l.includes('Dev:')) // the footer legend shows the connectors too
+  expect(tees.length).toBe(5) // p (last child of the session) + its 4 children
+  expect(tees.filter(l => /├[─╌┄┈]▸/.test(l)).length).toBe(3)
+  expect(tees.filter(l => /└[─╌┄┈]▸/.test(l)).length).toBe(2) // p, and the last of its children
+  expect(lines.some(l => /^ {2}│/.test(l))).toBe(true) // rail of the children of P at col 2
+  expect(lines.filter(l => Array.from(l).indexOf('╭') === 5 && /╭─{32}╮/.test(l)).length).toBe(4) // their cards start at col 5 (indent 4 at depth 2)
 })
 test('cards: branch siblings take one row each after leaves, subtree below', () => {
   const ag = [mk('p', { agentId: 'P' }), mk('leaf1', { parentAgentId: 'P' }), mk('br', { parentAgentId: 'P', agentId: 'B' }), mk('gk', { parentAgentId: 'B' })]
   const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n').filter(l => l.includes('│')).join('\n')
   expect(out.indexOf('leaf1')).toBeLessThan(out.indexOf('Dev: br')); expect(out.indexOf('Dev: br')).toBeLessThan(out.indexOf('Dev: gk'))
 })
-test('cards ASCII: ":" vertical, "." horizontal, "+" joints', () => {
+test('cards ASCII: "+->" / "`->" connectors, ":" rail, no Unicode tree glyph', () => {
   const ag = [mk('p', { agentId: 'P' }), ...many(4, 'P')]
   const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, caps: detectCaps({ OFFICE_ASCII: '1' }) }))
-  expect(out).not.toMatch(/[┊├╰┄┬┴╭]/); expect(out).toMatch(/^ *\+\.+/m); expect(out).toMatch(/^ *: /m)
+  expect(out).not.toMatch(/[┊├└╰┄┬┴╭│─▸]/); expect(out).toMatch(/\+->/); expect(out).toMatch(/^ {2}:/m)
 })
 test('cards: the worktree and the role share one row of the card (unicode and ASCII), no full-width divider', () => {
   const ag = [mk('m'), mk('w', { git: { branch: 'feat/x', worktree: 'wt' } })]
@@ -188,7 +189,7 @@ test('running leaf has no invented percent', () => {
 })
 test('card border colors by state (blue running, red failed, gray done/pending)', () => {
   const ag = [mk('r'), mk('d', { status: 'done', endedAt: T + 5000 }), mk('f', { status: 'error', endedAt: T + 1000 })]
-  const fg = cardsOut(ag).flatMap(l => l.filter(s => /^╭─+$/.test(s.t))).map(s => s.fg)
+  const fg = cardsOut(ag).flatMap(l => l.filter(s => /^╭─+╮?$/.test(s.t))).map(s => s.fg)
   expect(fg).toContain('#7FA9FF'); expect(fg).toContain('#FF8A80'); expect(fg).toContain('#4b5563')
 })
 test('short pane: no hidden-cards box, every card drawn dense; legend below', () => {
@@ -254,7 +255,7 @@ test('detail has hotkeys for back and sibling navigation', () => {
 test('cards never dropped: scrolling a short pane reaches every sibling', () => {
   const ag = Array.from({ length: 6 }, (_, i) => mk('h' + i))
   const seen = new Set<string>()
-  for (let scroll = 0; scroll <= 40; scroll += 8) for (const m of txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 12, scroll })).matchAll(/Dev: h\d/g)) seen.add(m[0])
+  for (let scroll = 0; scroll <= 48; scroll += 8) for (const m of txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 12, scroll })).matchAll(/Dev: h\d/g)) seen.add(m[0])
   expect(seen.size).toBe(6)
 })
 
