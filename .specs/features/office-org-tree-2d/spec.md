@@ -1,4 +1,4 @@
-# Spec: office-org-tree-2d (agent-office 0.28.5, cards 0.28.6)
+# Spec: office-org-tree-2d (agent-office 0.28.5, cards 0.28.6, 0.28.7)
 
 ## Problema
 Em 0.28.4 o mapa de cards desenha todos os níveis na horizontal: os filhos de cada card (inclusive subagentes)
@@ -27,11 +27,16 @@ Orquestrador: persona `🧭 Squad Leader` (não `🎯 Orquestrador`), modelo Opu
 ## Card do terminal (0.28.6, fiel à imagem do design 2026-11-14)
 - Linha de chips em texto, igual ao Desktop: `🧭 Squad Leader · 👑 Opus · 🟢 baixo` (modelos 🪶 Haiku, 🎼 Sonnet,
   👑 Opus; esforço 🟢 baixo, 🟡 médio, 🔴 alto). Sem glifo de modelo (`◇ ◆ ■`) nem barras de esforço (`▁▃▅`).
-- Chips longos quebram por palavra para a 2ª linha (ex.: `… 👑 Opus · 🟢` / `baixo`); o card tem 8 linhas fixas
-  (linha 2 de chips em branco quando cabe), o excedente da 2ª linha termina em `…`.
+- Chips longos quebram por palavra para a 2ª linha (ex.: `… 👑 Opus · 🟢` / `baixo`); o card tinha 8 linhas fixas
+  (até 0.28.6; ver 0.28.7), o excedente da 2ª linha termina em `…`.
 - Linha de branch: `⎇ main` / `⧉ worktree` à esquerda, papel `orquestrador`/`agente`/`subagente` à direita (sem `L{n}`).
 - Barra segmentada por passo; rodapé: `concluído`/última ferramenta à esquerda, `~$0,30 · 00:16` à direita.
 - ASCII: `Squad Leader - Opus - baixo` (emoji da persona removido, nunca `??`).
+- 0.28.7: altura do card por conteúdo (sem linha em branco); branch longa quebra em até 2 linhas (papel na 1ª),
+  depois `…`; o Orquestrador sempre mostra `⎇ <branch>` do cwd da sessão quando é repo git; barra sempre
+  segmentada — sem passos, 4 segmentos por estado/progresso real (verde feito, vermelho falha, amarelo aguarda,
+  azul ao vivo, cinza resto). Irmãos de alturas diferentes: cada barramento de filhos sai do próprio card.
+- AC-7 Testes 0.28.7: `org-tree-2d.test.ts` (gap 1-4), `cards-visible.test.ts` (B4 quebra).
 - AC-6 Testes: `cards-centered.test.ts` (anatomia e quebra), `compact.test.ts` (chips por persona).
 
 ## Overflow / painel estreito

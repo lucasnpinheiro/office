@@ -92,7 +92,7 @@ test('cards never shrink and none is dropped: a short pane shows a window of ful
   const first = rows(many, { maxLines: 20 })
   expect(first.join('\n')).toMatch(/1\/\d+/); expect(first.join('\n')).not.toContain('cards ocultos')
   expect(last.join('\n')).toMatch(/(\d+)\/\1/)
-  // a card is always 8 rows: top border, 6 body rows, bottom border
+  // this card (two chip rows) is 8 rows: top border, 6 body rows, bottom border
   const top = first.findIndex(l => /╭─{32}╮/.test(l) && !l.startsWith('╭'))
   for (let r = 1; r <= 6; r++) expect(first[top + r]).toContain('│')
   expect(first[top + 7]).toContain('╰')
@@ -105,10 +105,9 @@ test('design card anatomy: title + state pill, chips, worktree + role, step segm
   const y = t.findIndex(l => l.includes('API de cupom') && l.includes('│'))
   expect(t[y]).toMatch(/│✓ API de cupom +Concluído│/)
   expect(t[y + 1]).toMatch(/│🦉 Senior · 🎼 Sonnet · 🟢 baixo│/)
-  expect(t[y + 2]).toMatch(/│ +│/) // chips fit on one row: the wrap row stays blank
-  expect(t[y + 3]).toMatch(/│⧉ spec\/checkout-api +agente│/)
-  expect(t[y + 4]).toMatch(/│━+ ━+│/)
-  expect(t[y + 5]).toMatch(/│concluído +~\$0,30 · 00:16│/)
+  expect(t[y + 2]).toMatch(/│⧉ spec\/checkout-api +agente│/) // chips fit on one row: no blank row (0.28.7)
+  expect(t[y + 3]).toMatch(/│━+ ━+│/)
+  expect(t[y + 4]).toMatch(/│concluído +~\$0,30 · 00:16│/)
 })
 
 test('design 2026-11-14: chips too long wrap to the next row, as text (no model glyph, no effort bars)', () => {

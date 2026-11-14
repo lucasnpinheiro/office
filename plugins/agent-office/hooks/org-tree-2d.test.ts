@@ -51,3 +51,45 @@ test('app: depth 1 lays out in a row, depth >= 2 in a column; the Orquestrador b
   expect(appMap([mk('solo')], T + 5000, {}).card.title).toBe('Orquestrador')
 })
 
+
+// 0.28.7: the 4 remaining gaps vs the reference image
+const ascii = detectCaps({ OFFICE_ASCII: '1', LANG: 'en_US.UTF-8' })
+const at = (ag: AgentLike[], o: object = {}) => renderCompact(ag, T + 5000, { width: 200, caps, mode: 'cards', query: '', expanded: new Set<string>(), maxCardRows: 999, ...o }).map(l => l.map(s => s.t).join(''))
+
+test('gap 1: a long branch wraps onto a second row (role on the first), then …', () => {
+  const t = at([mk('a', { git: { branch: 'spec/checkout-api-muito-longa-de-verdade-mesmo-sim-e-ainda-mais-longa', worktree: '/w/x' } })])
+  const i = t.findIndex(l => l.includes('⧉ spec/checkout-api'))
+  expect(i).toBeGreaterThan(0)
+  expect(t[i]).toMatch(/agente\s*│/)
+  expect(t[i + 1]).toMatch(/│\S+/) // continuation row
+  expect(t[i + 1]).toContain('…')
+})
+
+test('gap 2: card height follows content: short chips and no branch = no blank row', () => {
+  const t = at([mk('a')])
+  expect(t.some(l => /^\s*│\s+│\s*$/.test(l))).toBe(false)
+})
+
+test('gap 2: siblings of different heights keep connectors meeting and all cards', () => {
+  const ag = [mk('a', { git: { branch: 'spec/checkout-api-muito-longa-de-verdade', worktree: '/w/x' } }), mk('b'), mk('s', { parentAgentId: 'g-b' })]
+  const t = at(ag)
+  for (const id of ['a', 'b', 's']) expect(t.join('\n')).toContain(`Dev: ${id}`)
+  const y = t.findIndex(l => l.includes('Dev: s'))
+  expect(t[y - 1]).toMatch(/┴/)
+  expect(t[y - 2]).toMatch(/┊\s*$/) // the taller sibling may still be drawn beside it
+})
+
+test('gap 3: orchestrator shows ⎇ branch from the session git', () => {
+  const t = at([mk('a')], { branch: 'main' })
+  const root = t.findIndex(l => l.includes('orquestrador'))
+  expect(t[root]).toMatch(/⎇ main\s+orquestrador/)
+})
+
+test('gap 4: progress bar is segmented even without step data (done = green gaps)', () => {
+  const t = at([mk('a', { status: 'done', endedAt: T + 3000 } as Partial<AgentLike>)])
+  const bar = t.find(l => /━/.test(l) && l.includes('Dev') === false && !l.includes('Orquestrador'))
+  expect(t.some(l => /│━+ ━+/.test(l))).toBe(true)
+  expect(bar).toBeDefined()
+  const a = at([mk('a')], { caps: ascii })
+  expect(a.some(l => /\|=+ [=-]+/.test(l) || /\|[-]+ [-]+/.test(l))).toBe(true)
+})

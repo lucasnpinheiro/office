@@ -1,6 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 import { DEFAULT_MODE, detectCaps, renderCompact, statusText, detailCompact, previewLines, isQuotaError, layoutLevel, quantize, scrollInfo } from './compact'
 import type { AgentLike } from './office'
+import { STATE_COLOR } from './monitor'
 
 const T = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o })
@@ -144,7 +145,8 @@ test('shimmer moves with frame; reduced motion is static', () => {
 test('staggered bar growth right after start, full later', () => {
   const ag = [mk('x', { startedAt: T, status: 'done', endedAt: T + 1000 })]
   const g = (now: number) => txt(renderCompact(ag, now, { ...v, mode: 'cards' }))
-  expect((g(T + 100).match(/█/g) ?? []).length).toBeLessThan((g(T + 5000).match(/█/g) ?? []).length)
+  const green = (now: number) => renderCompact(ag, now, { ...v, mode: 'cards' }).flat().filter(s => /━/.test(s.t) && s.fg === quantize(STATE_COLOR.done, v.caps.color)).length
+  expect(green(T + 100)).toBeLessThan(green(T + 5000))
 })
 
 // ---- Rodada 4 (design: variante sem agrupar) ----

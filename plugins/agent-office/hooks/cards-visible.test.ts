@@ -52,10 +52,13 @@ test('B5 orchestrator card is Concluído when every agent is done, and its time 
   expect(t.join('\n')).toContain('0 rodando')
 })
 
-test('B4 a branch cut by the card width ends in an ellipsis, with a gap before the role', () => {
+test('B4 a long branch wraps to a second row (design), the role stays on the first; past 2 rows it ends in …', () => {
   const ag = [mk('b0', { git: { branch: 'spec/andamento-2026-11-14-long-branch-name' } } as object)]
-  const row = lines(ag, { width: 120 }).find(l => l.includes(' agente'))!
-  expect(row).toMatch(/…\s+agente│/)
+  const t = lines(ag, { width: 120 }), i = t.findIndex(l => l.includes(' agente'))
+  expect(t[i]).toMatch(/⎇ spec\/andamento-2026-11-\s+agente│/)
+  expect(t[i + 1]).toMatch(/│14-long-branch-name\s*│/)
+  const t2 = lines([mk('b1', { git: { branch: 'spec/' + 'x'.repeat(80) } } as object)], { width: 120 }), j = t2.findIndex(l => l.includes(' agente'))
+  expect(t2[j + 1]).toMatch(/…│/)
 })
 
 test('R2 a deep card at a narrow pane keeps its right border: nothing clipped by the pane edge', () => {

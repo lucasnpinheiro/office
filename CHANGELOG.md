@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.7 (agent-office, last card gaps vs the design image)
+
+- A long branch wraps onto a second row (`⧉ spec/checkout-` / `api`), the role stays on the first; past two rows it ends in `…`.
+- Card height follows content: no blank row when chips fit on one line. Siblings of different heights keep their connectors (each child bus hangs from its own card's bottom); scrolling still reaches every card.
+- The Orquestrador card always shows `⎇ <branch>` of the session cwd when it is a git repo.
+- The progress bar is always segmented: without step data it is 4 runs from state and real progress (green done, red failed, yellow waiting, blue live, grey left); ASCII uses `=` / `-`.
+
 ## 0.28.6 (agent-office, terminal cards like the design image)
 
 - Terminal card chips read as text like the design and the Desktop chips: `🧭 Squad Leader · 👑 Opus · 🟢 baixo` (was `■ Opus ▁` glyph + bars), word-wrapped onto a second row when too long; cards are now 8 rows.

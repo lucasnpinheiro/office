@@ -71,7 +71,6 @@ export const boxChars = (c: Caps): Box =>
   c.numbered ? { tl: '+', tr: '+', bl: '+', br: '+', v: '|', h: '-' }
     : c.ascii ? { tl: '.', tr: '.', bl: "'", br: "'", v: '|', h: '-' }
       : { tl: '╭', tr: '╮', bl: '╰', br: '╯', v: '│', h: '─' }
-const BAR = (c: Caps) => (c.ascii ? ['#', '.'] : ['█', '▒']) as [string, string]
 const DIM = '#9ca3af'
 
 export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall' | 'cost' | 'tools' | 'workflow'
@@ -401,23 +400,6 @@ export const growth = (caps: Caps, n: Node, idx: number, now: number): number =>
 const PART = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉']
 function lighten(hex: string | undefined): string | undefined { return hex ? '#' + [1, 3, 5].map(i => Math.min(255, parseInt(hex.slice(i, i + 2), 16) + 70).toString(16).padStart(2, '0')).join('') : hex }
 
-// Bar with sub-cell head. Running + motion allowed: a bright cell sweeps across the filled part (shimmer).
-function partialBar(frac: number, cells: number, c: Caps, color: string, running: boolean, frame: number): Line {
-  const eighths = Math.round(Math.min(1, Math.max(0, frac)) * cells * 8)
-  const full = Math.floor(eighths / 8), rem = eighths % 8
-  if (c.ascii) {
-    const sh = running && !c.reducedMotion && full > 0 ? frame % full : -1
-    const body = '='.repeat(full).split('').map((ch, i) => (i === sh ? '#' : ch)).join('')
-    return [seg(c, body, color), seg(c, rem ? '>' : '', color), seg(c, '.'.repeat(Math.max(0, cells - full - (rem ? 1 : 0))), DIM)]
-  }
-  const sh = running && !c.reducedMotion && full > 0 ? frame % full : -1
-  const segs: Seg[] = []
-  for (let i = 0; i < full; i++) segs.push(seg(c, '█', i === sh ? lighten(color) : color))
-  if (rem) segs.push(seg(c, PART[rem]!, color))
-  segs.push(seg(c, '▒'.repeat(Math.max(0, cells - full - (rem ? 1 : 0))), DIM))
-  return segs
-}
-
 // Span on the session timeline: start offset blank, duration filled with sub-cell ends.
 function spanBar(n: Node, t0: number, tot: number, now: number, cells: number, c: Caps, frame: number, k: number): Line {
   const st = n.start ?? t0, en = n.end ?? now
@@ -451,7 +433,7 @@ const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: ST
 // how far the cards view can scroll right now (module memory set by the last render; the reducer clamps with it)
 export const scrollInfo = { max: 0, units: [] as number[] } // units: first row of each card block the window can start at (one card per press)
 const MIN_CARD_ROWS = CARD_H + 3 // a pane shorter than this still gets room for one full card and its notes
-export type CardTag = { role?: string; wt?: string; up?: boolean; down?: boolean; wf?: string } // wf: workflow run id
+export type CardTag = { role?: string; wt?: string; br?: string; up?: boolean; down?: boolean; wf?: string } // wf: workflow run id
 const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
 // Step segments of the design card: one run of cells per tool step (width by duration, colour by result), the live one last.
 function stepBar(run: RunNode | undefined, n: Node, cells: number, c: Caps, frame: number): Line | undefined {
@@ -468,11 +450,24 @@ function stepBar(run: RunNode | undefined, n: Node, cells: number, c: Caps, fram
   let spare = room - ws.reduce((a, x) => a + x, 0)
   for (let i = 0; spare > 0; i = (i + 1) % ws.length, spare--) ws[i]!++
   for (let i = 0; spare < 0 && i < ws.length * cells; i++) if (ws[i % ws.length]! > 1) { ws[i % ws.length]!--; spare++ }
-  const H = c.ascii ? '=' : '━'
-  return segs.flatMap((x, i) => [...(i ? sp(1) : []), seg(c, H.repeat(ws[i]!), x.fg)])
+  return segBar(segs.map(x => x.fg), ws, c)
 }
-// Design card (Proto5 / Chips5, the same anatomy in the terminal): title + state pill, chips, worktree + role,
-// step segments, status + cost and time. Always these 6 rows (chips take two): the pane scrolls instead of shrinking a card.
+const segBar = (fgs: string[], ws: number[], c: Caps): Line => {
+  const H = c.ascii ? '=' : '━'
+  return fgs.flatMap((fg, i) => [...(i ? sp(1) : []), seg(c, (fg === DIM && c.ascii ? '-' : H).repeat(ws[i]!), fg)])
+}
+// No step data: still the design's segments, derived from state and real progress (4 equal runs: green done, then the
+// state colour for the live/failed/waiting one, grey for what is left). Never an invented percent: unknown progress = 0 done.
+function stateBar(n: Node, frac: number, cells: number, c: Caps, frame: number): Line {
+  const S = 4, room = cells - (S - 1)
+  const ws = Array.from({ length: S }, (_, i) => Math.floor(room / S) + (i < room % S ? 1 : 0))
+  const head = n.state === 'running' ? (!c.reducedMotion && frame % 2 ? lighten(STATE_COLOR.running)! : STATE_COLOR.running)
+    : n.state === 'failed' ? STATE_COLOR.failed : n.state === 'attention' ? STATE_COLOR.attention : undefined
+  const done = Math.min(head ? S - 1 : S, Math.round(Math.max(0, Math.min(1, frac)) * S))
+  return segBar(Array.from({ length: S }, (_, i) => (i < done ? STATE_COLOR.done : i === done && head ? head : DIM)), ws, c)
+}
+// Design card (Proto5 / Chips5, the same anatomy in the terminal): title + state pill, chips (1-2 rows), worktree + role
+// (1-2 rows), step segments, status + cost and time. Height follows content (design); the pane scrolls instead of shrinking a card.
 function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number, tag: CardTag = {}, run?: RunNode): Line[] {
   const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
@@ -498,15 +493,8 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
       : n.state === 'failed' ? seg(c, `${glyph(c, 'failed')} ${n.error ?? 'falha'}`, STATE_COLOR.failed)
         : n.state === 'attention' ? seg(c, `${glyph(c, 'attention')} ${n.error ?? 'sem atividade'}`, STATE_COLOR.attention)
             : seg(c, `${tri} ${kids ? `delega ${kids} ${kids === 1 ? 'filho' : 'filhos'}` : [tasks.length ? `${tdone}/${tasks.length}` : '', trail].filter(Boolean).join(' · ') || 'executando'}`, DIM)
-  const [on, off] = BAR(c)
-  const leafRunning = n.state === 'running' && n.children.length === 0
   const pctText = tasks.length ? `${Math.round((tdone / tasks.length) * 100)}%` : metric(n)
-  let bar: Line | undefined = stepBar(run, n, inner, c, frame)
-  if (!bar && leafRunning) {
-    // no step and no real percent yet: indeterminate sweep, never an invented number
-    const pos = c.reducedMotion ? 0 : frame % (inner + 3)
-    bar = Array.from({ length: inner }, (_, i) => (i <= pos && i > pos - 3 ? on : off)).map(x => seg(c, x, x === on ? col_ : DIM))
-  } else if (!bar) bar = partialBar((n.state === 'done' ? 1 : n.state === 'failed' ? 0.6 : progressOf(n) ?? 0) * k, inner, c, col_, n.state === 'running', frame)
+  const bar: Line = stepBar(run, n, inner, c, frame) ?? stateBar(n, (n.state === 'done' ? 1 : progressOf(n) ?? 0) * k, inner, c, frame)
   const time = n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now))
   const usd = run?.usage.costUsd
   const meta = `${usd === undefined ? pctText : fmtUsd(usd)} · ${time}`
@@ -525,15 +513,27 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
       if (strWidth(next) <= inner || !cur || out.length === 2) out[out.length - 1] = next
       else out.push(w)
     }
-    return [out[0]!, out[1] ?? '']
+    return out
   })()
-  const wtTxt = tag.wt ? `${c.ascii ? 'wt' : '⧉'} ${tag.wt}` : n.git?.branch ? `${c.ascii ? 'br' : '⎇'} ${n.git.branch}` : ''
+  const brName = n.git?.branch ?? tag.br
+  const wtTxt = tag.wt ? `${c.ascii ? 'wt' : '⧉'} ${tag.wt}` : brName ? `${c.ascii ? 'br' : '⎇'} ${brName}` : ''
+  // design: a long branch wraps onto a second row ("⧉ spec/checkout-" / "api"), the role stays on the first; past 2 rows, …
+  const flowRows = (() => {
+    const wf: Seg[] = tag.wf ? [seg(c, `${c.ascii ? '@' : '⟳'} ${tag.wf}`, WORKFLOW_COLOR, { bold: true }), ...sp(wtTxt ? 2 : 0)] : []
+    const role: Seg[] = tag.role ? [seg(c, tag.role, DIM)] : []
+    const room = inner - lineWidth(wf) - (tag.role ? strWidth(tag.role) + 1 : 0)
+    if (strWidth(wtTxt) <= room || room < 8) return [split([...wf, ...(wtTxt ? [seg(c, wtTxt, WORKTREE_COLOR)] : [])], role, true)]
+    let head = takeWidth(wtTxt, room)
+    const cut = Math.max(head.lastIndexOf('-'), head.lastIndexOf('/')) // break after a separator like the design
+    if (cut > head.indexOf(' ')) head = head.slice(0, cut + 1)
+    return [split([...wf, seg(c, head, WORKTREE_COLOR)], role, true), body(clip([seg(c, wtTxt.slice(head.length), WORKTREE_COLOR)], inner))]
+  })()
   return [
     edgeLine(b.tl, b.tr, tag.up ? (c.ascii ? '+' : '┴') : undefined),
     // the title wins the row: the pill is drawn only when the whole title fits beside it (glyph and border already carry the state)
     split([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, full, undefined, { bold: true, node: id })], strWidth(full) + 3 + strWidth(pill) <= inner ? [seg(c, pill, col_, { bold: true })] : [], true), // a cut title ends in … (video: "Operações bitwise 0b1010 e shi")
     ...chipRows.map(t => body(clip([seg(c, t, DIM, { node: id })], inner))),
-    split([...(tag.wf ? [seg(c, `${c.ascii ? '@' : '⟳'} ${tag.wf}`, WORKFLOW_COLOR, { bold: true }), ...sp(wtTxt ? 2 : 0)] : []), ...(wtTxt ? [seg(c, wtTxt, WORKTREE_COLOR)] : [])], tag.role ? [seg(c, tag.role, DIM)] : [], true),
+    ...flowRows,
     body(bar),
     split([status], [seg(c, meta, DIM)]),
     edgeLine(b.bl, b.br, tag.down ? (c.ascii ? '+' : '┬') : undefined),
@@ -550,7 +550,6 @@ const clipOf = (c: Caps) => (l: Seg[], w: number): Seg[] => {
 // whole block is centred in the pane. Top-level siblings that do not fit wrap into rows hung off a dotted trunk on the left of the
 // block. Nothing is cut and no card shrinks: a pane too short scrolls (renderCompact windows these lines). Subagents (depth >= 2) stack one per row in their parent column (design 2026-11-14).
 function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, runs?: Map<string, RunNode>, starts?: number[]): Line[] {
-  const CH = CARD_H
   const c = v.caps, frame = v.frame ?? 0
   const V = c.ascii ? ':' : '┊', H = c.ascii ? '.' : '┄'
   const J = c.ascii ? { d: '+', u: '+', x: '+', tl: '+', tr: '+', l: '+', bl: '+' } : { d: '┬', u: '┴', x: '┼', tl: '╭', tr: '╮', l: '├', bl: '╰' }
@@ -560,20 +559,24 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const TM = 2 // trunk column + one blank
   type M = { w: number; h: number; rows: Node[][] }
   const memo = new Map<Node, M>()
-  const measure = (n: Node, avail: number): M => {
+  const hs = new Map<Node, number>()
+  const tagOf = (n: Node, depth: number, up: boolean, down: boolean): CardTag => ({ role: n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente', wt: flowOf(n), br: n.kind === 'session' ? v.branch : undefined, wf: n.workflow, up, down })
+  // card height by content: drawn once here, the same rows as draw() (role only changes agente/subagente, same width class)
+  const hOf = (n: Node, depth: number) => { let h = hs.get(n); if (h === undefined) hs.set(n, h = card(n, nm, c, now, frame, 0, tagOf(n, depth, false, false), runs?.get(n.id)).length); return h }
+  const measure = (n: Node, avail: number, depth = 0): M => {
     const hit = memo.get(n); if (hit) return hit
     const kids = agentKids(n), inner = Math.max(CARD_W, avail - TM), rows: Node[][] = []
     let cur: Node[] = [], used = 0
     const stack = n !== g.root // design 2026-11-14: agents in one row under the root, subagents stacked in their parent's column
     for (const k of kids) {
-      const w = measure(k, inner).w
+      const w = measure(k, inner, depth + 1).w
       if (cur.length && (stack || used + CARD_GAP + w > inner || cur.length >= maxPer)) { rows.push(cur); cur = []; used = 0 }
       used += (cur.length ? CARD_GAP : 0) + w; cur.push(k)
     }
     if (cur.length) rows.push(cur)
     const rowW = rows.map(r => r.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0))
     const tm = rows.length > 1 ? TM : 0
-    const m = { w: Math.max(CARD_W, tm + Math.max(0, ...rowW)), h: CH + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows }
+    const m = { w: Math.max(CARD_W, tm + Math.max(0, ...rowW)), h: hOf(n, depth) + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows }
     memo.set(n, m); return m
   }
   const grid: { x: number; w: number; l: Line }[][] = []
@@ -583,11 +586,10 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     const m = memo.get(n)!
     const tm = m.rows.length > 1 ? TM : 0
     const bx = x0 + tm + Math.floor((m.w - tm - CARD_W) / 2), pcx = bx + CARD_W / 2 // centred over the rows, not the trunk
-    const role = n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente'
     starts?.push(y0)
-    card(n, nm, c, now, frame, idx++, { role, wt: flowOf(n), wf: n.workflow, up, down: m.rows.length > 0 }, runs?.get(n.id)).forEach((l, r) => put(bx, y0 + r, l))
+    card(n, nm, c, now, frame, idx++, tagOf(n, depth, up, m.rows.length > 0), runs?.get(n.id)).forEach((l, r) => put(bx, y0 + r, l))
     if (!m.rows.length) return
-    let y = y0 + CH
+    let y = y0 + hOf(n, depth)
     const busYs: number[] = []
     m.rows.forEach((row, ri) => {
       const rw = row.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0)
