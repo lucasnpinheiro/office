@@ -41,7 +41,7 @@ test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, s
   await boot($, on)
   const rows = await rowsOf(await mount($, 110, 44)) // 44 rows: not every card fits, so the overflow box shows
   const out = rows.join('\n')
-  expect(out).toContain('Office · meuapp · #abcdef')
+  expect(out).toContain('Office Agent Monitor · meuapp · #abcdef')
   expect(out).toContain('Geral ')
   expect(out).toContain('Claude Code'); expect(out).toContain('Orquestrador') // main session = parent card
   expect(out).not.toContain('rodando ·') // not the one-line map
@@ -50,7 +50,7 @@ test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, s
   expect(rows.filter(r => /^[ ┊]*╭[─┴]{32}╮/.test(r)).length).toBeGreaterThan(2) // parent + at least two sibling rows
   expect(out).toContain('cards ocultos')
   expect(out).toContain('Concluído'); expect(out).toContain('barramento')
-  expect(rows.filter(r => r.includes('Tab entre cards')).length).toBe(1)
+  expect(rows.filter(r => r.includes('fechar')).length).toBe(1) // one hotkey row; its hint tail only when it fits
 })
 
 test('real pane, 12 agents, 200 cols: 5 siblings per row, all 12 visible, no overflow box', async ($, on) => {
@@ -67,7 +67,7 @@ test('terminal session.start opens the cards of the design (TELA 8), whatever vi
   await $.command.run({ command: 'office', args: 'view map' } as any)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Office · meuapp'); expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/)
+  expect(out).toContain('Office Agent Monitor · meuapp'); expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/)
   expect(out).not.toContain('Progresso geral')
 })
 
@@ -87,11 +87,24 @@ test('desktop, session.start without a surface field: the map (org chart of Box 
   expect(keys.some((k: string) => k.startsWith('map-'))).toBe(true)
 })
 
-test('terminal: /office view map still draws the boxed org chart', async ($, on) => {
+test('terminal has one view: /office view map draws the centred cards, never a boxed org chart', async ($, on) => {
   await boot($, on, 2)
   await $.command.run({ command: 'office', args: 'view map' } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Progresso geral'); expect(out).toMatch(/┌[─┴]{28}┐/)
+  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Geral '); expect(out).toMatch(/╭[─┴]{32}╮/)
+  expect(out).not.toContain('Progresso geral'); expect(out).not.toContain('┌')
+})
+
+test('terminal footer: the hotkey row never exceeds the pane width (the hint tail is dropped first)', async ($, on) => {
+  await boot($, on, 2)
+  for (const cols of [64, 90, 140]) {
+    const pane = await mount($, cols)
+    const rows = await rowsOf(pane)
+    await pane.unmount()
+    if (cols >= 90) expect(rows.some(r => r.includes('fechar'))).toBe(true)
+    if (cols >= 140) expect(rows.some(r => r.includes('Tab entre cards'))).toBe(true)
+    for (const r of rows) expect([...r].length).toBeLessThanOrEqual(cols)
+  }
 })
 
 test('desktop surface: the map view draws the org chart as Box cards (root, children), clickable', async ($, on) => {
@@ -142,7 +155,7 @@ test('real pane, fresh session (0 agents, as right after a reload): the cards he
   setup($, on)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 100, 40))).join('\n')
-  expect(out).toContain('Office · meuapp'); expect(out).toContain('Aguardando agentes')
+  expect(out).toContain('Office Agent Monitor · meuapp'); expect(out).toContain('Aguardando agentes')
   expect(out).not.toContain('0 rodando')
 })
 

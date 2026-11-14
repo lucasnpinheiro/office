@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.21.0 (agent-office, one view in the terminal)
+
+- Terminal: the boxed org chart is gone. The centred cards are the only map of the terminal and always the opening view; `v` alternates cards and tree, and `/office view map` or `OFFICE_VIEW=map` land on the cards too. The app surfaces keep their own map.
+- The header box reads `Office Agent Monitor` on the full layout.
+- Empty session: the orchestrator card is drawn centred with the waiting line centred under it, instead of a bare line of text.
+- The `Geral` line and the legend are centred with the tree.
+- Footer: the hint tail (`Tab entre cards · Enter detalhe · …`) is dropped before the hotkey row can wrap; on very narrow panes the labels shrink to the bare keys.
+
 ## 0.20.2 (agent-office) and personas 0.1.2 (English persona names, single router source)
 
 - agent-office: persona names are English (`Specialist`, `Architect`, `Mid-level`, `Intern`; the rest unchanged). The pt-BR names (`Especialista`, `Arquiteto`, `Pleno`, `Estagiário`) stay as aliases for the same persona in `chips()`. Persona, model and effort are also read from their icons when the words are missing.

@@ -16,7 +16,7 @@ export const startUi = (): Ui => ({ ...initialUi() })
 // `ctx.collapsed` (tree only): false when the tree shows no collapsed group, so g does not waste a press opening nothing.
 // `ctx.workflow`: true only while a workflow run exists; otherwise g skips the Workflow stop (never an always-empty screen).
 export const nextModeOf = (m: Mode, workflow: boolean): Mode => { const n = NEXT_MODE[m]; return n === 'workflow' && !workflow ? NEXT_MODE[n] : n }
-export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workflow?: boolean } = {}): { state: Ui; close?: true } {
+export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workflow?: boolean; terminal?: boolean } = {}): { state: Ui; close?: true } {
   if (a === 'close') return { state: s, close: true }
   // g em árvore: primeiro abre todos os grupos colapsados (estado do mesmo ciclo), depois passa ao modo seguinte.
   if (a === 'group') {
@@ -33,8 +33,9 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
   if (a === 'view') {
     // from the map, a mode the user chose stays; otherwise the tree is the first stop of the cycle (06-gaps, decision 3)
     if (s.view === 'map') return { state: { ...s, view: 'compact', mode: s.modeChosen ? s.mode : 'tree' } }
-    if (s.mode === 'tree') return { state: { ...s, mode: 'cards' } }
-    return { state: { ...s, view: 'map' } }
+    if (s.mode === 'tree') return { state: { ...s, view: 'compact', mode: 'cards' } }
+    // the terminal has one view (the centred cards): v only alternates cards and tree there
+    return ctx.terminal ? { state: { ...s, view: 'compact', mode: 'tree' } } : { state: { ...s, view: 'map' } }
   }
   if (a === 'search') return { state: { ...s, searching: !s.searching } }
   if (a === 'back') {

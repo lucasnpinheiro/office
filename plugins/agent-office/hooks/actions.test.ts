@@ -156,3 +156,10 @@ test('tab:map and tab:<mode> switch the app pane tabs', async () => {
   expect(m).toMatchObject({ view: 'map', selected: '' })
   expect(applyAction(m, 'tab:tools').state).toMatchObject({ view: 'compact', mode: 'tools', modeChosen: true })
 })
+
+test('terminal (one view only): v alternates cards and árvore, never the map', () => {
+  const cards = { ...initialUi(), view: 'compact' as const, mode: 'cards' as const }
+  const t = applyAction(cards, 'view', { terminal: true }).state
+  expect(t).toMatchObject({ view: 'compact', mode: 'tree' })
+  expect(applyAction(t, 'view', { terminal: true }).state).toMatchObject({ view: 'compact', mode: 'cards' })
+})

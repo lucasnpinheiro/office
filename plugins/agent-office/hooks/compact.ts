@@ -200,6 +200,9 @@ const ROUND_BOX = (c: Caps, w: number, left: Line, right: Line, color = '#6b7280
 }
 
 // Header per design (Rodada 4): rounded box "Office · project · #sid" + colored counts, then the Geral bar row.
+// centred chrome of the cards view (user decision: everything centred)
+const centre = (l: Line, w: number): Line => { const lw = l.reduce((a, q) => a + strWidth(q.t), 0); return lw >= w ? l : [...sp(Math.floor((w - lw) / 2)), ...l] }
+
 function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const { caps: c, width: w } = v
   const prog = overallProgress(g)
@@ -212,7 +215,8 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const tokTxt = tot.tokens === undefined ? '—' : fmtTokens(tot.tokens) + (tot.partial ? ' parcial' : '')
   const usdTxt = v.sessionUsd === undefined ? '' : ` · ${fmtUsd(v.sessionUsd)}`
   const sid = String(v.sessionId ?? '').replace(/[^\w-]/g, '').slice(0, 6)
-  const left: Line = [seg(c, 'Office', undefined, { bold: true }), seg(c, ` · ${v.project || '-'}${sid ? ' · #' + sid : ''}`, DIM)]
+  // the full layout carries the whole product name (one view in the terminal, so this is the only header)
+  const left: Line = [seg(c, layoutLevel(w) === 'full' ? 'Office Agent Monitor' : 'Office', undefined, { bold: true }), seg(c, ` · ${v.project || '-'}${sid ? ' · #' + sid : ''}`, DIM)]
   // below the full layout the right side drops the words and the ETA, so the "Office" title keeps its room
   const full = layoutLevel(w) === 'full'
   const right: Line = [seg(c, `${glyph(c, 'running')} ${act}${full ? ' ativos' : ''}`, STATE_COLOR.running), seg(c, ` ${glyph(c, 'done')} ${ok}`, STATE_COLOR.done),
@@ -221,7 +225,7 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const geral: Line = [seg(c, 'Geral '), ...segBar(g, c, layoutLevel(w) === 'full' ? 20 : 10), seg(c, ` ${prog === undefined ? '—' : Math.round(prog * 100) + '%'} · `),
     seg(c, keyOf('group') ?? 'g', undefined, { act: 'group', bold: true }), seg(c, ' alterna modo', DIM)]
   // sem agente não há progresso a mostrar: a linha Geral (com barra) só existe quando há agentes (AC-020)
-  return [...ROUND_BOX(c, w, left, right), ...(agents.length ? [fit(geral, w)] : [])]
+  return [...ROUND_BOX(c, w, left, right), ...(agents.length ? [v.mode === 'cards' ? centre(fit(geral, w), w) : fit(geral, w)] : [])]
 }
 
 function filterBar(g: Graph, v: CView): Line {
@@ -241,8 +245,8 @@ function footer(g: Graph, v: CView, hint = ''): Line[] {
   const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${stateLabel(c, s)}`, stateColor(s))])
   const out: Line[] = []
   if (hint) out.push(...ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, `${keyOf('search')} ${labelOf('search')} · ${keyOf('sort')} ${labelOf('sort')}`, DIM)]))
-  out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], fit(legend, v.width))
-  if (v.mode === 'cards') out.push(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · borda inferior: papel e wt worktree' : '┊ ┄ ┬ ┴ barramento pai→filhos · borda inferior: papel (orquestrador, agente, subagente) e ⧉ worktree', DIM)], v.width))
+  out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], v.mode === 'cards' ? centre(fit(legend, v.width), v.width) : fit(legend, v.width))
+  if (v.mode === 'cards') out.push(centre(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · borda inferior: papel e wt worktree' : '┊ ┄ ┬ ┴ barramento pai→filhos · borda inferior: papel (orquestrador, agente, subagente) e ⧉ worktree', DIM)], v.width), v.width))
   if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
   return out
 }
@@ -569,7 +573,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     if (tm) for (let yy = busYs[0]! + 1; yy < busYs[busYs.length - 1]!; yy++) if (!busYs.includes(yy)) put(x0, yy, [seg(c, V, DIM)])
   }
   const lines: Line[] = []
-  if (agentKids(g.root).length) {
+  {
     const rm = measure(g.root, v.width)
     draw(g.root, Math.max(0, Math.floor((v.width - rm.w) / 2)), 0, 0, false)
     for (let y = 0; y < grid.length; y++) {
@@ -634,8 +638,12 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
   let hint = ''
   const out: Line[] = [...header(g, agents, now, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
-  if (agents.length === 0) out.push([seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)])
-  else {
+  if (agents.length === 0) {
+    // empty session: the orchestrator card alone, centred, with the waiting line under it (never a bare line of text)
+    if (v.mode === 'cards') out.push(...cardLines(g, nm, keep, now, v).lines, [])
+    const wait: Line = [seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)]
+    out.push(v.mode === 'cards' ? centre(wait, w) : wait)
+  } else {
     if (v.mode === 'tree' || v.mode === 'cards') out.push(...pinnedLines(g, nm, keep, v))
     const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
     if (v.mode === 'grouped' && bad.length) {

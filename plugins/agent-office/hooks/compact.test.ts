@@ -155,7 +155,7 @@ test('header: rounded box, Office - project - #sid left, colored counts + elapse
   const ls = cardsOut(ag, { project: 'megabor', sessionId: 'c716af99' })
   const t0 = txt(ls)
   expect(ls[0]![0]!.t).toMatch(/^╭─+╮$/)
-  expect(t0).toMatch(/│Office · megabor · #c716af/); expect(t0).toMatch(/⠹ 1 ativos ✓ 1 ✗ 1 · 00:00:09 · tokens — · ETA/)
+  expect(t0).toMatch(/│Office Agent Monitor · megabor · #c716af/); expect(t0).toMatch(/⠹ 1 ativos ✓ 1 ✗ 1 · 00:00:09 · tokens — · ETA/)
   expect(t0).not.toContain('⇄'); expect(statusText([mk('a')], T + 1)).not.toContain('⇄')
   const counts = ls[1]!.filter(s => /ativos|✓|✗/.test(s.t)).map(s => s.fg)
   expect(counts).toContain('#7FA9FF'); expect(counts).toContain('#6FD08C'); expect(counts).toContain('#FF8A80')
