@@ -71,3 +71,12 @@ test('app card: one segment per tool step when the timeline exists, else none', 
   expect(c!.steps).toEqual([{ weight: 4000, tone: 'success' }, { weight: 1000, tone: 'error' }, { weight: 1000, tone: 'suggestion' }])
   expect(appCards([mk('b')], T, {})[0]!.steps).toBeUndefined()
 })
+
+test('appMap: every card carries its role by depth: orquestrador (session), agente (top level), subagente (deeper)', () => {
+  const m = appMap([mk('p', { description: 'Dev: pai', agentId: 'g-p' }), mk('c', { description: 'Dev: filho', parentAgentId: 'g-p' }), mk('x', { description: 'Dev: x' })], T + 5000, {})
+  expect(m.card.role).toBe('orquestrador')
+  const pai = m.children.find(n => n.card.title === 'Dev: pai')!
+  expect(pai.card.role).toBe('agente'); expect(pai.children[0]!.card.role).toBe('subagente')
+  // a lone top-level agent promoted to root keeps its own role
+  expect(appMap([mk('solo')], T + 1000, {}).card.role).toBe('agente')
+})

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.1 (agent-office, roles and motion on the app map)
+
+- App surfaces (desktop, vscode, mobile): every map card names its role (`orquestrador`, `agente`, `subagente`) on the worktree line, the same depth rule as the terminal cards.
+- Motion: the running glyph spins, the bar of a running leaf without a real percent sweeps, and a lit dash runs along the dashed trunk and row buses that lead to a running agent. All static with reduced motion.
+
 ## 0.20.0 (agent-office, centred and animated card tree in the terminal)
 
 - Cards view (terminal default): the tree is centred. Each parent card sits centred over its children and the whole block is centred in the pane; the connector leaves the parent at the bottom centre (`┬`) and enters each child at the top centre (`┴`). Subtrees sit side by side; siblings that do not fit wrap into rows hung off a dotted trunk on the left of the block.

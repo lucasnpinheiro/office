@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import { isAppSurface, appCards, appMap } from './app-cards'
 import type { AppCard, AppMapNode } from './app-cards'
 import { renderBoxMap } from './map-boxes'
+import { spinnerGlyph } from './motion'
 import { detailData } from './view-detail'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
@@ -672,24 +673,31 @@ export const register: Register = on => {
     ])
     // one app card (design Chips5): glyph + title, chips, git, status, progress bar, % and time; border and bar carry the state tone
     const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
+    // motion on the app surfaces: spinner glyph, a sweeping indeterminate bar and a pulse along the dashed buses (off with reduced motion)
+    const fr = caps.reducedMotion ? 0 : frameFor(all, now)
+    const glyphOf = (c: AppCard) => (c.state === 'running' && !caps.reducedMotion ? spinnerGlyph(fr, false) : c.glyph)
     const appCardBox = (c: AppCard, kids = false) => (
       <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} paddingX="sm" width={34}>
         <Box flexDirection="row" justifyContent="space-between">
-          {c.id === 'session' ? <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
+          {c.id === 'session' ? <Text color={c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
             <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
-              <Text color={c.tone} bold>{`${c.glyph} ${c.title}${kids ? ' ▾' : ''}`}</Text>
+              <Text color={c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text>
             </Button>
           )}
           <Text color={c.tone}>{PILL[c.state] ?? ''}</Text>
         </Box>
         <Text dimColor>{c.chips.join(' · ')}</Text>
-        {c.git?.length ? <Text color={WORKTREE_COLOR}>{c.git.join(' ')}</Text> : <Text dimColor>{' '}</Text>}
+        <Box flexDirection="row" justifyContent="space-between">
+          {c.git?.length ? <Text color={WORKTREE_COLOR}>{c.git.join(' ')}</Text> : <Text dimColor>{' '}</Text>}
+          {c.role ? <Text dimColor>{c.role}</Text> : null}
+        </Box>
         {c.steps ? (
           <Box flexDirection="row" height={1} gap="xs">
             {c.steps.map((sg, i) => <Box key={`st-${c.id}-${i}`} flexGrow={sg.weight} height={1} backgroundColor={sg.tone} />)}
           </Box>
         ) : (
           <Box flexDirection="row" height={1} backgroundColor="subtle">
+            {c.pct === undefined && fr ? <Box width={`${(fr * 10) % 80}%`} /> : null}
             <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.tone} />
           </Box>
         )}
@@ -700,9 +708,9 @@ export const register: Register = on => {
     // Connectors are Boxes (a 1-cell bar), tone `suggestion` into a running child, `subtle` otherwise.
     const APP_CARD_W = 34, APP_GAP = 2
     const perRowApp = Math.max(1, Math.floor((cols - 2 + APP_GAP) / (APP_CARD_W + APP_GAP)))
-    const dashes = (key: string, dir: 'row' | 'column', n: number) => (
+    const dashes = (key: string, dir: 'row' | 'column', n: number, live = false) => (
       <Box key={key} flexDirection={dir} gap="xs" {...(dir === 'row' ? { height: 1, width: '100%' } : { width: 1 })}>
-        {Array.from({ length: n }, (_, i) => <Box key={`dash-${key}-${i}`} flexGrow={1} {...(dir === 'row' ? { height: 1 } : { width: 1 })} backgroundColor="subtle" />)}
+        {Array.from({ length: n }, (_, i) => <Box key={`dash-${key}-${i}`} flexGrow={1} {...(dir === 'row' ? { height: 1 } : { width: 1 })} backgroundColor={live && !caps.reducedMotion && i === fr % n ? 'suggestion' : 'subtle'} />)}
       </Box>
     )
     const childCol = (k: AppMapNode, i: number, n: number, solid: boolean) => {
@@ -735,11 +743,11 @@ export const register: Register = on => {
             <Box flexDirection="row" justifyContent="center" gap="sm">{rows[0]!.map((k, i) => childCol(k, i, rows[0]!.length, true))}</Box>
           ) : rows.length > 1 ? (
             <Box flexDirection="row" width="100%">
-              {dashes(`trunk-${n.card.id}`, 'column', rows.length * 6)}
+              {dashes(`trunk-${n.card.id}`, 'column', rows.length * 6, kids.some(k => k.card.state === 'running'))}
               <Box flexDirection="column" flexGrow={1} gap="sm">
                 {rows.map((row, ri) => (
                   <Box key={`row-${n.card.id}-${ri}`} flexDirection="column">
-                    {dashes(`rowbus-${n.card.id}-${ri}`, 'row', 24)}
+                    {dashes(`rowbus-${n.card.id}-${ri}`, 'row', 24, row.some(k => k.card.state === 'running'))}
                     <Box flexDirection="row" gap="sm" paddingLeft={1}>{row.map((k, i) => childCol(k, i, row.length, false))}</Box>
                   </Box>
                 ))}
