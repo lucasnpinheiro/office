@@ -2,6 +2,7 @@ import { test, expect } from 'claude-code/testing'
 import { renderCompact, detectCaps, CARD_W } from './compact'
 import { strWidth } from './monitor'
 import type { AgentLike } from './office'
+import { hotkeysFor, initialUi } from './actions'
 
 // Centered card tree (user decision 2026-11-13: "TELA 8 centralizada"): the parent card sits centred over its children,
 // the whole block is centred in the pane, roles and worktrees ride on the bottom border, the bus is animated.
@@ -37,11 +38,10 @@ test('centred: connectors leave the parent bottom centre (┬) and enter each ch
   expect([...pb].some((ch, i, a) => ch === '┬' && strWidth(a.slice(0, i).join('')) === gcol)).toBe(true)
 })
 
-test('roles on the bottom border: orquestrador (session), agente (top level), subagente (deeper); worktree badge', () => {
-  const t = rows([...tree, mk('w', { git: { branch: 'feat/x', worktree: 'wt' } } as any)], { width: 200 })
-  const bottoms = t.filter(l => l.includes('╰')).join('\n')
-  expect(bottoms).toContain('orquestrador'); expect(bottoms).toContain(' agente '); expect(bottoms).toContain('subagente')
-  expect(bottoms).toMatch(/⧉ feat\/x/)
+test('roles beside the worktree row: orquestrador (session), agente (top level), subagente (deeper); worktree on the left', () => {
+  const t = rows([...tree, mk('w', { git: { branch: 'feat/x', worktree: 'wt' } } as any)], { width: 200 }).join('\n')
+  expect(t).toMatch(/ orquestrador│/); expect(t).toMatch(/ agente│/); expect(t).toMatch(/ subagente│/)
+  expect(t).toMatch(/│⧉ feat\/x +agente│/)
   const a = rows(tree, { caps: detectCaps({ OFFICE_ASCII: '1' }) }).join('\n')
   expect(a).toContain('subagente'); expect(a).not.toMatch(/[╭╮╰╯│┬┴┄┊]/)
 })
@@ -79,20 +79,41 @@ test('centred chrome: the Geral line and the legend are centred in the cards vie
   }
 })
 
-test('no card is ever hidden: when the pane is too short the cards go dense (3 rows each) and every agent stays drawn', () => {
+test('cards never shrink and none is dropped: a short pane shows a window of full 7-row cards that scrolls to every agent', () => {
   const many = Array.from({ length: 30 }, (_, i) => mk(`n${i}`))
-  const t = rows(many, { maxLines: 20 })
-  const out = t.join('\n')
-  expect(out).not.toContain('cards ocultos')
-  for (let i = 0; i < 30; i++) expect(out).toContain(`Dev: n${i}`)
-  // dense card: top border, one body row, bottom border
-  const top = t.findIndex(l => /╭[─┴]{32}╮/.test(l) && !l.startsWith('╭'))
-  expect(t[top + 1]).toContain('│'); expect(t[top + 2]).toContain('╰')
-  for (const l of t) expect(strWidth(l)).toBeLessThanOrEqual(120)
-  // tall enough pane: the full 7-row cards stay
-  const full = rows(many.slice(0, 2), { maxLines: 200 })
-  const ft = full.findIndex(l => /╭[─┴]{32}╮/.test(l) && !l.startsWith('╭'))
-  expect(full[ft + 6]).toContain('╰')
+  const seen = new Set<string>()
+  let last: string[] = []
+  for (let scroll = 0; scroll <= 104; scroll += 8) {
+    last = rows(many, { maxLines: 20, scroll })
+    for (const m of last.join('\n').matchAll(/Dev: n\d+/g)) seen.add(m[0])
+    for (const l of last) expect(strWidth(l)).toBeLessThanOrEqual(120)
+  }
+  expect(seen.size).toBe(30)
+  const first = rows(many, { maxLines: 20 })
+  expect(first.join('\n')).toContain('mais cards abaixo · j desce'); expect(first.join('\n')).not.toContain('cards ocultos')
+  expect(last.join('\n')).toContain('fim da árvore · k sobe')
+  // a card is always 7 rows: top border, 5 body rows, bottom border
+  const top = first.findIndex(l => /╭─{32}╮/.test(l) && !l.startsWith('╭'))
+  for (let r = 1; r <= 5; r++) expect(first[top + r]).toContain('│')
+  expect(first[top + 6]).toContain('╰')
+})
+
+test('design card anatomy: title + state pill, chips, worktree + role, step segments, status + cost and time', () => {
+  const st = [{ tool: 'Read', label: 'a', startedAt: T, durationMs: 2000, ok: true }, { tool: 'Bash', label: 'b', startedAt: T, durationMs: 5000, ok: true }]
+  const a = mk('api', { description: '🦉 Senior · 🎼 Sonnet · 🟢 baixo: API de cupom', status: 'done', endedAt: T + 16000, steps: st, usage: { tokens: 10, costUsd: 0.3 }, git: { branch: 'spec/checkout-api', worktree: 'wt' } } as any)
+  const t = rows([a])
+  const y = t.findIndex(l => l.includes('API de cupom') && l.includes('│'))
+  expect(t[y]).toMatch(/│✓ API de cupom +Concluído│/)
+  expect(t[y + 1]).toMatch(/│🦉 Senior · 🎼 Sonnet · 🟢 baixo *│/)
+  expect(t[y + 2]).toMatch(/│⧉ spec\/checkout-api +agente│/)
+  expect(t[y + 3]).toMatch(/│━+ ━+│/)
+  expect(t[y + 4]).toMatch(/│concluído +~\$0,30 · 00:16│/)
+})
+
+test('scroll keys: j and k are bound in the cards view only', () => {
+  const keys = (mode: any) => hotkeysFor({ ...initialUi(), view: 'compact', mode }, false).map(h => h.key)
+  expect(keys('cards')).toContain('j'); expect(keys('cards')).toContain('k')
+  expect(keys('tree')).not.toContain('j')
 })
 
 test('depth: a chain of 20 nested agents is drawn, each under its parent', () => {

@@ -39,16 +39,16 @@ const boxTops = (rows: string[]) => rows.map(r => count(r, /╭[─┴]{32}╮/g
 
 test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, sibling boxes, legend, one hint row', async ($, on) => {
   await boot($, on)
-  const rows = await rowsOf(await mount($, 110, 44)) // 44 rows: the full cards do not fit, so they are drawn dense
+  const rows = await rowsOf(await mount($, 110, 44)) // 44 rows: the tree is taller than the pane, so it scrolls
   const out = rows.join('\n')
   expect(out).toContain('Office Agent Monitor · meuapp · #abcdef')
   expect(out).toContain('Geral ')
-  expect(out).toContain('Claude Code'); expect(out).toContain('orquestrador') // main session = parent card
+  expect(out).toContain('Claude Code'); expect(out).toContain('Orquestrador') // main session = parent card
   expect(out).not.toContain('rodando ·') // not the one-line map
   expect(rows.some(r => /^ *╭┄+/.test(r))).toBe(true) // bus from the parent card, hung off the trunk
   expect(Math.max(...boxTops(rows))).toBe(3) // 3 x 34 + 2 gaps + trunk = 108 <= 110
   expect(rows.filter(r => /^[ ┊]*╭[─┴]{32}╮/.test(r)).length).toBeGreaterThan(2) // parent + at least two sibling rows
-  expect(out).not.toContain('cards ocultos'); expect(count(out, /QA: teste \d+/g)).toBeGreaterThanOrEqual(12) // short pane: dense cards, none hidden
+  expect(out).not.toContain('cards ocultos'); expect(out).toContain('mais cards abaixo · j desce') // short pane: a scrolling window of full cards
   expect(out).toContain('Concluído'); expect(out).toContain('barramento')
   expect(rows.filter(r => r.includes('fechar')).length).toBe(1) // one hotkey row; its hint tail only when it fits
 })
@@ -97,12 +97,12 @@ test('terminal has one view: /office view map draws the centred cards, never a b
 
 test('terminal footer: the hotkey row never exceeds the pane width (the hint tail is dropped first)', async ($, on) => {
   await boot($, on, 2)
-  for (const cols of [64, 90, 140]) {
+  for (const cols of [64, 100, 170]) {
     const pane = await mount($, cols)
     const rows = await rowsOf(pane)
     await pane.unmount()
-    if (cols >= 90) expect(rows.some(r => r.includes('fechar'))).toBe(true)
-    if (cols >= 140) expect(rows.some(r => r.includes('Tab entre cards'))).toBe(true)
+    if (cols >= 100) expect(rows.some(r => r.includes('fechar'))).toBe(true)
+    if (cols >= 170) expect(rows.some(r => r.includes('Tab entre cards'))).toBe(true)
     for (const r of rows) expect([...r].length).toBeLessThanOrEqual(cols)
   }
 })

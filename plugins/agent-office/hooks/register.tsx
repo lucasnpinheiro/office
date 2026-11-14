@@ -8,7 +8,7 @@ import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, drawSig, ticker } from './office'
 import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS } from './monitor'
 import { TONE as TONE_OF } from './app-cards'
-import { renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
+import { scrollInfo, renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
@@ -48,6 +48,7 @@ const curView = async ($: EngineInterface): Promise<string> => {
   if (onTerminal()) return 'compact' // one view in the terminal: the map is an app view
   return (await read($, autoViewAt)) ? 'map' : stored
 }
+const scrollAt = atom({ plugin: 'agent-office', key: 'scroll' } as const, 0) // first tree line shown by the cards view
 const modeAt = atom({ plugin: 'agent-office', key: 'mode' } as const, DEFAULT_MODE as string)
 const filterAt = atom({ plugin: 'agent-office', key: 'filter' } as const, 'all')
 const sortAt = atom({ plugin: 'agent-office', key: 'sort' } as const, 'time')
@@ -298,6 +299,13 @@ async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolea
   return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter }), workflow: hasWorkflow(list) } // workflow: g only stops there while a run exists
 }
 async function dispatch($: EngineInterface, a: string) {
+  if (a === 'scrollDown' || a === 'scrollUp') {
+    // one level (card + bus) per press, clamped to what the last render said is scrollable
+    const cur: number = await read($, scrollAt)
+    await update($, scrollAt, () => Math.min(scrollInfo.max, Math.max(0, Math.min(cur, scrollInfo.max) + (a === 'scrollDown' ? 8 : -8))))
+    $.ui.invalidate('ui.render')
+    return
+  }
   const ui = await readUi($)
   // a selection that left the list (agent dropped by the 60-entry cap, /office reset) is cleared by the next action, whichever it is
   if (ui.selected && !((await read($, office)) as OfficeAgent[]).some(x => x.id === ui.selected)) ui.selected = ''
@@ -337,6 +345,7 @@ export const register: Register = on => {
     await update($, attachAt, () => start.attach)
     await update($, expandedAt, () => start.expanded)
     await update($, modeChosenAt, () => start.modeChosen)
+    await update($, scrollAt, () => 0)
     const m = ((await $.env.get('OFFICE_MODE').catch(() => undefined)) ?? '').trim().toLowerCase()
     if ((MODES as string[]).includes(m)) { await update($, modeAt, () => m); await update($, modeChosenAt, () => true) }
     const vw = ((await $.env.get('OFFICE_VIEW').catch(() => undefined)) ?? '').trim().toLowerCase()
@@ -614,7 +623,7 @@ export const register: Register = on => {
     const compactView: CView = {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
-      expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4,
+      expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, scroll: await read($, scrollAt),
       maxLines: ((e.props as { bodyRows?: number } | undefined)?.bodyRows ?? Math.min(e.viewport?.rows ?? 30, 30)) - 9, // header box 3 + Geral 1 + rule and legend 3 + hotkeys 1 + 1 spare
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, ahead: aheadNow(),

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.0 (agent-office, the design card in the terminal, always full, the pane scrolls)
+
+- Terminal cards follow the design card (Proto5 / Chips5): title with the state pill on the right (`Concluído`, `Rodando`, `Falhou`, ...), the persona · model · effort chips, the worktree (`⧉`) or branch (`⎇`) with the role on the right, one bar segment per tool step (width by duration, red on a failed step, the live one last), and the status with cost and time (`~$0,30 · 00:16`; the percent stands in when there is no cost).
+- A card is always these 7 rows: the dense 3-row cards of 0.21.1 are gone. A tree taller than the pane shows a window that scrolls one level per press (`j` desce, `k` sobe), with a note above and below saying where the rest is. No card is dropped.
+- A title too long for the row keeps the row to itself; the pill gives way (glyph and border still carry the state).
+
 ## 0.21.1 (agent-office, no card is ever hidden, 20 levels)
 
 - Cards view: the "+N cards ocultos" cut is gone. When the full 7-row cards do not fit the pane height, every card is drawn dense (3 rows: border, one line with state, name, metric and time, border with role and worktree), so all agents stay on screen.
