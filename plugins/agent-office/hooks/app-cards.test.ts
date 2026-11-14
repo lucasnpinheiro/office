@@ -50,7 +50,7 @@ test('app card: real description fixture and subagent_type fallback feed the chi
 
 test('appMap: session root, agents under their parent, tones and pct never invented', () => {
   const m = appMap([mk('p', { description: 'Dev: pai', agentId: 'g-p' }), mk('c', { description: 'Dev: filho', parentAgentId: 'g-p' }), mk('x', { description: 'Dev: x', status: 'error' })], T + 5000, {})
-  expect(m.card.title).toBe('Claude Code')
+  expect(m.card.title).toBe('Orquestrador')
   const top = m.children.map(n => n.card.title)
   expect(top).toContain('Dev: pai'); expect(top).toContain('Dev: x')
   const pai = m.children.find(n => n.card.title === 'Dev: pai')!
@@ -65,9 +65,9 @@ test('appMap: query prunes branches', () => {
   expect(m.card.id).toBe('beta') // one visible top-level agent: it is the root box (design), no session box above it
 })
 
-test('appMap: several top-level agents keep the Claude Code session box as their parent', () => {
+test('appMap: several top-level agents keep the Orquestrador session box as their parent', () => {
   const m = appMap([mk('alfa'), mk('beta')], T + 1000, {})
-  expect(m.card.title).toBe('Claude Code'); expect(m.children.map(n => n.card.id)).toEqual(['alfa', 'beta'])
+  expect(m.card.title).toBe('Orquestrador'); expect(m.children.map(n => n.card.id)).toEqual(['alfa', 'beta'])
 })
 
 test('app card: one segment per tool step when the timeline exists, else none', () => {
@@ -103,4 +103,9 @@ test('parity: one RunModel, Terminal pills and App cards carry the same agents, 
     expect(term).toContain(STATE_TABLE[r.state].label) // Terminal draws the same state from the same node
   }
   expect(cards.find(c => c.id === 'old')!.stalled).toBe(true)
+})
+
+test('appMap: orchestrator card matches the design: title Orquestrador, chips persona · modelo · esforço', () => {
+  const m = appMap([], T, {})
+  expect([m.card.title, ...m.card.chips]).toEqual(['Orquestrador', '🎯 Orquestrador', '👑 Opus', '🟢 baixo'])
 })

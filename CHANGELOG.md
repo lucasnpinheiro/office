@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.4 (agent-office, orchestrator card like the design)
+
+- The orchestrator card is titled `Orquestrador` and its chip row reads `🎯 Orquestrador · Opus · baixo`, like every agent card, in the terminal and the Desktop app (was `Claude Code / Orquestrador`).
+
 ## 0.28.3 (agent-office, Warp video: back to the centred cards of the design)
 
 - Regression from 0.28.0/0.28.1 (video 2026-11-14 12:41, Warp side pane): the cards view drew an indented column of narrow cards and, on a short pane, dropped the persona/model/effort row (dense/tight forms). The design (TELA 8, video 12:45) is the centred org chart with full cards.

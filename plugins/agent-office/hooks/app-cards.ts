@@ -67,7 +67,7 @@ export function appMap(agents: AgentRecord[], now: number, o: { query?: string; 
   const g = buildGraph(agents, now, o.git)
   const nm = names(g), keep = visibleSet(g, o.query ?? '', new Set<string>(), o.filter), by = runsOf(agents, now, o.model)
   const walk =(n: Node, depth = 0): AppMapNode => ({
-    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code', chips: ['Orquestrador'], status: undefined, role: 'orquestrador' }
+    card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Orquestrador', status: undefined, role: 'orquestrador' }
       : { ...cardOf(n, nm, now, by.get(n.id)), role: depth <= 1 ? 'agente' : 'subagente' },
     children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(k => walk(k, depth + 1)),
   })

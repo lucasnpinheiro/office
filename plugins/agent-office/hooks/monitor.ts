@@ -247,7 +247,7 @@ export function renderMonitor(agents: AgentLike[], now: number, v: View): Frame 
   const header = [...head, ...alerts]
   const collapsible = [...g.nodes.values()]
     .filter(n => n.kind !== 'task' && n.children.length > 0 && !gone.has(n.id))
-    .map(n => ({ id: n.id, name: n.kind === 'session' ? 'Claude Code' : n.name, hidden: v.collapsed.has(n.id) ? n.children.length : 0 }))
+    .map(n => ({ id: n.id, name: n.name, hidden: v.collapsed.has(n.id) ? n.children.length : 0 }))
   const lines = [...header, ...body, ...footer].map(l => truncLine(l, w))
   // thumbnail strip: running agents that hold a picture, newest last, as many as fit the width
   const fit = Math.max(1, Math.floor((w + 2) / (THUMB_COLS + 2)))
