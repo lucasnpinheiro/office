@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { renderCompact, detectCaps, indentOf } from './compact'
+import { renderCompact, detectCaps, indentOf, scrollInfo } from './compact'
 import { strWidth } from './monitor'
 import { buildGraph } from './run-model'
 import type { AgentLike } from './office'
@@ -128,7 +128,8 @@ test('cards never shrink below their anatomy and none is dropped: a short pane s
   const many = Array.from({ length: 30 }, (_, i) => mk(`n${i}`))
   const seen = new Set<string>()
   let last: string[] = []
-  for (let scroll = 0; scroll <= 240; scroll += 8) {
+  rows(many, { maxLines: 20 })
+  for (const scroll of scrollInfo.units) { // one card per scroll stop
     last = rows(many, { maxLines: 20, scroll })
     for (const m of last.join('\n').matchAll(/Dev: n\d+/g)) seen.add(m[0])
     for (const l of last) expect(strWidth(l)).toBeLessThanOrEqual(120)
@@ -137,10 +138,11 @@ test('cards never shrink below their anatomy and none is dropped: a short pane s
   const first = rows(many, { maxLines: 20 })
   expect(first.join('\n')).toMatch(/1\/\d+/)
   expect(last.join('\n')).toMatch(/(\d+)\/\1/)
-  // a card is always 7 rows: top border, 5 body rows, bottom border
-  const top = first.findIndex(l => /╭─{32}╮/.test(l))
-  for (let r = 1; r <= 5; r++) expect(first[top + r]).toContain('│')
-  expect(first[top + 6]).toContain('╰')
+  // room for the full card: top border, 5 body rows, bottom border; a short pane goes denser instead (B1), never cut
+  const tall = rows(many.slice(0, 3), { maxLines: 100 })
+  const top = tall.findIndex(l => /╭─{32}╮/.test(l))
+  for (let r = 1; r <= 5; r++) expect(tall[top + r]).toContain('│')
+  expect(tall[top + 6]).toContain('╰')
 })
 
 test('design card anatomy: title + state pill, chips, worktree + role, step segments, status + cost and time', () => {

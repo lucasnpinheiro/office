@@ -1,6 +1,6 @@
 // Graphical cards for the app surfaces (desktop, vscode, mobile): same Graph as the terminal cards, different drawing.
 // Pure: the caller (register.tsx) turns each AppCard into Box/Text. The terminal keeps the text cards of compact.ts.
-import { buildGraph, progressOf, durationOf, fmtMMSS, hiddenIds } from './monitor'
+import { buildGraph, progressOf, durationOf, fmtMMSS } from './monitor'
 import type { Node, State } from './monitor'
 import type { AgentRecord } from './office'
 import { buildRunModel, RUN_STATE } from './run-model'
@@ -57,7 +57,7 @@ const runsOf = (agents: readonly AgentRecord[], now: number, m?: RunModel) => ne
 
 export function appCards(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; model?: RunModel }): AppCard[] {
   const g = buildGraph(agents, now)
-  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = runsOf(agents, now, o.model)
+  const nm = names(g), keep = visibleSet(g, o.query ?? '', new Set<string>(), o.filter), by = runsOf(agents, now, o.model) // no expiry: every finished card stays (B2)
   return [...g.nodes.values()].filter((n: Node) => n.kind === 'agent' && keep.has(n.id)).map(n => cardOf(n, nm, now, by.get(n.id)))
 }
 
@@ -65,8 +65,8 @@ export function appCards(agents: AgentRecord[], now: number, o: { query?: string
 export type AppMapNode = { card: AppCard; children: AppMapNode[] }
 export function appMap(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; git?: GitInfo; model?: RunModel }): AppMapNode {
   const g = buildGraph(agents, now, o.git)
-  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = runsOf(agents, now, o.model)
-  const walk = (n: Node, depth = 0): AppMapNode => ({
+  const nm = names(g), keep = visibleSet(g, o.query ?? '', new Set<string>(), o.filter), by = runsOf(agents, now, o.model)
+  const walk =(n: Node, depth = 0): AppMapNode => ({
     card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: 'Claude Code', chips: ['Orquestrador'], status: undefined, role: 'orquestrador' }
       : { ...cardOf(n, nm, now, by.get(n.id)), role: depth <= 1 ? 'agente' : 'subagente' },
     children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(k => walk(k, depth + 1)),

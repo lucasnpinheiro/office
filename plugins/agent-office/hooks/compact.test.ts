@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { DEFAULT_MODE, detectCaps, renderCompact, statusText, detailCompact, previewLines, isQuotaError, layoutLevel, quantize } from './compact'
+import { DEFAULT_MODE, detectCaps, renderCompact, statusText, detailCompact, previewLines, isQuotaError, layoutLevel, quantize, scrollInfo } from './compact'
 import type { AgentLike } from './office'
 
 const T = 1_000_000
@@ -255,7 +255,9 @@ test('detail has hotkeys for back and sibling navigation', () => {
 test('cards never dropped: scrolling a short pane reaches every sibling', () => {
   const ag = Array.from({ length: 6 }, (_, i) => mk('h' + i))
   const seen = new Set<string>()
-  for (let scroll = 0; scroll <= 48; scroll += 8) for (const m of txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 12, scroll })).matchAll(/Dev: h\d/g)) seen.add(m[0])
+  const draw = (scroll?: number) => txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 12, scroll }))
+  draw()
+  for (const scroll of scrollInfo.units) for (const m of draw(scroll).matchAll(/Dev: h\d/g)) seen.add(m[0]) // one card per scroll stop
   expect(seen.size).toBe(6)
 })
 

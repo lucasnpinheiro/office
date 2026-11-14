@@ -12,8 +12,8 @@ const rows = (ag: AgentLike[], o: object = {}) => renderCompact(ag, T + 5000, { 
 const many = Array.from({ length: 30 }, (_, i) => mk(`n${i}`))
 
 test('pane height follows the terminal rows, not a 30-row cap', () => {
-  expect(paneBodyLines({ bodyRows: 60 }, { rows: 40 })).toBe(51)
-  expect(paneBodyLines(undefined, { rows: 80 })).toBe(71)
+  expect(paneBodyLines({ bodyRows: 60 }, { rows: 40 })).toBe(60)
+  expect(paneBodyLines(undefined, { rows: 80 })).toBe(80)
   expect(paneBodyLines(undefined, undefined)).toBeGreaterThan(0)
 })
 

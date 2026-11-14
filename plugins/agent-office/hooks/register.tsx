@@ -300,9 +300,10 @@ async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolea
 }
 async function dispatch($: EngineInterface, a: string) {
   if (a === 'scrollDown' || a === 'scrollUp') {
-    // one level (card + bus) per press, clamped to what the last render said is scrollable
-    const cur: number = await read($, scrollAt)
-    await update($, scrollAt, () => Math.min(scrollInfo.max, Math.max(0, Math.min(cur, scrollInfo.max) + (a === 'scrollDown' ? 8 : -8))))
+    // one card per press: the window moves from one card block to the next (compact.ts scrollInfo.units), clamped to the last render's max
+    const cur = Math.min(Number(await read($, scrollAt)) || 0, scrollInfo.max)
+    const next = a === 'scrollDown' ? scrollInfo.units.find(u => u > cur) ?? scrollInfo.max : [...scrollInfo.units].reverse().find(u => u < cur) ?? 0
+    await update($, scrollAt, () => Math.min(scrollInfo.max, Math.max(0, next)))
     $.ui.invalidate('ui.render')
     return
   }

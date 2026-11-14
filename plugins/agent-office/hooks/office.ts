@@ -89,10 +89,10 @@ export function paneWidth(props?: { bodyColumns?: number }, viewport?: { columns
   return props?.bodyColumns || viewport?.columns || 80
 }
 
-// Body rows the cards view may use: the pane's own (`bodyRows`) or the whole viewport, no fixed cap, minus the
-// chrome (header 3 + tabs 1 + rule and legend 3 + hotkeys 1 + 1 spare; alert banners add their own rows).
+// Rows the pane body may take: the pane's own (`bodyRows`, the room the engine gives) or the whole viewport. The cards view
+// measures its own chrome (header, tabs, banners, footer) against it, so it fills the room exactly (B1).
 export function paneBodyLines(props?: { bodyRows?: number }, viewport?: { rows?: number }): number {
-  return (props?.bodyRows || viewport?.rows || 30) - 9
+  return props?.bodyRows || viewport?.rows || 30
 }
 
 // Signature of what a redraw would show: data + animation frame + second (the clocks). Equal = skip the redraw.

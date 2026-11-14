@@ -113,6 +113,9 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
   }
   const starts = [...g.nodes.values()].filter(n => n.kind !== 'session' && n.start !== undefined && Number.isFinite(n.start)).map(n => n.start!)
   if (starts.length) root.start = Math.min(...starts)
+  // the orchestrator is done once every agent is final, the same count the header shows (B5): its card and time stop at the last end
+  const agentNodes = [...g.nodes.values()].filter(n => n.kind === 'agent')
+  if (agentNodes.length && agentNodes.every(n => isFinal(n.state))) { root.state = 'done'; root.end = Math.max(...agentNodes.map(n => n.end ?? 0)) }
   return g
 }
 

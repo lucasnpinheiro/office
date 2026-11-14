@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.28.1 (agent-office, every card visible at any pane size)
+
+- Pane rows: the cards view measures its own chrome (header, tabs, banners, footer) against the pane's `bodyRows` (or the viewport rows) instead of a fixed 9. The footer sits on the last row; blank rows fill what the cards leave (B1). The old 10-row floor is gone.
+- Denser forms before any scroll: full 7 rows, then dense 6 (chips dropped), then tight 4 (no borders). A window scrolls only when even tight does not fit, and then it moves one card per step, never cutting a card (`scrollInfo.units`; `j`/`k` step by card).
+- Deep trees keep the card on the pane: the indent is clamped so a card keeps `CARD_MIN_W` cols inside the pane (R2).
+- No compact view expires a finished agent any more (tree, grouped, waterfall, cards, list and app cards): the header counts them all, so every view must draw them (B2). The 30 s expiry stays on the old map renderer only.
+- The orchestrator card follows the agents: `Concluído` with its time frozen at the last end once every agent is final (B5). The header and the card agree.
+- A branch cut by the card width ends in `…` before the role (B4).
+
 ## 0.28.0 (agent-office, indented card tree and workflow badge)
 
 - Cards view is an indented tree (Grafo6): each child under its parent, `└─▸` for the last child and `├─▸` for siblings, joined by a `│` rail. Indent 2 cols per level to L6, then 1 col per level to L50 (L50 = 56 cols). The centred bus (`┬┴┄`) is gone. ASCII uses `+->` / `` `-> `` and `:` (CONNECTORS in vocabulary.ts).
