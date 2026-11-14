@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { applyAction, initialUi, hotkeysFor, startUi, footerText, footerTail } from './actions'
+import { applyAction, initialUi, hotkeysFor, startUi, footerText, footerTail, footerRows } from './actions'
 
 const s0 = { ...initialUi(), view: 'map' as const } // map-view fixtures; the default view is the map (startUi)
 const c0 = { ...s0, view: 'compact' as const }
@@ -162,4 +162,23 @@ test('terminal (one view only): v alternates cards and árvore, never the map', 
   const t = applyAction(cards, 'view', { terminal: true }).state
   expect(t).toMatchObject({ view: 'compact', mode: 'tree' })
   expect(applyAction(t, 'view', { terminal: true }).state).toMatchObject({ view: 'compact', mode: 'cards' })
+})
+
+test('footer: no orphan "x:" rows, every row fits the width, j/k are visible items (not empty hidden buttons)', () => {
+  const ui = { ...initialUi(), view: 'compact' as const, mode: 'cards' as const }
+  for (const cols of [60, 80, 160]) {
+    const rows = footerRows(ui, false, cols)
+    const texts = rows.map(r => r.map(x => x.t).join(''))
+    for (const t of texts) {
+      expect(t.trim()).not.toMatch(/^[a-z]:$/i)
+      expect([...t].length).toBeLessThanOrEqual(cols)
+    }
+    const all = texts.join('\n')
+    expect(all).toContain('j: descer'); expect(all).toContain('k: subir')
+    for (const k of ['g: ', 'o: ', 'f: ', 's: ', 'v: ', 'q: ']) expect(all).toContain(k)
+    // groups keep order: filtros before visão before sair
+    expect(all.indexOf('g: ')).toBeLessThan(all.indexOf('v: ')); expect(all.indexOf('v: ')).toBeLessThan(all.indexOf('q: '))
+  }
+  expect(footerRows(ui, false, 160)).toHaveLength(1)
+  expect(footerRows(ui, false, 60).length).toBeGreaterThan(1)
 })

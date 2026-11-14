@@ -16,7 +16,7 @@ import { sideDetail } from './layout'
 import { detailView } from './view-detail'
 import { hasWorkflow } from './view-workflow'
 import { worktreeOfAgent } from './view-worktrees'
-import { applyAction, FOOTER_SEP, footerTail, hotkeysFor, startUi } from './actions'
+import { applyAction, footerRows, startUi } from './actions'
 import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
@@ -675,17 +675,12 @@ export const register: Register = on => {
     const side = view === 'compact' && !!selected && !attach && sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' })
     // footer hotkeys for the current view (actions.ts): one letter each, none while the search Input has the keys
     // the hint tail is dropped before the row can wrap; then the labels shrink to the bare keys
-    const hks = hotkeysFor(ui, side)
-    const keysFull = hks.flatMap((h, i) => [...(i ? [{ t: FOOTER_SEP }] : []), { t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key }])
-    const lenOf = (l: { t: string }[]) => l.reduce((k, q) => k + [...q.t].length, 0)
-    const tailSeg = { t: footerTail(ui), fg: '#9ca3af' }
-    const keysRow0 = draw(
-      lenOf(keysFull) + [...tailSeg.t].length <= cols ? [...keysFull, tailSeg]
-        : lenOf(keysFull) <= cols ? keysFull
-          : hks.flatMap((h, i) => [...(i ? [{ t: ' ' }] : []), { t: h.key, act: h.act, hotkey: h.key }]),
-    )
-    // the engine exposes no wheel event (types/index.d.ts, JSX Box/Text/Button/Input): hotkeys must be one letter/digit (no PgUp/PgDn): j/k stay as invisible keys, absent from the footer
-    const keysRow = (<>{keysRow0}{!ui.searching && ui.mode === 'cards' && ui.view === 'compact' ? [['j', 'scrollDown'], ['k', 'scrollUp']].map(([k, a]) => <Button plain key={`sc-${k}`} hotkey={k} label={a} onPress={() => void act(a!)}><Text>{''}</Text></Button>) : null}</>)
+    // footer: grouped, wrapped by width and centred like the legend (footerRows, actions.ts); j/k are visible items, not empty hidden buttons
+    const keysRow = (<>{footerRows(ui, side, cols).map((row, i) => (
+      <Box key={`foot-${i}`} flexDirection="row" justifyContent="center">{row.map((x, j) => x.act && x.hotkey
+        ? <Button plain hotkey={ui.searching ? undefined : x.hotkey} key={`h-${x.hotkey}`} label={x.t.slice(3)} onPress={() => void act(x.act!)}>{x.t.slice(3)}</Button>
+        : <Text key={`ft-${j}`} dimColor={x.dim}>{x.t}</Text>)}</Box>
+    ))}</>)
     // one app card (design Chips5): glyph + title, chips, git, status, progress bar, % and time; border and bar carry the state tone
     const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
     // motion on the app surfaces: spinner glyph, a sweeping indeterminate bar and a pulse along the dashed buses (off with reduced motion)

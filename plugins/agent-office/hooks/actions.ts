@@ -81,3 +81,32 @@ export function footerTail(s: Ui): string {
   if (s.view === 'map' && !s.selected) return `${FOOTER_SEP}Tab mover · Enter abrir · ctrl+x tab foca o painel`
   return `${FOOTER_SEP}Tab entre cards · Enter detalhe · ctrl+x tab foca o painel`
 }
+
+// Footer layout: items grouped (navegação | filtros | visão | sair), wrapped by width one whole item at a time (never an orphan "x:"),
+// every row centred like the legend above it. Pure: the renderer turns each FooterSeg into Text/Button.
+export type FooterSeg = { t: string; act?: string; hotkey?: string; dim?: boolean }
+const GROUP_SEP = '  |  '
+const groupOf = (act: string): number => (act === 'group' || act === 'sort' || act === 'failed' || act === 'search' ? 1 : act === 'view' ? 2 : act === 'back' || act === 'close' ? 3 : 0)
+export function footerRows(s: Ui, side: boolean, cols: number): FooterSeg[][] {
+  const scroll = !s.searching && s.mode === 'cards' && s.view === 'compact' && !s.selected // j/k scroll the card list: shown, not hidden buttons
+  const nav: FooterSeg[] = [
+    ...(scroll ? [{ t: 'j: descer', act: 'scrollDown', hotkey: 'j' }, { t: 'k: subir', act: 'scrollUp', hotkey: 'k' }] : []),
+    ...footerTail(s).replace(/^ · /, '').split(' · ').map(t => ({ t, dim: true })),
+  ]
+  const groups: FooterSeg[][] = [nav, [], [], []]
+  for (const h of hotkeysFor(s, side)) groups[groupOf(h.act)]!.push({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })
+  // order: filtros, visão, sair first (the keys), navegação last (hints)
+  const items: { seg: FooterSeg; g: number }[] = [1, 2, 3, 0].flatMap(g => groups[g]!.map(seg => ({ seg, g })))
+  const rows: FooterSeg[][] = []
+  let cur: FooterSeg[] = [], w = 0, last = -1
+  for (const { seg, g } of items) {
+    const sep = cur.length ? (g === last ? ' · ' : GROUP_SEP) : ''
+    const len = [...seg.t].length + sep.length
+    if (cur.length && w + len > cols) { rows.push(cur); cur = []; w = 0 }
+    const sp = cur.length ? (g === last ? ' · ' : GROUP_SEP) : ''
+    if (sp) cur.push({ t: sp, dim: true })
+    cur.push(seg); w += [...seg.t].length + sp.length; last = g
+  }
+  if (cur.length) rows.push(cur)
+  return rows
+}
