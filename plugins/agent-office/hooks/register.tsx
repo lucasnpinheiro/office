@@ -844,7 +844,7 @@ export const register: Register = on => {
     // app surfaces (desktop, vscode, mobile): graphical cards of the Chips design (title, chips, state on border and glyph);
     // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
     if (onApp && view === 'map' && !attach && (!selected || sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' }))) {
-      const tree = appMap(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
+      const tree = appMap(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
       const body = tree.card.id === 'session' && tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root')
       return (
         <Box flexDirection="column" gap="sm">
@@ -863,7 +863,7 @@ export const register: Register = on => {
       )
     }
     if (isAppSurface((e as { surface?: string }).surface) && view === 'compact' && !selected && !attach && (await read($, modeAt)) === 'cards') {
-      const cards = appCards(all, now, { query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
+      const cards = appCards(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
       return (
         <Box flexDirection="column" gap="sm">
           {appChrome()}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.25.0 (agent-office, one RunModel for both renderers)
+
+- App cards and the App map now read the same RunModel nodes as the Terminal cards (`appCards` / `appMap` take `model`, built from the agents when absent): state, persona/model/effort and tool steps come from the `RunNode`. `AppCard` gains `runState` and `stalled`. The AgentLike-only path is gone; `register.tsx` passes the one model it already builds.
+- Visible App output is unchanged. The only addition is the `stalled` flag, which the Terminal already showed (state pill) and the card now carries.
+- needs-you stays hidden until the engine tells a pending human dialog from any permission check (ADR 0002 note).
+
 ## 0.24.0 (agent-office, lifecycle and worktree status from the flow rules)
 
 - Stalled overlay ("Parado sem sinal") only from Rodando: a queued agent (no tool yet) never reads as stalled after 10 min.
