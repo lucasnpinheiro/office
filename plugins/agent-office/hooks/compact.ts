@@ -242,7 +242,7 @@ function footer(g: Graph, v: CView, hint = ''): Line[] {
   const out: Line[] = []
   if (hint) out.push(...ROUND_BOX(c, v.width, [seg(c, hint, DIM)], [seg(c, `${keyOf('search')} ${labelOf('search')} · ${keyOf('sort')} ${labelOf('sort')}`, DIM)]))
   out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], fit(legend, v.width))
-  if (v.mode === 'cards') out.push(fit([seg(c, c.ascii ? ": |-:-: ' barramento pai-irmãos · == worktree ==" : '┊ ├┬┬ ╰ barramento pai→irmãos · ━━ worktree: nome ━━ divisor', DIM)], v.width))
+  if (v.mode === 'cards') out.push(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · borda inferior: papel e wt worktree' : '┊ ┄ ┬ ┴ barramento pai→filhos · borda inferior: papel (orquestrador, agente, subagente) e ⧉ worktree', DIM)], v.width))
   if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
   return out
 }
@@ -437,7 +437,8 @@ function chipRows(n: Node, ch: ReturnType<typeof chips>, c: Caps, inner: number,
   if (strWidth(joined) <= inner) return [joined, rest]
   return [takeWidth(parts[0] ?? '', inner), takeWidth(parts.slice(1).filter(Boolean).join(' · '), inner)]
 }
-function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number): Line[] {
+export type CardTag = { role?: string; wt?: string; up?: boolean; down?: boolean }
+function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number, tag: CardTag = {}): Line[] {
   const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
   const id = n.id
@@ -457,7 +458,7 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
     n.state === 'done' ? [seg(c, 'concluído', DIM)]
       : n.state === 'failed' ? [seg(c, `${glyph(c, 'failed')} ${n.error ?? 'falha'}`, STATE_COLOR.failed)]
         : n.state === 'attention' ? [seg(c, `${glyph(c, 'attention')} ${n.error ?? 'sem atividade'}`, STATE_COLOR.attention)]
-            : [seg(c, `${tri} ${kids ? `delega ${kids} filhos` : [tasks.length ? `${tdone}/${tasks.length}` : '', trail].filter(Boolean).join(' · ') || 'executando'}`, DIM)]
+            : [seg(c, `${tri} ${kids ? `delega ${kids} ${kids === 1 ? 'filho' : 'filhos'}` : [tasks.length ? `${tdone}/${tasks.length}` : '', trail].filter(Boolean).join(' · ') || 'executando'}`, DIM)]
   const cells = 12, [on, off] = BAR(c)
   const leafRunning = n.state === 'running' && n.children.length === 0
   const pctText = tasks.length ? `${Math.round((tdone / tasks.length) * 100)}%` : metric(n)
@@ -469,92 +470,116 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
     bar = sweep.map(ch => seg(c, ch, ch === on ? col_ : DIM))
   } else bar = partialBar((n.state === 'done' ? 1 : n.state === 'failed' ? 0.6 : progressOf(n) ?? 0) * k, cells, c, col_, n.state === 'running', frame)
   const time = n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now))
+  // borders carry the tree: the connector enters at the top centre and leaves at the bottom centre; the bottom border
+  // names the role (left of the centre) and the worktree (right of it), so no card row is spent on them
+  const mid = CARD_W / 2 - 1 // inner index of the centre column
+  const topEdge: Line = tag.up
+    ? [seg(c, b.tl + b.h.repeat(mid), edge), seg(c, c.ascii ? '+' : '┴', edge), seg(c, b.h.repeat(inner - mid - 1) + b.tr, edge)]
+    : [seg(c, b.tl + b.h.repeat(inner) + b.tr, edge)]
+  const role = tag.role ? ` ${takeWidth(tag.role, mid - 3)} ` : ''
+  const wtRoom = inner - mid - 6
+  const wtName = tag.wt ? (strWidth(tag.wt) > wtRoom ? `${takeWidth(tag.wt, wtRoom - 1)}…` : tag.wt) : ''
+  const wt = wtName ? ` ${c.ascii ? 'wt' : '⧉'} ${c.ascii ? asciiText(wtName) : wtName} ` : ''
+  const leftFill = mid - 1 - strWidth(role), rightFill = inner - mid - 2 - strWidth(wt)
+  const bottomEdge: Line = [
+    seg(c, b.bl + b.h, edge), ...(role ? [seg(c, role, DIM)] : []), seg(c, b.h.repeat(Math.max(0, leftFill)), edge),
+    seg(c, tag.down ? (c.ascii ? '+' : '┬') : b.h, edge),
+    seg(c, b.h.repeat(Math.max(0, rightFill)), edge), ...(wt ? [seg(c, wt, WORKTREE_COLOR)] : []), seg(c, b.h + b.br, edge),
+  ]
   return [
-    [seg(c, b.tl + b.h.repeat(inner) + b.tr, edge)],
+    topEdge,
     body([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, truncRunes(title, inner - 2), undefined, { bold: true, node: id })]),
     ...chipRows(n, ch, c, inner, rest).map(t => body([seg(c, t, DIM, { node: id })])),
     body(row3),
     body([...bar, seg(c, ` ${pctText} `), seg(c, time, DIM)]),
-    [seg(c, b.bl + b.h.repeat(inner) + b.br, edge)],
+    bottomEdge,
   ]
 }
 
 // tops: absolute line of each card row's top border + how many cards that row holds (for the hidden-cards hint)
+// Centred tree (user decision 2026-11-13, "TELA 8 centralizada"): each parent card sits centred over its children, the
+// whole block is centred in the pane. Siblings that do not fit wrap into rows hung off a dotted trunk on the left of the
+// block. Every level is CARD_H + 1 rows, so card tops share one lattice and a cut never slices a card.
 function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): { lines: Line[]; tops: { at: number; n: number }[] } {
-  const c = v.caps, frame = v.frame ?? 0, tl = timeline(g, now)
+  const c = v.caps, frame = v.frame ?? 0
   const V = c.ascii ? ':' : '┊', H = c.ascii ? '.' : '┄'
+  const J = c.ascii ? { d: '+', u: '+', x: '+', tl: '+', tr: '+', l: '+', bl: '+' } : { d: '┬', u: '┴', x: '┼', tl: '╭', tr: '╮', l: '├', bl: '╰' }
   const flowOf = (n: Node) => (n.git?.worktree ? n.git.branch ?? n.git.worktree : '')
   const agentKids = (n: Node) => sortNodes(n.children.filter(k => k.kind === 'agent' && keep.has(k.id)), v.sort)
-  const anyWt = [...g.nodes.values()].some(n => n.kind === 'agent' && flowOf(n))
-  const all = (n: Node): Node[] => [n, ...agentKids(n).flatMap(all)]
-  const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
-  const divider = (label: string, roots: Node[]): Line => {
-    const nodes = roots.flatMap(all)
-    const kids = roots.some(r => agentKids(r).length) ? roots.flatMap(agentKids) : roots
-    const line = kids.filter(k => agentKids(k).length === 0).length, grand = kids.filter(k => agentKids(k).length > 0).length
-    const st = (s: State) => nodes.filter(n => n.state === s).length
-    const parts = [plural(nodes.length, 'agente', 'agentes'),
-      line || grand ? `${plural(line, 'filho', 'filhos')} em linha${grand ? `, ${grand} com neto` : ''}` : '',
-      [st('failed') ? plural(st('failed'), 'falha', 'falhas') : '', st('done') ? plural(st('done'), 'concluído', 'concluídos') : '', st('pending') ? `${st('pending')} na fila` : ''].filter(Boolean).join(', ')].filter(Boolean)
-    // "N agentes" keeps the plural form the design uses for the count
-    parts[0] = `${nodes.length} agentes`
-    const text = `${c.ascii ? '== ' : '━━ ⎇ '}worktree: ${label} · ${parts.join(' · ')} `
-    return [seg(c, text + (c.ascii ? '=' : '━').repeat(Math.max(0, v.width - strWidth(text))), label === 'principal' ? DIM : WORKTREE_COLOR)]
+  const maxPer = v.containerPx === undefined ? Infinity : appColumns(v.containerPx)
+  const TM = 2 // trunk column + one blank
+  type M = { w: number; h: number; rows: Node[][] }
+  const memo = new Map<Node, M>()
+  const measure = (n: Node, avail: number): M => {
+    const hit = memo.get(n); if (hit) return hit
+    const kids = agentKids(n), inner = Math.max(CARD_W, avail - TM), rows: Node[][] = []
+    let cur: Node[] = [], used = 0
+    for (const k of kids) {
+      const w = measure(k, inner).w
+      if (cur.length && (used + CARD_GAP + w > inner || cur.length >= maxPer)) { rows.push(cur); cur = []; used = 0 }
+      used += (cur.length ? CARD_GAP : 0) + w; cur.push(k)
+    }
+    if (cur.length) rows.push(cur)
+    const rowW = rows.map(r => r.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0))
+    const tm = rows.length > 1 ? TM : 0
+    const m = { w: Math.max(CARD_W, tm + Math.max(0, ...rowW)), h: CARD_H + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows }
+    memo.set(n, m); return m
   }
-  const lines: Line[] = [], tops: { at: number; n: number }[] = []
+  const grid: { x: number; w: number; l: Line }[][] = []
+  const put = (x: number, y: number, l: Line) => { (grid[y] ??= []).push({ x, w: l.reduce((a, q) => a + strWidth(q.t), 0), l }) }
+  const tops = new Map<number, number>()
   let idx = 0
-  const emitCards = (nodes: Node[], x: number): Line[][] => nodes.map(n => card(n, nm, c, now, frame, idx++))
-  // lays out children of `parent` at parentX; returns lines (relative), parent bottom border already emitted by caller.
-  // `base` = absolute line where the returned lines will land, so nested rows record their real top.
-  const layoutChildren = (parent: Node, px: number, virtual: boolean, parentFlow: string, base: number): Line[] => {
-    const kids = agentKids(parent)
-    const x = px + CARD_INDENT
-    const per = Math.min(perRowOf(v.width, px), v.containerPx === undefined ? Infinity : appColumns(v.containerPx))
-    const leaf = (k: Node) => agentKids(k).length === 0 && flowOf(k) === parentFlow
-    const leaves = kids.filter(leaf), branches = kids.filter(k => !leaf(k))
-    type Row = { kind: 'leaves'; ns: Node[] } | { kind: 'branch'; n: Node }
-    const rows: Row[] = []
-    for (let i = 0; i < leaves.length; i += per) rows.push({ kind: 'leaves', ns: leaves.slice(i, i + per) })
-    branches.forEach(n => rows.push({ kind: 'branch', n }))
-    const out: Line[] = []
-    rows.forEach((row, ri) => {
-      const more = ri < rows.length - 1
-      const block: Line[] = []
-      const ns = row.kind === 'leaves' ? row.ns : [row.n]
-      if (row.kind === 'branch' && anyWt && flowOf(row.n) !== parentFlow) {
-        block.push(divider(flowOf(row.n) || 'principal', [row.n]))
+  const draw = (n: Node, x0: number, y0: number, depth: number, up: boolean) => {
+    const m = memo.get(n)!
+    const tm = m.rows.length > 1 ? TM : 0
+    const bx = x0 + tm + Math.floor((m.w - tm - CARD_W) / 2), pcx = bx + CARD_W / 2 // centred over the rows, not the trunk
+    const role = n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente'
+    card(n, nm, c, now, frame, idx++, { role, wt: flowOf(n), up, down: m.rows.length > 0 }).forEach((l, r) => put(bx, y0 + r, l))
+    if (!m.rows.length) return
+    let y = y0 + CARD_H
+    const busYs: number[] = []
+    m.rows.forEach((row, ri) => {
+      const rw = row.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0)
+      let sx = x0 + tm + Math.floor((m.w - tm - rw) / 2)
+      const slots = row.map(k => { const q = sx; sx += memo.get(k)!.w + CARD_GAP; return q })
+      const cxs = row.map((k, i) => slots[i]! + Math.floor((memo.get(k)!.w - CARD_W) / 2) + CARD_W / 2)
+      const lo = Math.min(cxs[0]!, ri === 0 ? pcx : Infinity, tm ? x0 : Infinity), hi = Math.max(cxs[cxs.length - 1]!, ri === 0 ? pcx : -Infinity)
+      const live = !c.reducedMotion && row.some(k => k.state === 'running')
+      const pulse = live ? frame % (hi - lo + 1) : -1
+      const bus: Line = []
+      for (let x = lo; x <= hi; x++) {
+        const ci = cxs.indexOf(x), isP = ri === 0 && x === pcx, isT = tm > 0 && x === x0
+        const ch = lo === hi ? V
+          : isT ? (ri === 0 ? J.tl : ri === m.rows.length - 1 ? J.bl : J.l)
+            : ci >= 0 && isP ? J.x
+              : isP ? J.u
+                : ci >= 0 ? (x === lo ? J.tl : x === hi ? J.tr : J.d)
+                  : H
+        const lit = ch === H && pulse >= 0 && (x - lo === pulse || x - lo === (pulse + 1) % (hi - lo + 1))
+        const fg = ci >= 0 ? stateColor(row[ci]!.state) : lit ? lighten(STATE_COLOR.running) : DIM
+        const last = bus[bus.length - 1]
+        const sg = seg(c, ch, fg)
+        if (last && last.fg === sg.fg) last.t += ch; else bus.push(sg)
       }
-      const xs = ns.map((_, i) => x + i * (CARD_W + CARD_GAP))
-      if (!virtual) {
-        // bus: row below the parent's bottom border (first row) or below the previous row
-        const last = xs[xs.length - 1]! + 1
-        const bus: Line = [seg(c, ' '.repeat(px + 1), undefined), seg(c, c.ascii ? (more ? ':' : "'") : more ? '├' : '╰', DIM)]
-        let text = ''
-        for (let col = px + 2; col <= last; col++) text += xs.some(xx => xx + 1 === col) ? (c.ascii ? ':' : '┬') : H
-        bus.push(seg(c, text, DIM))
-        block.push(bus)
-      }
-      const cards = emitCards(ns, x)
-      for (let r = 0; r < CARD_H; r++) {
-        const parts: Line = [...sp(x)]
-        cards.forEach((cd, i) => { if (i) parts.push(...sp(CARD_GAP)); parts.push(...cd[r]!) })
-        block.push(parts)
-      }
-      tops.push({ at: base + out.length + (block.length - CARD_H), n: ns.length })
-      if (row.kind === 'branch') block.push(...layoutChildren(row.n, x, false, flowOf(row.n), base + out.length + block.length))
-      // dotted vertical in the parent's column while more rows follow
-      out.push(...block.map(l => (!virtual && more ? putCol(l, px + 1, V, DIM, c) : l)))
+      put(lo, y, bus); busYs.push(y)
+      tops.set(y + 1, (tops.get(y + 1) ?? 0) + row.length)
+      row.forEach((k, i) => draw(k, slots[i]!, y + 1, depth + 1, true))
+      y += 1 + Math.max(...row.map(k => memo.get(k)!.h))
     })
-    return out
+    if (tm) for (let yy = busYs[0]! + 1; yy < busYs[busYs.length - 1]!; yy++) if (!busYs.includes(yy)) put(x0, yy, [seg(c, V, DIM)])
   }
-  const top = agentKids(g.root)
-  // the main session is the parent card; its direct agents hang from it on the dotted bus (design: TermCards)
-  if (top.length) {
-    if (anyWt) lines.push(divider(flowOf(g.root) || 'principal', top))
-    lines.push(...card(g.root, nm, c, now, frame, idx++))
-    lines.push(...layoutChildren(g.root, 0, false, flowOf(g.root), lines.length))
+  const lines: Line[] = []
+  if (agentKids(g.root).length) {
+    const rm = measure(g.root, v.width)
+    draw(g.root, Math.max(0, Math.floor((v.width - rm.w) / 2)), 0, 0, false)
+    for (let y = 0; y < grid.length; y++) {
+      const out: Line = []
+      let cur = 0
+      for (const p of (grid[y] ?? []).sort((a, b) => a.x - b.x)) { out.push(...sp(p.x - cur), ...p.l); cur = p.x + p.w }
+      lines.push(out)
+    }
   }
-  return { lines, tops }
+  return { lines, tops: [...tops.entries()].sort((a, b) => a[0] - b[0]).map(([at, n]) => ({ at, n })) }
 }
 
 function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.0 (agent-office, centred and animated card tree in the terminal)
+
+- Cards view (terminal default): the tree is centred. Each parent card sits centred over its children and the whole block is centred in the pane; the connector leaves the parent at the bottom centre (`┬`) and enters each child at the top centre (`┴`). Subtrees sit side by side; siblings that do not fit wrap into rows hung off a dotted trunk on the left of the block.
+- Roles on the bottom border of every card: `orquestrador` (main session), `agente` (top level), `subagente` (deeper). A card in a linked worktree also carries `⧉ branch` there. The full-width worktree dividers of the cards view are gone.
+- Animation: a bright pulse runs along the dotted bus of every row that has a running child (off with reduced motion); the spinner glyph and the bar shimmer stay. Each drop takes the colour of its child's state.
+- Responsive: rows are packed by the real pane width (60 to 200+ columns tested), no row is ever wider than the pane and every card stays closed. All card tops share one 8-row lattice, so the "cards ocultos" cut never slices a card.
+- "delega 1 filho" is singular.
+
 ## 0.19.6 (agent-office, the terminal opens on the cards of the design)
 
 - Terminal: a session now opens on the cards view (design Term5, TELA 8: header box, `Geral` bar, parent card, dotted bus, 34-col sibling cards, legend) instead of the boxed org chart. The app surfaces (desktop, vscode, mobile) keep opening on the map of Proto5. The surface is read at session start or, when the event does not carry it, at the first render; an explicit `v`, `/office view` or `OFFICE_VIEW` always wins.

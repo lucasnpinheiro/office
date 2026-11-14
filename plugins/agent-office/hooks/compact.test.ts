@@ -91,46 +91,41 @@ test('preview: colored diff, text, image fallback', () => {
 })
 
 const many = (n: number, parent?: string) => Array.from({ length: n }, (_, i) => mk('s' + i, parent ? { parentAgentId: parent } : {}))
-const cardRowsAt = (out: string, w = 120) => out.split('\n').filter(l => /^[ ┊]*╭/.test(l) && l.includes('╮') && !/╭─{60,}/.test(l) && [...l.trimEnd()].length < w)
-test('cards: per_row = floor((cols - x_parent - 5 + 2) / 36): 120 -> 3, 200 -> 5, 34-col cards, 7 rows each', () => {
+const cardCount = (out: string) => out.split('\n').map(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length).filter(k => k > 0)
+test('cards: siblings per row follow the pane width: 120 -> 3, 200 -> 5, 34-col cards, 7 rows each', () => {
   const o120 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 }))
-  // row 0 is the parent card (main session), the siblings start on row 1
-  expect(cardRowsAt(o120)[0]!.match(/╭/g)!.length).toBe(1)
-  expect(cardRowsAt(o120)[1]!.match(/╭/g)!.length).toBe(3)
-  expect(cardRowsAt(o120)[1]!.replace(/^[ ┊]+/, '').split('╮')[0]!.length).toBe(34 - 1)
+  expect(cardCount(o120)).toEqual([1, 3, 3, 1]) // the parent card (main session), then the wrapped sibling rows
   const o200 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 200, maxCardRows: 99 }))
-  expect(cardRowsAt(o200, 200)[1]!.match(/╭/g)!.length).toBe(5)
-  const lines = o120.split('\n'); const top = lines.findIndex(l => l.startsWith('╭') && l.includes('╮') && [...l].length < 120); const bot = lines.findIndex((l, i) => i > top && l.startsWith('╰'))
+  expect(cardCount(o200)).toEqual([1, 5, 2])
+  const lines = o120.split('\n'); const top = lines.findIndex(l => /^ +╭─{32}╮/.test(l)); const bot = lines.findIndex((l, i) => i > top && /^ +╰/.test(l))
   expect(bot - top + 1).toBe(7)
 })
-test('cards: leaf children side by side under a bus line with drops (no corner), indent 5', () => {
+test('cards: wrapped sibling rows hang off a dotted trunk on the left, each child under its own drop', () => {
   const ag = [mk('p', { agentId: 'P' }), ...many(4, 'P')]
   const lines = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n')
-  const bus = lines.filter(l => /^ {6}[├╰]┄/.test(l)) // under P, which hangs from the parent card at column 5
-  expect(bus.length).toBe(2)
-  expect(bus[0]!.startsWith('      ├┄')).toBe(true); expect(bus[1]!.startsWith('      ╰┄')).toBe(true)
-  expect(bus[0]!.match(/┬/g)!.length).toBe(3); expect(bus[0]).not.toContain('╮')
-  expect(bus[0]!.indexOf('┬')).toBe(11)
-  expect(lines.some(l => l.startsWith('      ┊'))).toBe(true)
-  expect(lines.some(l => l.startsWith('          ╭'))).toBe(true)
-  expect(lines.some(l => /^ ╰┄+┬/.test(l))).toBe(true) // parent card -> P
+  const first = lines.find(l => /^ *╭┄/.test(l))!, last = lines.find(l => /^ *╰┄/.test(l))!
+  expect(first).toBeDefined(); expect(last).toBeDefined()
+  expect(first.match(/[┬┼╮]/g)!.length).toBe(3) // three children on the first row
+  expect(last.match(/[┬╮]/g)!.length).toBe(1) // the fourth wraps
+  expect(lines.some(l => /^ *┊ ╭/.test(l))).toBe(true) // the trunk runs beside the first row
+  expect(lines.some(l => /^ +┊$/.test(l))).toBe(true) // single child (session -> P): a straight dotted drop
 })
 test('cards: branch siblings take one row each after leaves, subtree below', () => {
   const ag = [mk('p', { agentId: 'P' }), mk('leaf1', { parentAgentId: 'P' }), mk('br', { parentAgentId: 'P', agentId: 'B' }), mk('gk', { parentAgentId: 'B' })]
   const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n').filter(l => l.includes('│')).join('\n')
   expect(out.indexOf('leaf1')).toBeLessThan(out.indexOf('Dev: br')); expect(out.indexOf('Dev: br')).toBeLessThan(out.indexOf('Dev: gk'))
 })
-test('cards ASCII: ":" vertical, "." horizontal, ":" drop', () => {
+test('cards ASCII: ":" vertical, "." horizontal, "+" joints', () => {
   const ag = [mk('p', { agentId: 'P' }), ...many(4, 'P')]
   const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, caps: detectCaps({ OFFICE_ASCII: '1' }) }))
-  expect(out).not.toMatch(/[┊├╰┄┬╭]/); expect(out).toMatch(/^ {6}[:'][.]+/m); expect(out).toMatch(/^ {6}:/m)
+  expect(out).not.toMatch(/[┊├╰┄┬┴╭]/); expect(out).toMatch(/^ *\+\.+/m); expect(out).toMatch(/^ *: /m)
 })
-test('cards: heavy worktree divider with branch and agent count (unicode and ASCII)', () => {
+test('cards: the worktree rides on the bottom border of its card (unicode and ASCII), no full-width divider', () => {
   const ag = [mk('m'), mk('w', { git: { branch: 'feat/x', worktree: 'wt' } })]
   const u = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards' }))
-  expect(u).toMatch(/━━ ⎇ worktree: feat\/x · 1 agentes · 1 filho em linha/); expect(u).not.toContain('── worktree')
+  expect(u).toMatch(/╰─ agente ─+ ⧉ feat\/x ─╯/); expect(u).not.toContain('━━')
   const a = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', caps: detectCaps({ OFFICE_ASCII: '1' }) }))
-  expect(a).toMatch(/== worktree: feat\/x - 1 agentes - 1 filho em linha/)
+  expect(a).toMatch(/ wt feat\/x /)
 })
 test('cards: waterfall row has span on session timeline, partial blocks; ASCII uses = and #', () => {
   const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 4000 }), mk('b', { startedAt: T + 4000 })]
@@ -185,7 +180,7 @@ test('running leaf has no invented percent', () => {
 })
 test('card border colors by state (blue running, red failed, gray done/pending)', () => {
   const ag = [mk('r'), mk('d', { status: 'done', endedAt: T + 5000 }), mk('f', { status: 'error', endedAt: T + 1000 })]
-  const fg = cardsOut(ag).flatMap(l => l.filter(s => /^╭─{32}╮$/.test(s.t))).map(s => s.fg)
+  const fg = cardsOut(ag).flatMap(l => l.filter(s => /^╭─+$/.test(s.t))).map(s => s.fg)
   expect(fg).toContain('#7FA9FF'); expect(fg).toContain('#FF8A80'); expect(fg).toContain('#4b5563')
 })
 test('footer box with +N cards hint, / buscar, g modo; legend below', () => {
@@ -218,14 +213,13 @@ test('pending: spawned agent with no tool call yet (active=false) shows aguarda,
   expect(o).toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] Dev: r/) // spinner gira com o quadro (frame 0 = ⠋)
   expect(txt(cardsOut([mk('legacy')]))).not.toContain('aguarda')
 })
-test('worktree divider summary: structure and status', () => {
+test('worktree badge: every card of the worktree carries it, with its role', () => {
   const wt = { branch: 'feat/x', worktree: 'wt' }
   const ag = [mk('p', { agentId: 'P', git: wt }), mk('a', { parentAgentId: 'P', git: wt, status: 'done', endedAt: T + 10 }), mk('b', { parentAgentId: 'P', git: wt, status: 'error', endedAt: T + 10 }),
     mk('c', { parentAgentId: 'P', git: wt, agentId: 'C' }), mk('d', { parentAgentId: 'C', git: wt })]
   const o = txt(cardsOut(ag))
-  expect(o).toMatch(/━━ ⎇ worktree: feat\/x · 5 agentes · 2 filhos em linha, 1 com neto · 1 falha, 1 concluído/)
-  const a = txt(cardsOut(ag, { caps: detectCaps({ OFFICE_ASCII: '1' }) }))
-  expect(a).toMatch(/== worktree: feat\/x - 5 agentes - 2 filhos em linha, 1 com neto/)
+  expect((o.match(/⧉ feat\/x/g) ?? []).length).toBe(5)
+  expect((o.match(/─ subagente ─/g) ?? []).length).toBe(4); expect((o.match(/─ agente ─/g) ?? []).length).toBe(1)
 })
 test('filter failed keeps only failures/attention; sort by state puts failures first', () => {
   const ag = [mk('ok', { status: 'done', endedAt: T + 5 }), mk('bad', { status: 'error', endedAt: T + 5 }), mk('run')]
