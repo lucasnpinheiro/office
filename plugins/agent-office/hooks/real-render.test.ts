@@ -35,7 +35,7 @@ const boot = async ($: any, on: any, agents = 12) => {
   for (let i = 1; i <= agents; i++) await $.agent.spawn({ tool_use_id: `t${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
 }
 const count = (s: string, re: RegExp) => (s.match(re) ?? []).length
-const boxTops = (rows: string[]) => rows.map(r => count(r, /╭─{32}╮/g))
+const boxTops = (rows: string[]) => rows.map(r => count(r, /╭[─┴]{32}╮/g))
 
 test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, sibling boxes, legend, one hint row', async ($, on) => {
   await boot($, on)
@@ -45,9 +45,9 @@ test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, s
   expect(out).toContain('Geral ')
   expect(out).toContain('Claude Code'); expect(out).toContain('Orquestrador') // main session = parent card
   expect(out).not.toContain('rodando ·') // not the one-line map
-  expect(rows.some(r => /^ ├┄+┬/.test(r))).toBe(true) // bus from the parent card
-  expect(Math.max(...boxTops(rows))).toBe(2) // (110 - 5 + 2) / 36 = 2 siblings per row
-  expect(rows.filter(r => /^[ ┊]*╭─{32}╮/.test(r)).length).toBeGreaterThan(2) // parent + at least two sibling rows
+  expect(rows.some(r => /^ *╭┄+/.test(r))).toBe(true) // bus from the parent card, hung off the trunk
+  expect(Math.max(...boxTops(rows))).toBe(3) // 3 x 34 + 2 gaps + trunk = 108 <= 110
+  expect(rows.filter(r => /^[ ┊]*╭[─┴]{32}╮/.test(r)).length).toBeGreaterThan(2) // parent + at least two sibling rows
   expect(out).toContain('cards ocultos')
   expect(out).toContain('Concluído'); expect(out).toContain('barramento')
   expect(rows.filter(r => r.includes('Tab entre cards')).length).toBe(1)
@@ -76,7 +76,7 @@ test('terminal, session.start without a surface field: the first render still la
   await $.session.start({ cwd: '/work/meuapp', isInteractive: true } as any)
   for (let i = 1; i <= 3; i++) await $.agent.spawn({ tool_use_id: `s${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
   const out = (await rowsOf(await mount($, 120))).join('\n')
-  expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/); expect(out).toMatch(/[├╰]┄+┬/)
+  expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/); expect(out).toMatch(/╭┄+[┬┼]/)
 })
 
 test('desktop, session.start without a surface field: the map (org chart of Box cards) still opens', async ($, on) => {

@@ -85,7 +85,7 @@ test('I-043 container 390 px: cards viram linhas de estado, nome e tempo; 1040 p
 test('I-042 app: cards por linha seguem as colunas do container', () => {
   const many = Array.from({ length: 6 }, (_, i) => mk(`n${i}`))
   const cards = view({ width: 200, mode: 'cards', maxCardRows: 20 })
-  const tops = (px: number) => renderCompact(many, NOW, { ...cards, containerPx: px }).filter(l => { const t = l.map(s => s.t).join(''); return /╭─{30,}╮/.test(t) && t.length < 190 }).length
+  const tops = (px: number) => renderCompact(many, NOW, { ...cards, containerPx: px }).filter(l => { const t = l.map(s => s.t).join(''); return /╭[─┴]{30,}╮/.test(t) && t.length < 190 }).length
   // 1 coluna (520>px>=0 vira linhas, 520 = 2 colunas, 1040 = 4): mais colunas, menos fileiras de cards
   expect(tops(520)).toBeGreaterThan(tops(1040))
 })

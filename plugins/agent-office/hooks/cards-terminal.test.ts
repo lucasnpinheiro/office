@@ -15,17 +15,17 @@ test('session start opens the map; cards stay the default mode behind v', () => 
 test('cards at 120 cols: parent card, then 3 sibling boxes per row, 34 cols wide, 4th card on the next row', () => {
   const ag = ['a', 'b', 'c', 'd'].map(id => mk(id))
   const lines = txt(renderCompact(ag, T + 5000, base)).split('\n')
-  const tops = lines.filter(l => (l.match(/╭─{32}╮/g) ?? []).length === 3)
+  const tops = lines.filter(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length === 3)
   expect(tops.length).toBe(1)
-  expect(lines.filter(l => (l.match(/╭─{32}╮/g) ?? []).length === 1).length).toBe(2) // parent card + the 4th sibling
-  expect(lines.filter(l => (l.match(/╰─{32}╯/g) ?? []).length).length).toBe(3)
-  expect(lines.some(l => /^ ├┄+┬/.test(l) || /^ ╰┄+┬/.test(l))).toBe(true) // bus from the parent card
+  expect(lines.filter(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length === 1).length).toBe(2) // parent card + the 4th sibling
+  expect(lines.filter(l => (l.match(/╰─[^╰╭]{31}╯/g) ?? []).length).length).toBe(3)
+  expect(lines.some(l => /^ *[╭╰]┄+/.test(l))).toBe(true) // bus from the parent card
 })
 test('cards: failed and needs-you alerts are pinned above the boxes, with the retry hint on failure', () => {
   const ag = [mk('a'), mk('b'), mk('f', { status: 'error', error: 'boom' })]
   const lines = txt(renderCompact(ag, T + 5000, base)).split('\n')
   const alert = lines.findIndex(l => l.includes('boom') && !l.includes('│'))
-  const firstBox = lines.findIndex(l => /╭─{32}╮/.test(l))
+  const firstBox = lines.findIndex(l => /^ *╭─{32}╮/.test(l) && !l.startsWith('╭'))
   expect(alert).toBeGreaterThan(-1); expect(alert).toBeLessThan(firstBox)
 })
 test('cards ASCII: boxes drawn with . - and no unicode corners', () => {
