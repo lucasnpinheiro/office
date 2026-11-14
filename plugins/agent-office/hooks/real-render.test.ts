@@ -41,10 +41,10 @@ test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, s
   await boot($, on)
   const rows = await rowsOf(await mount($, 110, 44)) // 44 rows: the tree is taller than the pane, so it scrolls
   const out = rows.join('\n')
-  expect(out).toContain('Office Agent Monitor · meuapp · #abcdef')
-  expect(out).toContain('Geral ')
+  expect(out).toContain('Office · meuapp · #abcdef')
+  expect(out).toContain('Árvore') // view tabs
   expect(out).toContain('Claude Code'); expect(out).toContain('Orquestrador') // main session = parent card
-  expect(out).not.toContain('rodando ·') // not the one-line map
+  expect(out).toMatch(/^\d\d:\d\d:\d\d · \d+ rodando · /m) // counts line of the design header
   expect(rows.some(r => /^ *╭┄+/.test(r))).toBe(true) // bus from the parent card, hung off the trunk
   expect(Math.max(...boxTops(rows))).toBe(3) // 3 x 34 + 2 gaps + trunk = 108 <= 110
   expect(rows.filter(r => /^[ ┊]*╭[─┴]{32}╮/.test(r)).length).toBeGreaterThan(2) // parent + at least two sibling rows
@@ -67,7 +67,7 @@ test('terminal session.start opens the cards of the design (TELA 8), whatever vi
   await $.command.run({ command: 'office', args: 'view map' } as any)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Office Agent Monitor · meuapp'); expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/)
+  expect(out).toContain('Office · meuapp'); expect(out).toContain('Árvore'); expect(out).toMatch(/╭─{32}╮/)
   expect(out).not.toContain('Progresso geral')
 })
 
@@ -76,7 +76,7 @@ test('terminal, session.start without a surface field: the first render still la
   await $.session.start({ cwd: '/work/meuapp', isInteractive: true } as any)
   for (let i = 1; i <= 3; i++) await $.agent.spawn({ tool_use_id: `s${i}`, prompt: 'p', description: `QA: teste ${i}` } as any)
   const out = (await rowsOf(await mount($, 120))).join('\n')
-  expect(out).toContain('Geral '); expect(out).toMatch(/╭─{32}╮/); expect(out).toMatch(/╭┄+[┬┼]/)
+  expect(out).toContain('Árvore'); expect(out).toMatch(/╭─{32}╮/); expect(out).toMatch(/╭┄+[┬┼]/)
 })
 
 test('desktop, session.start without a surface field: the map (org chart of Box cards) still opens', async ($, on) => {
@@ -91,7 +91,7 @@ test('terminal has one view: /office view map draws the centred cards, never a b
   await boot($, on, 2)
   await $.command.run({ command: 'office', args: 'view map' } as any)
   const out = (await rowsOf(await mount($, 110))).join('\n')
-  expect(out).toContain('Office Agent Monitor'); expect(out).toContain('Geral '); expect(out).toMatch(/╭[─┴]{32}╮/)
+  expect(out).toContain('Office · meuapp'); expect(out).toContain('Árvore'); expect(out).toMatch(/╭[─┴]{32}╮/)
   expect(out).not.toContain('Progresso geral'); expect(out).not.toContain('┌')
 })
 
@@ -155,8 +155,8 @@ test('real pane, fresh session (0 agents, as right after a reload): the cards he
   setup($, on)
   await $.session.start({ cwd: '/work/meuapp', surface: 'terminal', isInteractive: true } as any)
   const out = (await rowsOf(await mount($, 100, 40))).join('\n')
-  expect(out).toContain('Office Agent Monitor · meuapp'); expect(out).toContain('Aguardando agentes')
-  expect(out).not.toContain('0 rodando')
+  expect(out).toContain('Office · meuapp'); expect(out).toContain('Aguardando agentes')
+  expect(out).toMatch(/╭─{32}╮/) // the orchestrator card, not the one-line text map
 })
 
 test('real pane, narrow side pane (34 cols, 3 agents): every agent is listed', async ($, on) => {

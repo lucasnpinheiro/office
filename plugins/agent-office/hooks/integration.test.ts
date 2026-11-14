@@ -348,7 +348,7 @@ test('workflow: sem agentId não dá para casar o fim; o agente fica com fim des
   const ui = await mount($)
   const out = await texts(ui)
   expect(out).toContain('■ Dev: alfa')
-  expect(out).toContain('0 ativos')
+  expect(out).toContain('0 rodando')
   await ui.unmount()
 })
 

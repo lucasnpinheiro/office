@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.23.0 (agent-office, the design header in the terminal)
+
+- Header of the terminal views follows the design top: `Office · project · ⎇ branch · #session` with the session cost on the right (tokens when the engine gives no cost), a line with the time and the coloured counts (`rodando`, `concluídos`, `falhas`, then the ETA), and one full-width bar segment per agent in its state colour. The rounded header box and the `Geral` line are gone.
+- Alerts are banners: one rounded box per agent that failed or needs the user, with its message and `[Ver]` to open it. Two boxes at most, the rest on one line.
+- View tabs under the banners: `Mapa`, `Árvore`, `Worktrees`, `Custo`, `Ferramentas` (`Workflow` while a run exists). A click picks the view; `g` still cycles.
+- Not shipped (no engine support yet): the `Pausar`, `Reiniciar`, `Decidir` and `Tentar de novo` buttons of the design.
+
 ## 0.22.0 (agent-office, the design card in the terminal, always full, the pane scrolls)
 
 - Terminal cards follow the design card (Proto5 / Chips5): title with the state pill on the right (`Concluído`, `Rodando`, `Falhou`, ...), the persona · model · effort chips, the worktree (`⧉`) or branch (`⎇`) with the role on the right, one bar segment per tool step (width by duration, red on a failed step, the live one last), and the status with cost and time (`~$0,30 · 00:16`; the percent stands in when there is no cost).

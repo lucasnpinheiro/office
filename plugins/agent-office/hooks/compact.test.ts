@@ -123,7 +123,7 @@ test('cards ASCII: ":" vertical, "." horizontal, "+" joints', () => {
 test('cards: the worktree and the role share one row of the card (unicode and ASCII), no full-width divider', () => {
   const ag = [mk('m'), mk('w', { git: { branch: 'feat/x', worktree: 'wt' } })]
   const u = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards' }))
-  expect(u).toMatch(/│⧉ feat\/x +agente│/); expect(u).not.toContain('━━ ')
+  expect(u).toMatch(/│⧉ feat\/x +agente│/); expect(u).not.toContain('worktree: feat')
   const a = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', caps: detectCaps({ OFFICE_ASCII: '1' }) }))
   expect(a).toMatch(/\|wt feat\/x +agente\|/)
 })
@@ -150,19 +150,26 @@ test('staggered bar growth right after start, full later', () => {
 // ---- Rodada 4 (design: variante sem agrupar) ----
 const cardsOut = (ag: AgentLike[], o: Record<string, unknown> = {}) => renderCompact(ag, T + 9000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, ...o })
 test('cards is the default mode', () => { expect(DEFAULT_MODE).toBe('cards') })
-test('header: rounded box, Office - project - #sid left, colored counts + elapsed + ETA right, no ambiguous arrows', () => {
+test('header (design): Office · project · #sid with tokens or cost on the right, then time and coloured counts, no ambiguous arrows', () => {
   const ag = [mk('a', { status: 'done', endedAt: T + 100 }), mk('b'), mk('c', { status: 'error', endedAt: T + 100 })]
-  const ls = cardsOut(ag, { project: 'megabor', sessionId: 'c716af99' })
-  const t0 = txt(ls)
-  expect(ls[0]![0]!.t).toMatch(/^╭─+╮$/)
-  expect(t0).toMatch(/│Office Agent Monitor · megabor · #c716af/); expect(t0).toMatch(/⠹ 1 ativos ✓ 1 ✗ 1 · 00:00:09 · tokens — · ETA/)
-  expect(t0).not.toContain('⇄'); expect(statusText([mk('a')], T + 1)).not.toContain('⇄')
-  const counts = ls[1]!.filter(s => /ativos|✓|✗/.test(s.t)).map(s => s.fg)
+  const ls = cardsOut(ag, { project: 'megabor', sessionId: 'c716af99', branch: 'main' })
+  const t0 = txt(ls).split('\n')
+  expect(t0[0]).toMatch(/^Office · megabor · ⎇ main · #c716af +tokens —$/)
+  expect(t0[1]).toMatch(/^00:00:09 · 1 rodando · 1 concluído · 1 falha · ETA/)
+  expect(txt(cardsOut(ag, { sessionUsd: 1.84 })).split('\n')[0]).toMatch(/~\$1,84$/)
+  expect(txt(ls)).not.toContain('⇄'); expect(statusText([mk('a')], T + 1)).not.toContain('⇄')
+  const counts = ls[1]!.filter(s => /rodando|concluído|falha/.test(s.t)).map(s => s.fg)
   expect(counts).toContain('#7FA9FF'); expect(counts).toContain('#6FD08C'); expect(counts).toContain('#FF8A80')
 })
-test('Geral row: hatched segmented bar, percent, g toggles', () => {
-  const t0 = txt(cardsOut([mk('a', { status: 'done', endedAt: T + 100 }), mk('b')]))
-  expect(t0).toMatch(/Geral [█▒]+ \d+% · g alterna modo/)
+test('agent bar: one full-width segment per agent in its state colour; view tabs under it', () => {
+  const ls = cardsOut([mk('a', { status: 'done', endedAt: T + 100 }), mk('b')])
+  const bar = ls[2]!
+  expect(bar.map(x => x.t).join('')).toMatch(/^━+ ━+$/)
+  expect(bar.filter(x => x.t.includes('━')).map(x => x.fg)).toEqual(['#6FD08C', '#7FA9FF'])
+  expect(bar.reduce((k, x) => k + [...x.t].length, 0)).toBe(120)
+  const tabs = ls.find(l => l.some(x => x.act === 'mode:tree'))!
+  expect(tabs.map(x => x.t).join('')).toMatch(/Mapa +Árvore +Worktrees +Custo +Ferramentas/)
+  expect(tabs.find(x => x.act === 'mode:cards')!.variant).toBe('primary')
 })
 test('no slanted parallelogram glyphs anywhere (render badly in terminals)', () => {
   expect(txt(cardsOut([mk('a'), mk('b', { status: 'done', endedAt: T + 100 })]))).not.toMatch(/[▰▱]/)

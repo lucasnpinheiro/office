@@ -61,9 +61,9 @@ for (const width of [60, 72, 80, 100, 120, 160, 200]) test(`responsive @${width}
   expect((t.join('\n').match(/╰─[^╭╰]{31}╯/g) ?? []).length).toBe(10)
 })
 
-test('empty session: the orchestrator card and the waiting line are centred, under the Office Agent Monitor header', () => {
+test('empty session: the orchestrator card and the waiting line are centred, under the Office header', () => {
   const t = rows([])
-  expect(t[1]).toContain('Office Agent Monitor')
+  expect(t[0]).toMatch(/^Office · /)
   const top = t.find(l => /^ +╭─{32}╮/.test(l))!
   expect(lead(top)).toBe((120 - CARD_W) / 2)
   expect(t.join('\n')).toContain('orquestrador')
@@ -71,9 +71,9 @@ test('empty session: the orchestrator card and the waiting line are centred, und
   expect(Math.abs(lead(wait) - (120 - strWidth(wait.trim())) / 2)).toBeLessThanOrEqual(1)
 })
 
-test('centred chrome: the Geral line and the legend are centred in the cards view', () => {
+test('centred chrome: the legend is centred in the cards view', () => {
   const t = rows(tree)
-  for (const key of ['Geral ', 'Concluído', 'barramento']) {
+  for (const key of ['✓ Concluído', 'barramento']) {
     const l = t.find(x => x.includes(key) && !x.includes('│'))!
     expect(Math.abs(lead(l) - (120 - strWidth(l.trim())) / 2)).toBeLessThanOrEqual(1)
   }
