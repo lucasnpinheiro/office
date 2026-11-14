@@ -61,3 +61,9 @@ test('50 sub-levels: every card reachable by scrolling, none hidden, L badge and
   expect(seen.size).toBe(50)
   expect(rows(chain, { maxLines: 500 }).join('\n')).toContain('L49')
 })
+
+test('regression: cards view never drops a finished agent, however long ago it ended', () => {
+  const old = Array.from({ length: 5 }, (_, i) => ({ ...mk(`o${i}`), status: 'done', endedAt: T + 1000 }) as AgentLike)
+  const t = renderCompact(old, T + 3_600_000, { ...base, maxLines: 200 }).map(l => l.map(s => s.t).join('')).join('\n')
+  for (let i = 0; i < 5; i++) expect(t).toContain(`Dev: o${i}`)
+})

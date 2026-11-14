@@ -665,7 +665,8 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     return list.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
   }
   const nm = names(g)
-  const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
+  // cards never hide a finished agent after HIDE_AFTER_MS (that expiry cut cards from the map); the other views keep it
+  const keep = visibleSet(g, v.query, v.mode === 'cards' ? new Set<string>() : hiddenIds(g, now), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
   // order of the design: header, alert banners, view tabs, then the view itself
   const out: Line[] = [...header(g, agents, now, v), ...(agents.length && (v.mode === 'tree' || v.mode === 'cards') ? pinnedLines(g, nm, keep, v) : []), tabsLine(agents, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
