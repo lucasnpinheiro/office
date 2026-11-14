@@ -113,6 +113,24 @@ with sample agents (`scripts/render-docs.ts`).
 | --- | --- |
 | ![detail render](docs/images/detail.svg) | ![ascii render](docs/images/ascii.svg) |
 
+### Layout, breakpoints and scrolling
+
+Follows the Claude Design board "Office Agent Monitor Redesign" (Rodada 5). The pane height is the terminal height (no fixed
+cap) and the layout is recomputed on every resize.
+
+| Pane width | Layout |
+| --- | --- |
+| 100+ columns | full cards, centred tree, status pill, chips, step bar |
+| 60 to 99 | compact cards, the "agora" (current tool) shrinks first, cost and time stay |
+| under 60 | list only: failures and decisions first, then rows of status, name and time with indented children |
+| 150+ (110+ in the desktop app) | detail opens as a side panel; below that it covers the list |
+
+- Overflowing cards scroll: a vertical scrollbar (`░` track, `█` thumb; `|` and `#` in ASCII mode) sits on the last column,
+  cards re-wrap one column narrower to make room, and a stale scroll offset is clamped after a resize.
+- Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
+- Identical siblings collapse to `Rodando xN`; `g` cycles the view mode.
+- Keys: `j` scroll down, `k` scroll up (one card row per press), plus the hotkeys below.
+
 ### Hotkeys
 
 Mods get no raw key events: each key is a button hotkey that fires only while the monitor pane holds the focus.
@@ -123,7 +141,7 @@ search, empty clears it).
 | View | Keys |
 | --- | --- |
 | Map | `v` to compact, `b` back (detail open), `q` close |
-| Compact (cards / tree / grouped / waterfall / cost / tools / workflow) | `g` mode, `o` sort, `f` only failures, `s` search, `v` to map, `q` close |
+| Compact (cards / tree / grouped / waterfall / cost / tools / workflow) | `j` / `k` scroll, `g` mode, `o` sort, `f` only failures, `s` search, `v` to map, `q` close |
 | Detail (narrow pane) | `b` back, `p` / `n` previous / next sibling, `q` close |
 | Detail as side panel | the compact keys plus `b` back |
 | Attachment preview | `b` close preview, `q` close |

@@ -229,7 +229,13 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
 function tabsLine(agents: AgentLike[], v: CView): Line {
   const c = v.caps
   const tabs: [Mode, string][] = [['cards', 'Mapa'], ['tree', 'Árvore'], ['grouped', 'Worktrees'], ...(agents.some(a => a.workflow) ? [['workflow', 'Workflow'] as [Mode, string]] : []), ['cost', 'Custo'], ['tools', 'Ferramentas']]
-  return fit(tabs.flatMap(([m, label]) => [seg(c, ` ${label} `, undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]), v.width)
+  const one = ([m, label]: [Mode, string]): Seg[] => [seg(c, ` ${label} `, undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
+  // too narrow for every tab: the strip scrolls, dropping tabs from the left until the active one is visible (design: tabs scroll horizontally)
+  const wOf = (t: [Mode, string]) => strWidth(t[1]) + 3
+  const act = Math.max(0, tabs.findIndex(t => t[0] === v.mode))
+  let from = 0
+  while (from < act && tabs.slice(from, act + 1).reduce((a, t) => a + wOf(t), from ? 2 : 0) > v.width) from++
+  return fit([...(from ? [seg(c, c.ascii ? '< ' : '‹ ', DIM)] : []), ...tabs.slice(from).flatMap(one)], v.width)
 }
 
 function filterBar(g: Graph, v: CView): Line {

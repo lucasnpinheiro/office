@@ -2,6 +2,7 @@
 
 ## 0.24.0 (agent-office, the cards pane fills the terminal and has a scrollbar)
 
+- Tabs scroll horizontally on a narrow pane and keep the active one visible; READMEs describe the layout, breakpoints, scrollbar and keys.
 - Root cause of the half-empty pane: the cards window height came from the viewport rows capped at 30 minus the chrome. The cap is gone: the window follows the pane (`bodyRows`) or the terminal rows, so it grows and shrinks on resize.
 - A vertical scrollbar (track `░`, thumb `█`, `|` and `#` in ASCII) sits on the last column when the cards overflow; the cards re-wrap one column narrower to make room. j/k still scroll and a stale offset is clamped on resize.
 

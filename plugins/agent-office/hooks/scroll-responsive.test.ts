@@ -41,3 +41,11 @@ test('no scrollbar when everything fits; a stale scroll offset is clamped after 
 test('narrow pane wraps cards to fewer columns and stays inside the width', () => {
   for (const width of [60, 75, 100]) for (const l of rows(many.slice(0, 6), { width, maxLines: 40 })) expect(strWidth(l)).toBeLessThanOrEqual(width)
 })
+
+test('tabs scroll horizontally on a narrow pane and keep the active one visible', () => {
+  const wf = { ...mk('w'), workflow: { runId: 'r1', agentIndex: 0 } } as unknown as AgentLike
+  const t = rows([wf], { width: 60, mode: 'tools' })
+  const tabs = t.find(l => l.includes('Ferramentas'))!
+  expect(tabs).toContain('‹')
+  expect(strWidth(tabs)).toBeLessThanOrEqual(60)
+})
