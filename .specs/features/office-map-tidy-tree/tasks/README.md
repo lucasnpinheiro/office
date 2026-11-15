@@ -1,5 +1,5 @@
 ---
-status: BLOCKED
+status: TODO
 progress: 0/5
 updated: 2026-11-15
 ---
@@ -8,9 +8,9 @@ updated: 2026-11-15
 | Task | Título | depends_on | Estado |
 |---|---|---|---|
 | T-101 | Tidy-tree + barramento por pai + • | — | TODO |
-| T-102 | Card compacto + borda | T-101 | BLOCKED ASK-1, ASK-4 |
-| T-103 | Recolher ▾ + Ramos no Mapa | T-101 | BLOCKED ASK-3 |
-| T-104 | Cabeçalho + legenda + N/10 | — | BLOCKED ASK-2 (legenda e N/10 livres) |
+| T-102 | Card compacto + borda | T-101 | TODO |
+| T-103 | Recolher ▾ + Ramos no Mapa | T-101 | TODO |
+| T-104 | Cabeçalho + legenda + N/10 | — | TODO |
 | T-105 | Docs e versão | T-101 | TODO |
 
 ## Skills
