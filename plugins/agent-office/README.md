@@ -155,6 +155,15 @@ git config core.hooksPath .githooks
 Self-check: `bash scripts/test-update-installed.sh`. **Restart Claude Code after an update** (or run `/reload-plugins`): the
 running session keeps the old code until then.
 
+
+### App Mapa (0.28.13): cards shrink with the sibling count, up to 6 side by side
+
+Rendered from the real `appMap` + `appCardW`/`mapRows` layout by `scripts/render-docs.ts` (schematic SVG of the app cell grid, not a screenshot).
+
+| 6 agents, one row | 9 agents, 6 + 3 |
+|---|---|
+| ![app map 6](../../docs/images/app-map-6.svg) | ![app map 9](../../docs/images/app-map-9.svg) |
+
 ### Changelog summary
 
 - **0.28.8**: card view on app surfaces lays out in explicit rows by pane width (flex wrap did not wrap, so all cards sat in one row).
