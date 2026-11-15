@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.13 (agent-office, dynamic card width)
+
+- App map and grid: `appCardW(count, cols)` sizes cards between 15 and 26 cols so min(count, 6) fit one row; `appPerRow` caps at 6. Tests in `app-cards.test.ts` and `real-render.test.ts`.
+
 ## 0.28.12 (agent-office, smaller cards, line states)
 
 - App cards 25% smaller: `APP_CARD_W` 34 -> 26 and no `paddingX`, so 4 fit in 120 cols (was 3). Content unchanged. Terminal cells have no font size, so text and icons keep the cell size; the box shrinks.

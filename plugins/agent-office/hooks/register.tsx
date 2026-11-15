@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, segTone, barTone, cardBg, onCard } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, appCardW, segTone, barTone, cardBg, onCard } from './app-cards'
 import type { AppCard, AppMapNode } from './app-cards'
 import { spinnerGlyph } from './motion'
 import { detailData } from './view-detail'
@@ -698,8 +698,8 @@ export const register: Register = on => {
     // motion on the app surfaces: spinner glyph, a sweeping indeterminate bar and a pulse along the dashed buses (off with reduced motion)
     const fr = caps.reducedMotion ? 0 : frameFor(all, now)
     const glyphOf = (c: AppCard) => (c.state === 'running' && !caps.reducedMotion ? spinnerGlyph(fr, false) : c.glyph)
-    const appCardBox = (c: AppCard, kids = false) => (
-      <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} backgroundColor={cardBg(c.state)} width={APP_CARD_W}>
+    const appCardBox = (c: AppCard, kids = false, w = APP_CARD_W) => (
+      <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} backgroundColor={cardBg(c.state)} width={w}>
         <Box flexDirection="row" justifyContent="space-between">
           {c.id === 'session' ? <Text color={cardBg(c.state) ? undefined : c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
             <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
@@ -733,7 +733,7 @@ export const register: Register = on => {
         {Array.from({ length: n }, (_, i) => <Box key={`dash-${key}-${i}`} flexGrow={1} {...(dir === 'row' ? { height: 1 } : { width: 1 })} backgroundColor={live && !caps.reducedMotion && i === fr % n ? 'suggestion' : 'subtle'} />)}
       </Box>
     )
-    const childCol = (k: AppMapNode, i: number, n: number, solid: boolean) => {
+    const childCol = (k: AppMapNode, i: number, n: number, solid: boolean, w: number) => {
       const tone = k.card.state === 'running' ? 'suggestion' : 'subtle'
       return (
         <Box key={`mk-${k.card.id}`} flexDirection="column" alignItems="center">
@@ -744,30 +744,30 @@ export const register: Register = on => {
             </Box>
           ) : null}
           <Box width={1} height={1} backgroundColor={tone} />
-          {mapTree(k, `mt-${k.card.id}`)}
+          {mapTree(k, `mt-${k.card.id}`, w)}
         </Box>
       )
     }
     // org chart (design Proto5 Mapa): parent card, stub, bus across the children, stub into each child, grandchildren below.
     // Same rule as the terminal: one solid bus when the siblings fit one row; otherwise rows of appPerRow cards hang off a
     // dashed trunk on the left, each row under its own dashed bus (user choice), so the rows never read as a frame.
-    const mapTree = (n: AppMapNode, key: string): any => {
+    const mapTree = (n: AppMapNode, key: string, w = APP_CARD_W): any => {
       const kids = n.children
-      const { rows } = mapRows(kids, cols)
+      const { rows } = mapRows(kids, cols, w)
       return (
         <Box key={key} flexDirection="column" alignItems="center">
-          {appCardBox(n.card, kids.length > 0)}
+          {appCardBox(n.card, kids.length > 0, w)}
           {kids.length ? <Box width={1} height={1} backgroundColor="subtle" /> : null}
           {n.layout === 'column' ? (
             // design 2026-11-14: subagents stack in the parent's own column, a stub into each one
             <Box flexDirection="column" alignItems="center">{kids.map((k, i) => (
               <Box key={`mc-${k.card.id}`} flexDirection="column" alignItems="center">
                 {i ? <Box width={1} height={1} backgroundColor="subtle" /> : null}
-                {mapTree(k, `mt-${k.card.id}`)}
+                {mapTree(k, `mt-${k.card.id}`, w)}
               </Box>
             ))}</Box>
           ) : rows.length === 1 ? (
-            <Box flexDirection="row" justifyContent="center" gap="sm">{rows[0]!.map((k, i) => childCol(k, i, rows[0]!.length, true))}</Box>
+            <Box flexDirection="row" justifyContent="center" gap="sm">{rows[0]!.map((k, i) => childCol(k, i, rows[0]!.length, true, w))}</Box>
           ) : rows.length > 1 ? (
             <Box flexDirection="row" width="100%">
               {dashes(`trunk-${n.card.id}`, 'column', rows.length * 6, kids.some(k => k.card.state === 'running'))}
@@ -775,7 +775,7 @@ export const register: Register = on => {
                 {rows.map((row, ri) => (
                   <Box key={`row-${n.card.id}-${ri}`} flexDirection="column">
                     {dashes(`rowbus-${n.card.id}-${ri}`, 'row', 24, row.some(k => k.card.state === 'running'))}
-                    <Box flexDirection="row" gap="sm" paddingLeft={1}>{row.map((k, i) => childCol(k, i, row.length, false))}</Box>
+                    <Box flexDirection="row" gap="sm" paddingLeft={1}>{row.map((k, i) => childCol(k, i, row.length, false, w))}</Box>
                   </Box>
                 ))}
               </Box>
@@ -860,7 +860,7 @@ export const register: Register = on => {
     // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
     if (onApp && view === 'map' && !attach && (!selected || sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' }))) {
       const tree = appMap(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
-      const body = tree.card.id === 'session' && tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root')
+      const body = tree.card.id === 'session' && tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root', appCardW(tree.children.length, cols))
       return (
         <Box flexDirection="column" gap="sm">
           {appChrome()}
@@ -884,7 +884,7 @@ export const register: Register = on => {
           {appChrome()}
           {cards.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : null}
           <Box flexDirection="column" gap="sm">
-            {appGrid(cards, cols).map((row, ri) => <Box key={`grid-${ri}`} flexDirection="row" gap="sm">{row.map(c => appCardBox(c))}</Box>)}
+            {appGrid(cards, cols, appCardW(cards.length, cols)).map((row, ri) => <Box key={`grid-${ri}`} flexDirection="row" gap="sm">{row.map(c => appCardBox(c, false, appCardW(cards.length, cols)))}</Box>)}
           </Box>
           {keysRow}
         </Box>
