@@ -12,13 +12,13 @@ const base = { width: 120, caps, mode: 'cards' as const, query: '', expanded: ne
 test('session start opens the map; cards stay the default mode behind v', () => {
   expect(startUi().view).toBe('map'); expect(startUi().mode).toBe('cards'); expect(initialUi().view).toBe('map')
 })
-test('cards at 120 cols: parent card, then 3 sibling boxes per row, 34 cols wide, 4th card on the next row', () => {
+test('cards at 120 cols: parent card, then the 4 siblings in one row, dynamic width (T-001 U-004)', () => {
   const ag = ['a', 'b', 'c', 'd'].map(id => mk(id))
   const lines = txt(renderCompact(ag, T + 5000, base)).split('\n')
-  const tops = lines.filter(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length === 3)
+  const tops = lines.filter(l => (l.match(/╭[─┴]{16,32}╮/g) ?? []).length === 4)
   expect(tops.length).toBe(1)
-  expect(lines.filter(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length === 1).length).toBe(2) // parent card + the 4th sibling
-  expect(lines.filter(l => (l.match(/╰─[^╰╭]{31}╯/g) ?? []).length).length).toBe(3)
+  expect(lines.filter(l => (l.match(/╭[─┴]{16,32}╮/g) ?? []).length === 1).length).toBe(1) // parent card only
+  expect(lines.filter(l => (l.match(/╰─[^╰╭]{15,31}╯/g) ?? []).length).length).toBe(2)
   expect(lines.some(l => /^ *[╭╰]┄+/.test(l))).toBe(true) // bus from the parent card
 })
 test('cards: a failure is a boxed banner above the tabs and the cards, with [Ver] to open it', () => {
@@ -27,7 +27,7 @@ test('cards: a failure is a boxed banner above the tabs and the cards, with [Ver
   const lines = txt(out).split('\n')
   const alert = lines.findIndex(l => /^│✗ Dev: f falhou  boom +.*\[Ver\]│$/.test(l))
   const tabs = lines.findIndex(l => l.includes('Árvore') && l.includes('Mapa'))
-  const firstBox = lines.findIndex(l => /^ *╭─{32}╮/.test(l) && !l.startsWith('╭'))
+  const firstBox = lines.findIndex(l => /^ *╭─{16,32}╮/.test(l) && !l.startsWith('╭'))
   expect(alert).toBeGreaterThan(-1); expect(alert).toBeLessThan(tabs); expect(tabs).toBeLessThan(firstBox)
   expect(out.flat().some(x => x.t === '[Ver]' && x.node === 'f')).toBe(true)
   // more than two alerts: two boxes, the rest on one line

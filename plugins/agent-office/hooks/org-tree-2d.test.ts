@@ -13,13 +13,11 @@ const rows = (ag: AgentLike[], width = 200) => renderCompact(ag, T + 5000, { wid
 const tops = (l: string) => [...l].flatMap((ch, i, a) => (ch === '╭' && /[─┴]/.test(a[i + 1] ?? '') ? [strWidth(a.slice(0, i).join(''))] : []))
 const tree = [mk('a'), mk('b'), mk('c'), mk('d'), mk('t1', { parentAgentId: 'g-a' }), mk('t2', { parentAgentId: 'g-a' }), mk('n1', { parentAgentId: 'g-b' })]
 
-test('terminal: the 4 agents share one row, the subagents stack under their own parent column', () => {
+test('terminal: the 4 agents share one row, a parent\'s subagents share one row under it (T-001 U-002)', () => {
   const t = rows(tree)
   const cardRows = t.map(tops).filter(x => x.length)
-  expect(cardRows.map(r => r.length)).toEqual([1, 4, 2, 1]) // root, agents, t1+n1, t2 (never t1 beside t2)
-  const [ag, l2, l3] = [cardRows[1]!, cardRows[2]!, cardRows[3]!]
-  expect(l2).toEqual([ag[0]!, ag[1]!]) // t1 straight under a, n1 straight under b
-  expect(l3).toEqual([l2[0]!]) // t2 in the same column as t1
+  expect(cardRows.map(r => r.length)).toEqual([1, 4, 3]) // root, agents, then t1+t2 (under a) and n1 (under b) side by side
+  expect(cardRows[2]!.length).toBe(3)
   for (const id of ['a', 'b', 'c', 'd', 't1', 't2', 'n1']) expect(t.join('\n')).toContain(`Dev: ${id}`)
 })
 

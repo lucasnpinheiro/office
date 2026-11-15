@@ -28,7 +28,7 @@ test('B1 pane too short for every card: scrolls in whole cards, no card cut mid-
   for (let scroll = 0; scroll <= scrollInfo.max; scroll += 7) { // 7 rows: lands mid-card too
     const t = lines(ag, { maxLines: 40, scroll }).join('\n')
     const names = [...t.matchAll(/Dev: c\d+/g)].length
-    const status = [...t.matchAll(/executando/g)].length
+    const status = [...t.matchAll(/▸ (?!delega)/g)].length
     expect(status).toBe(names) // every visible title has its status row: no card is cut
   }
 })
@@ -83,8 +83,8 @@ test('B4 a long branch wraps to a second row (design), the role stays on the fir
 test('R2 a deep card at a narrow pane keeps its right border: nothing clipped by the pane edge', () => {
   const chain = Array.from({ length: 45 }, (_, i) => mk(`d${i}`, i ? { parentAgentId: `g-d${i - 1}` } : {}))
   const t = lines(chain, { width: 64, maxLines: 2000 })
-  const row = t.find(l => l.includes('Dev: d44'))!
-  expect(row).toBeDefined()
+  const row = t.find(l => l.includes('Dev: d9'))!
+  expect(row).toBeDefined() // T-001: levels past 10 are "+N ocultos"
   expect(strWidth(row)).toBeLessThanOrEqual(64)
   expect(row.trimEnd().endsWith('│')).toBe(true)
 })
