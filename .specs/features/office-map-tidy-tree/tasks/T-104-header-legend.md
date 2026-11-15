@@ -23,5 +23,5 @@ Legenda + Níveis N/10 (sem bloqueio); cabeçalho Progresso Geral/Decorrido/Esti
 
 ## Aceite
 - [ ] RED antes de GREEN; testes: unit U-117..U-121
-- [ ] Só os arquivos citados; `rtk` em todo comando.
+- [ ] Só os arquivos citados.
 - [ ] Sem regressão em office-map-mock-style (0.28.14) nem no vão central do terminal (0.28.16).

@@ -23,5 +23,5 @@ compact.ts card(); register.tsx appCardBox. Borda tracejada aguarda filhos; glif
 
 ## Aceite
 - [ ] RED antes de GREEN; testes: unit U-108..U-113, ui-design D-102
-- [ ] Só os arquivos citados; `rtk` em todo comando.
+- [ ] Só os arquivos citados.
 - [ ] Sem regressão em office-map-mock-style (0.28.14) nem no vão central do terminal (0.28.16).

@@ -22,5 +22,5 @@ compact.ts measure/draw; app-cards.ts, register.tsx mapTree. Barramento do 1º a
 
 ## Aceite
 - [ ] RED antes de GREEN; testes: unit U-101..U-107, ui-design D-101
-- [ ] Só os arquivos citados; `rtk` em todo comando.
+- [ ] Só os arquivos citados.
 - [ ] Sem regressão em office-map-mock-style (0.28.14) nem no vão central do terminal (0.28.16).

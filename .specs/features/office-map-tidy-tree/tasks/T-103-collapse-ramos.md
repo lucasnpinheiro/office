@@ -23,5 +23,5 @@ Reusar collapsedAt; filtrar agentKids por collapsed no Mapa (terminal e app) con
 
 ## Aceite
 - [ ] RED antes de GREEN; testes: unit U-114..U-116, integration I-101
-- [ ] Só os arquivos citados; `rtk` em todo comando.
+- [ ] Só os arquivos citados.
 - [ ] Sem regressão em office-map-mock-style (0.28.14) nem no vão central do terminal (0.28.16).
