@@ -485,34 +485,47 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   }
   const kids = n.children.filter(x => x.kind === 'agent').length
   const sep = c.ascii ? '<' : '‹', tri = c.ascii ? '>' : '▸'
-  const trail = [n.tool, ...[...(n.recent ?? [])].reverse().filter((x, i) => !(i === 0 && x === n.tool))].filter(Boolean).join(` ${sep} `)
+  const trailItems = [n.tool, ...[...(n.recent ?? [])].reverse().filter((x, i) => !(i === 0 && x === n.tool))].filter(Boolean) as string[]
   const tasks = n.children.filter(x => x.kind === 'task')
   const tdone = tasks.filter(x => x.state === 'done').length
-  const status: Seg =
-    n.state === 'pending' ? seg(c, 'aguarda 1ª ação', DIM) :
-    n.state === 'done' ? seg(c, 'concluído', DIM)
-      : n.state === 'failed' ? seg(c, `${glyph(c, 'failed')} ${n.error ?? 'falha'}`, STATE_COLOR.failed)
-        : n.state === 'attention' ? seg(c, `${glyph(c, 'attention')} ${n.error ?? 'sem atividade'}`, STATE_COLOR.attention)
-            : seg(c, `${tri} ${kids ? `delega ${kids} ${kids === 1 ? 'filho' : 'filhos'}` : [tasks.length ? `${tdone}/${tasks.length}` : '', trail].filter(Boolean).join(' · ') || 'executando'}`, DIM)
   const pctText = tasks.length ? `${Math.round((tdone / tasks.length) * 100)}%` : metric(n)
   const bar: Line = stepBar(run, n, inner, c, frame) ?? stateBar(n, (n.state === 'done' ? 1 : progressOf(n) ?? 0) * k, inner, c, frame)
   const time = n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now))
   const usd = run?.usage.costUsd
   const meta = `${usd === undefined ? pctText : fmtUsd(usd)} · ${time}`
+  // footer tool chain: every item stays; a short row cuts each item with … (never one cut string at the end)
+  const chain = (items: string[], w: number): string => {
+    const j = ` ${sep} `
+    if (strWidth(items.join(j)) <= w) return items.join(j)
+    const share = Math.max(3, Math.floor((w - strWidth(j) * (items.length - 1)) / items.length))
+    return items.map(x => (strWidth(x) <= share ? x : `${takeWidth(x, share - 1)}…`)).join(j)
+  }
+  const runText = (): string => {
+    const lead = tasks.length ? `${tdone}/${tasks.length}` : ''
+    const budget = inner - strWidth(meta) - 1 - strWidth(`${tri} `) - (lead ? strWidth(lead) + 3 : 0)
+    return [lead, trailItems.length ? chain(trailItems, budget) : ''].filter(Boolean).join(' · ') || 'executando'
+  }
+  const status: Seg =
+    n.state === 'pending' ? seg(c, 'aguarda 1ª ação', DIM) :
+    n.state === 'done' ? seg(c, 'concluído', DIM)
+      : n.state === 'failed' ? seg(c, `${glyph(c, 'failed')} ${n.error ?? 'falha'}`, STATE_COLOR.failed)
+        : n.state === 'attention' ? seg(c, `${glyph(c, 'attention')} ${n.error ?? 'sem atividade'}`, STATE_COLOR.attention)
+            : seg(c, `${tri} ${kids ? `delega ${kids} ${kids === 1 ? 'filho' : 'filhos'}` : runText()}`, DIM)
   // borders carry only the tree: the connector enters at the top centre and leaves at the bottom centre
   const mid = Math.floor(cw / 2) - 1 // inner index of the centre column
   const edgeLine = (l: string, r: string, joint: string | undefined): Line =>
     joint ? [seg(c, l + b.h.repeat(mid), edge), seg(c, joint, edge), seg(c, b.h.repeat(inner - mid - 1) + r, edge)] : [seg(c, l + b.h.repeat(inner) + r, edge)]
   const pill = c.ascii ? asciiText(PILL[n.state] ?? '') : PILL[n.state] ?? ''
-  // design 2026-11-14: "🧭 Squad Leader · 👑 Opus · 🟢 baixo" as text, word-wrapped onto a second row (the rest clipped with …)
+  // design 2026-11-14: "🧭 Squad Leader · 👑 Opus · 🟢 baixo" as text, wrapped between whole chips (a chip is never split; wider than the row, it goes alone)
   const chipRows = (() => {
     const parts = (c.ascii ? [n.persona?.replace(/^\P{ASCII}+\s*/u, ''), n.model, n.effort] : [ch.persona, ch.model, ch.effort]).filter((x): x is string => !!x)
-    const words = (c.ascii ? asciiText(parts.join(' · ')) : parts.join(' · ')).split(' ')
-    const out = ['']
-    for (const w of words) {
-      const cur = out[out.length - 1]!, next = cur ? `${cur} ${w}` : w
-      if (strWidth(next) <= inner || !cur || out.length === 2) out[out.length - 1] = next
-      else out.push(w)
+    const out: string[] = []
+    for (const p of parts) {
+      const t = c.ascii ? asciiText(p) : p, cur = out[out.length - 1]
+      if (cur === undefined) { out.push(t); continue }
+      const next = `${cur}${c.ascii ? ' - ' : ' · '}${t}`
+      if (strWidth(next) <= inner || out.length === 2) out[out.length - 1] = next
+      else out.push(t)
     }
     return out
   })()
@@ -531,12 +544,12 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   })()
   return [
     edgeLine(b.tl, b.tr, tag.up ? (c.ascii ? '+' : '┴') : undefined),
-    // the title wins the row: the pill is drawn only when the whole title fits beside it (glyph and border already carry the state)
-    split([seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id }), seg(c, full, undefined, { bold: true, node: id })], strWidth(full) + 3 + strWidth(pill) <= inner ? [seg(c, pill, col_, { bold: true })] : [], true), // a cut title ends in … (video: "Operações bitwise 0b1010 e shi")
+    // the pill is on every card and never goes; the title shortens with … to make room. A done card has no ✓ prefix (the pill says Concluído)
+    split([...(n.state === 'done' ? [] : [seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id })]), seg(c, full, undefined, { bold: true, node: id })], [seg(c, pill, col_, { bold: true })], true), // a cut title ends in … (video: "Operações bitwise 0b1010 e shi")
     ...chipRows.map(t => body(clip([seg(c, t, DIM, { node: id })], inner))),
     ...flowRows,
     body(bar),
-    split([status], [seg(c, meta, DIM)]),
+    split([status], [seg(c, meta, DIM)], true),
     edgeLine(b.bl, b.br, tag.down ? (c.ascii ? '+' : '┬') : undefined),
   ]
 }

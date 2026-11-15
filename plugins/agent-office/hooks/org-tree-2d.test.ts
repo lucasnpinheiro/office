@@ -32,7 +32,7 @@ test('terminal: a single subagent hangs straight under its parent, bottom ┬ an
 
 test('terminal: a narrow pane keeps every card (wraps, never drops)', () => {
   const t = rows(tree, CARD_W * 2 + 10).join('\n')
-  for (const id of ['a', 'b', 'c', 'd', 't1', 't2', 'n1']) expect(t).toContain(`Dev: ${id}`)
+  expect(t.match(/Dev: /g)?.length).toBe(7) // T-004: narrow titles cut to Dev: …
 })
 
 test('orchestrator card: 🧭 Squad Leader · Opus · baixo (design), never 🎯 Orquestrador', () => {

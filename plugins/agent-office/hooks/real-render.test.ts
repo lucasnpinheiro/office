@@ -138,7 +138,7 @@ test('desktop pane: header, tabs with Mapa selected, map card content, side deta
   for (const k of ['Mapa', 'Árvore', 'Worktrees', 'Workflow', 'Custo', 'Ferramentas']) expect(t).toContain(k)
   const mapa = (await ui.findAll({ type: 'Text' })).find((x: any) => x.text === 'Mapa') as any
   expect(mapa.props?.bold).toBe(true)
-  expect(t.some(x => x.includes('🛠️ Mid-level · 🎼 Sonnet · 🟡 médio'))).toBe(true)
+  expect(t.some(x => x.includes('🟡 médio'))).toBe(true) // T-004: each chip is its own item
   expect(t).toContain('Na fila')
   const open = (await ui.findAll({ type: 'Button' })).map((b: any) => String(b.key ?? '')).find(k => k.startsWith('app-open-'))!
   await ui.press({ key: open })
