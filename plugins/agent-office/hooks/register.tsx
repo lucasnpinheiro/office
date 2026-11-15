@@ -700,14 +700,18 @@ export const register: Register = on => {
     const appCardBox = (c: AppCard, kids = false, w = APP_CARD_W) => (
       <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} backgroundColor={cardBg(c.state)} width={w}>
         <Box flexDirection="row" justifyContent="space-between">
-          {c.id === 'session' ? <Text color={cardBg(c.state) ? undefined : c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text> : (
+          {/* the title shortens with … (truncate-end); the pill is on every card and never shrinks; a done card has no ✓ prefix */}
+          {c.id === 'session' ? <Text color={cardBg(c.state) ? undefined : c.tone} bold wrap="truncate-end">{`${c.state === 'done' ? '' : `${glyphOf(c)} `}${c.title}${kids ? ' ▾' : ''}`}</Text> : (
             <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
-              <Text color={cardBg(c.state) ? undefined : c.tone} bold>{`${glyphOf(c)} ${c.title}${kids ? ' ▾' : ''}`}</Text>
+              <Text color={cardBg(c.state) ? undefined : c.tone} bold wrap="truncate-end">{`${c.state === 'done' ? '' : `${glyphOf(c)} `}${c.title}${kids ? ' ▾' : ''}`}</Text>
             </Button>
           )}
-          <Text color={cardBg(c.state) ? undefined : c.tone}>{PILL[c.state] ?? ''}</Text>
+          <Text color={cardBg(c.state) ? undefined : c.tone} wrap="truncate-end">{PILL[c.state] ?? ''}</Text>
         </Box>
-        <Text dimColor>{c.chips.join(' · ')}</Text>
+        {/* chips wrap between whole chips: each chip is its own item, the separator leads the next one */}
+        <Box flexDirection="row" flexWrap="wrap">
+          {c.chips.map((ch, i) => <Text key={`chip-${c.id}-${i}`} dimColor>{`${i ? ' · ' : ''}${ch}`}</Text>)}
+        </Box>
         <Box flexDirection="row" justifyContent="space-between">
           {c.git?.length ? <Text color={WORKTREE_COLOR}>{c.git.join(' ')}</Text> : <Text dimColor>{' '}</Text>}
           {c.role ? <Text dimColor>{c.role}</Text> : null}
@@ -722,7 +726,7 @@ export const register: Register = on => {
             <Box width={c.pct === undefined ? '30%' : `${Math.round(c.pct * 100)}%`} backgroundColor={c.pct === undefined ? segTone(c.tone, fr) : barTone(c.state)} />
           </Box>
         )}
-        <Box flexDirection="row" justifyContent="space-between"><Text dimColor>{c.status ?? ' '}</Text><Text dimColor>{`${c.pctText}  ${c.time}`}</Text></Box>
+        <Box flexDirection="row" justifyContent="space-between"><Text dimColor wrap="truncate-end">{c.status ?? ' '}</Text><Text dimColor>{`${c.pctText}  ${c.time}`}</Text></Box>
       </Box>
     )
     // Connectors are Boxes (a 1-cell bar), tone `suggestion` into a running child, `subtle` otherwise.

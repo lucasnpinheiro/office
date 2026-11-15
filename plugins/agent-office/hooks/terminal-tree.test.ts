@@ -34,7 +34,7 @@ test('U-004 width dynamic between 18 and 34', () => {
 test('U-005 avail below 18: 1 column, nothing dropped, no row wider than the pane', () => {
   const ag = [mk('a'), ...kids('a', 3), ...kids('k0', 3, 'z')]
   const t = rows(ag, 60)
-  for (const id of ['a', 'k0', 'k1', 'k2', 'z0', 'z1', 'z2']) expect(t.join('\n')).toContain(`Dev: ${id}`)
+  expect(t.join('\n').match(/Dev: /g)?.length).toBe(7) // T-004: narrow titles cut to Dev: …
   for (const l of t) expect(strWidth(l)).toBeLessThanOrEqual(60)
 })
 test('U-006 chain of 12 levels: 10 drawn, level 10 shows +N ocultos', () => {

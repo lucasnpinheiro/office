@@ -71,7 +71,7 @@ test('cards view keeps a finished agent for 30 s after it ends (then it leaves, 
 test('70 agents: every card renders in cards view (no 60 cap)', () => {
   const ag = Array.from({ length: 70 }, (_, i) => mk(`z${i}`))
   const t = renderCompact(ag, T + 5000, { ...base, maxLines: 2000 }).map(l => l.map(s => s.t).join('')).join('\n')
-  for (let i = 0; i < 70; i++) expect(t).toContain(`Dev: z${i}`)
+  expect(t.match(/Dev: /g)?.length).toBe(70) // T-004: narrow titles cut to Dev: …
 })
 
 // T-003 (office-map-mock-style REQ-005)
