@@ -586,8 +586,8 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const flowOf = (n: Node) => (n.git?.worktree ? n.git.branch ?? n.git.worktree : '')
   const agentKids = (n: Node) => sortNodes(n.children.filter(k => k.kind === 'agent' && keep.has(k.id)), v.sort)
   const maxPer = v.containerPx === undefined ? 6 : Math.min(6, appColumns(v.containerPx))
-  const CARD_MIN = 18, MAX_LEVEL = 10
-  type M = { w: number; cw: number; h: number; rows: Node[][]; hidden: number }
+  const CARD_MIN = 18, MAX_LEVEL = 10, GAP = 3
+  type M = { w: number; cw: number; h: number; rows: Node[][]; hidden: number; px: number }
   const memo = new Map<Node, M>()
   const hs = new Map<Node, number>()
   const tagOf = (n: Node, depth: number, up: boolean, down: boolean, w?: number): CardTag => ({ role: n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente', wt: flowOf(n), br: n.kind === 'session' ? v.branch : undefined, wf: n.workflow, up, down, w })
@@ -600,12 +600,21 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     const kids = agentKids(n), rows: Node[][] = []
     const hidden = depth >= MAX_LEVEL ? count(n) : 0
     const list = hidden ? [] : kids
-    const cols = Math.max(1, Math.min(maxPer, list.length, Math.floor((avail + CARD_GAP) / (CARD_MIN + CARD_GAP))))
-    const slot = Math.floor((avail - CARD_GAP * (cols - 1)) / cols), kw = Math.max(CARD_MIN, Math.min(CARD_W, slot))
+    // central gap (user decision 2026-11-15): when the kids span 2+ rows, every full row leaves GAP free cells in the middle for the parent's line (1 cell wider than a gapless row)
+    let a2 = avail, cols = Math.max(1, Math.min(maxPer, list.length, Math.floor((a2 + CARD_GAP) / (CARD_MIN + CARD_GAP))))
+    if (list.length > cols && cols > 1) { a2 = avail - 1; cols = Math.max(1, Math.min(maxPer, list.length, Math.floor((a2 + CARD_GAP) / (CARD_MIN + CARD_GAP)))) }
+    const slot = Math.floor((a2 - CARD_GAP * (cols - 1)) / cols), kw = Math.max(CARD_MIN, Math.min(CARD_W, slot))
     for (let i = 0; i < list.length; i += cols) rows.push(list.slice(i, i + cols))
     for (const k of list) measure(k, slot, kw, depth + 1)
-    const rowW = rows.map(r => r.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0))
-    const m = { w: Math.max(cw, ...rowW), cw, h: hOf(n, depth, cw) + (hidden ? 1 : 0) + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows, hidden }
+    const wid = (r: Node[]) => r.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0)
+    // every row but the last is split in two halves around the gap (odd: the bigger half on the left, so 5 -> 3|2); px = the gap's centre column
+    const gl = rows.map((r, i) => i < rows.length - 1 && r.length > 1 ? Math.ceil(r.length / 2) : 0)
+    const rowW = rows.map((r, i) => gl[i] ? wid(r.slice(0, gl[i])) + GAP + wid(r.slice(gl[i])) : wid(r))
+    const left = Math.max(Math.floor(cw / 2), ...rows.map((r, i) => gl[i] ? wid(r.slice(0, gl[i])) + 1 : 0))
+    const right = Math.max(cw - Math.floor(cw / 2), ...rows.map((r, i) => gl[i] ? wid(r.slice(gl[i])) + 2 : 0))
+    const w = Math.max(cw, ...rowW, gl.some(Boolean) ? left + right : 0)
+    const px = gl.some(Boolean) ? Math.floor((w - left - right) / 2) + left : Math.floor((w - cw) / 2) + Math.floor(cw / 2)
+    const m = { w, px, cw, h: hOf(n, depth, cw) + (hidden ? 1 : 0) + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows, hidden }
     memo.set(n, m); return m
   }
   const grid: { x: number; w: number; l: Line }[][] = []
@@ -613,7 +622,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   let idx = 0
   const draw = (n: Node, x0: number, y0: number, depth: number, up: boolean) => {
     const m = memo.get(n)!, cw = m.cw
-    const bx = x0 + Math.floor((m.w - cw) / 2), pcx = bx + Math.floor(cw / 2)
+    const pcx = x0 + m.px, bx = pcx - Math.floor(cw / 2)
     starts?.push(y0)
     const ch = hOf(n, depth, cw)
     card(n, nm, c, now, frame, idx++, tagOf(n, depth, up, m.rows.length > 0, cw), runs?.get(n.id)).forEach((l, r) => put(bx, y0 + r, l))
@@ -622,8 +631,9 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
     let y = y0 + ch
     m.rows.forEach((row, ri) => {
       const rw = row.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0)
-      let sx = x0 + Math.floor((m.w - rw) / 2)
-      const slots = row.map(k => { const q = sx; sx += memo.get(k)!.w + CARD_GAP; return q })
+      const gapped = ri < m.rows.length - 1 && row.length > 1, half = Math.ceil(row.length / 2)
+      let sx = gapped ? pcx - 1 - row.slice(0, half).reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0) : x0 + Math.floor((m.w - rw) / 2)
+      const slots = row.map((k, i) => { if (gapped && i === half) sx = pcx + 2; const q = sx; sx += memo.get(k)!.w + CARD_GAP; return q })
       const cxs = row.map((k, i) => slots[i]! + Math.floor((memo.get(k)!.w - memo.get(k)!.cw) / 2) + Math.floor(memo.get(k)!.cw / 2))
       const lo = Math.min(cxs[0]!, pcx), hi = Math.max(cxs[cxs.length - 1]!, pcx) // each row: its own bus under the parent column, drops at every child
       const live = !c.reducedMotion && row.some(k => k.state === 'running')
@@ -632,6 +642,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
       for (let x = lo; x <= hi; x++) {
         const ci = cxs.indexOf(x), isP = x === pcx
         const ch2 = lo === hi ? V
+          : isP && gapped ? J.x // the parent's line passes through the gap to the next row
           : ci >= 0 && isP ? (ri === 0 ? J.x : J.d)
             : isP ? J.u
               : ci >= 0 ? (x === lo ? J.tl : x === hi ? J.tr : J.d)
@@ -644,6 +655,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
       }
       put(lo, y, bus)
       row.forEach((k, i) => draw(k, slots[i]!, y + 1, depth + 1, true))
+      if (gapped) for (let r = 1, mh = Math.max(...row.map(k => memo.get(k)!.h)); r <= mh; r++) put(pcx, y + r, [seg(c, V, DIM)])
       y += 1 + Math.max(...row.map(k => memo.get(k)!.h))
     })
   }
