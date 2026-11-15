@@ -21,14 +21,14 @@ contract: test-flow/1
 | U-109 | Success | concluído sem filhos rodando: borda verde sólida | REQ-112 | compact.ts | no | - | TODO |
 | U-110 | Success | concluído com descendente rodando: borda tracejada | REQ-112 | compact.ts | no | - | TODO |
 | U-111 | Success | falha vermelha, atenção amarela | REQ-112 | compact.ts | no | - | TODO |
-| U-112 | Success | card compacto: L1..L4 conforme resposta ASK-1/4, título com … | REQ-111 | compact.ts | no | - | TODO |
-| U-113 | Success | rodando mostra trilha ▸ a ‹ b ‹ c | REQ-111 | compact.ts | no | - | TODO |
+| U-112 | Success | card 5-6 linhas: título (até 2 linhas, …), chips, branch+papel, barra, status+custo·tempo, pill; sem linhas redundantes | REQ-111 | compact.ts | no | - | TODO |
+| U-113 | Success | rodando mostra trilha ▸ a ‹ b ‹ c no status; pill e papel presentes | REQ-111 | compact.ts | no | - | TODO |
 | U-114 | Success | recolher pai oculta ramo; modelo intacto; ▾ vira ▸ | REQ-113 | monitor.ts | no | - | TODO |
 | U-115 | Success | barra Ramos lista só pais com filhos; − expandido | REQ-113 | compact.ts | no | - | TODO |
 | U-116 | Deviation | recolher e expandir tudo preserva estado entre Mapa e Árvore | REQ-113 | register.tsx | no | - | TODO |
 | U-117 | Success | legenda tem 8 itens incluindo Inativo, aguarda filhos, ⧉ | REQ-114 | compact.ts | no | - | TODO |
 | U-118 | Success | Níveis de profundidade N/10 no Mapa e na Árvore | REQ-114 | compact.ts | no | - | TODO |
-| U-119 | Success | cabeçalho: Progresso Geral %, Decorrido, Estimativa (ASK-2) | REQ-115 | compact.ts | no | - | TODO |
+| U-119 | Success | cabeçalho estendido: projeto, branch, tokens/custo mantidos + Progresso Geral % com barra, Decorrido, Estimativa | REQ-115 | compact.ts | no | - | TODO |
 | U-120 | Deviation | sem agentes: sem barra, sem NaN | REQ-115 | compact.ts | no | - | TODO |
 | U-121 | Success | cabeçalho em 60 colunas não corta palavra | REQ-115 | compact.ts | no | - | TODO |
 | U-122 | Success | 500 nós: measure < 50 ms | REQ-104 | compact.ts | no | - | TODO |
