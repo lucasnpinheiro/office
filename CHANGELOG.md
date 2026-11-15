@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28.16 (agent-office, central-gap connector, current prices)
+
+- Terminal map: when a parent's children span 2+ rows, row 1 leaves a central gap between its middle cards (odd counts split larger on the left) and the parent's line descends through it to the next row's bus; it never crosses a card. The app map (flexbox, no bus) is unchanged.
+- Price table (`hooks/price.ts`) moved to the current models agents run as aliases: Opus 5.5 $4/$20, Sonnet 5.5 $2/$10, Haiku 5.5 from $0.10/$0.50 per MTok (source: Claude models overview, checked 2026-11-15).
+- App map scroll verified: every card is rendered and nothing clips the panel; the host panel scrolls, so no row window was added.
+
 ## 0.28.15 (agent-office, estimated agent cost, two-line titles)
 
 - Per-agent cost is estimated from the agent's tokens x a per-model price table (`hooks/price.ts`, haiku/sonnet/opus), shown with the `~$` prefix in the card, the detail view and the cost view; "—" when there are no tokens. Tokens are one sum, so the split is an assumed 80% input / 20% output. The session total is unchanged.
