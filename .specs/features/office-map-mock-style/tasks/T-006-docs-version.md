@@ -24,6 +24,6 @@ Bump plugin.json 0.28.14, README, notas supersede nas specs antigas, regenerar i
 plugins/agent-office/.claude-plugin/plugin.json; README.md; .specs/features/office-org-tree-2d/spec.md; office-app-dynamic-cards/spec.md
 
 ## Aceite
-- [ ] RED primeiro nos testes citados, depois GREEN (TDD); `rtk` em todo comando.
+- [ ] RED primeiro nos testes citados, depois GREEN (TDD).
 - [ ] Testes: tests/integration.md I-003
 - [ ] Só arquivos listados mudam; phpcs n/a (TS); suite do diff antes, suite completa no gate.

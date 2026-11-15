@@ -24,6 +24,6 @@ footerRows por item inteiro com j: desce / k: sobe; detalhe com voltar único, c
 actions.ts footerRows; view-detail.ts; register.tsx 880-890; actions.test.ts, review.test.ts
 
 ## Aceite
-- [ ] RED primeiro nos testes citados, depois GREEN (TDD); `rtk` em todo comando.
+- [ ] RED primeiro nos testes citados, depois GREEN (TDD).
 - [ ] Testes: tests/unit.md U-021..U-026, tests/validation.md V-001
 - [ ] Só arquivos listados mudam; phpcs n/a (TS); suite do diff antes, suite completa no gate.

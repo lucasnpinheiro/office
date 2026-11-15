@@ -24,6 +24,6 @@ Reescrever measure/draw de cardLines: sem stack, avail recursivo, w dinâmico 18
 plugins/agent-office/hooks/compact.ts; testes cards-*.test.ts, org-tree-2d.test.ts, real-render.test.ts
 
 ## Aceite
-- [ ] RED primeiro nos testes citados, depois GREEN (TDD); `rtk` em todo comando.
+- [ ] RED primeiro nos testes citados, depois GREEN (TDD).
 - [ ] Testes: tests/unit.md U-001..U-008, tests/integration.md I-001
 - [ ] Só arquivos listados mudam; phpcs n/a (TS); suite do diff antes, suite completa no gate.

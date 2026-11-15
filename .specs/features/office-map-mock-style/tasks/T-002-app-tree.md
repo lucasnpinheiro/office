@@ -24,6 +24,6 @@ appMap sem layout column; mapTree particiona filhos de todo pai via mapRows com 
 plugins/agent-office/hooks/app-cards.ts; register.tsx (mapTree 752-790); app-cards.test.ts
 
 ## Aceite
-- [ ] RED primeiro nos testes citados, depois GREEN (TDD); `rtk` em todo comando.
+- [ ] RED primeiro nos testes citados, depois GREEN (TDD).
 - [ ] Testes: tests/unit.md U-009..U-012, tests/ui-design.md D-001
 - [ ] Só arquivos listados mudam; phpcs n/a (TS); suite do diff antes, suite completa no gate.
