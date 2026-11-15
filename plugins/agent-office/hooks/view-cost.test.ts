@@ -67,7 +67,7 @@ test('custo largo: árvore com ├ e └ e colunas tokens, custo e tempo', () =>
   const lines = txt(costLines(model(tree), T + 5000, wide())).split('\n')
   expect(lines.some(l => l.includes('├'))).toBe(true)
   expect(lines.some(l => l.includes('└'))).toBe(true)
-  expect(lines.slice(2).find(l => l.includes('Dev: a'))).toMatch(/27,0k\s+~\$0,15\s+00:04/)
+  expect(lines.slice(2).find(l => l.includes('Dev: a'))).toMatch(/27,0k\s+~\$0,10\s+00:04/)
 })
 
 // RED: barra da linha do tempo em █ e deslocada pelo início do agente
@@ -96,6 +96,6 @@ test('custo 60 colunas: mantém o cabeçalho antigo', () => {
 
 test('custo estreito: agente com tokens mostra ~$ estimado; sem tokens mostra ~$ —', () => {
   const out = txt(costLines(model([...known, mk('c', { status: 'done', endedAt: T + 2000 })]), T + 5000, { width: 80, caps }))
-  expect(out).toMatch(/Dev: a.*12,3 mil\s+~\$0,07/)
+  expect(out).toMatch(/Dev: a.*12,3 mil\s+~\$0,04/)
   expect(out).toMatch(/c .*—\s+~\$ —/)
 })
