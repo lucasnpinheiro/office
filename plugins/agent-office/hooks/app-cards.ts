@@ -77,16 +77,20 @@ export function appMap(agents: AgentRecord[], now: number, o: { query?: string; 
 
 // Card grid: rows of as many 34-wide cards (gap 2) as the pane holds; an explicit row per chunk, so the layout never depends on flex wrap.
 export const APP_CARD_W = 26, APP_GAP = 2 // 25% under the old 34 (user: cards too big with many agents)
-export const appPerRow = (cols: number): number => Math.max(1, Math.floor((cols - 2 + APP_GAP) / (APP_CARD_W + APP_GAP)))
-export function appGrid<T>(items: readonly T[], cols: number): T[][] {
-  const n = appPerRow(cols), rows: T[][] = []
+export const APP_CARD_MIN = 15, APP_MAX_ROW = 6 // user 2026-11-15: up to 6 side by side, cards shrink with the sibling count
+export const appPerRow = (cols: number, w = APP_CARD_W): number => Math.min(APP_MAX_ROW, Math.max(1, Math.floor((cols - 2 + APP_GAP) / (w + APP_GAP))))
+// Width that fits min(count, 6) cards in the pane, between APP_CARD_MIN and APP_CARD_W. Cell grid: no font size, so width is the lever.
+export const appCardW = (count: number, cols: number): number =>
+  Math.max(APP_CARD_MIN, Math.min(APP_CARD_W, Math.floor((cols - 2 + APP_GAP) / Math.min(APP_MAX_ROW, Math.max(1, count))) - APP_GAP))
+export function appGrid<T>(items: readonly T[], cols: number, w = APP_CARD_W): T[][] {
+  const n = appPerRow(cols, w), rows: T[][] = []
   for (let i = 0; i < items.length; i += n) rows.push(items.slice(i, i + n))
   return rows
 }
 
 // Map siblings: one solid bus when they fit a single row, else rows under a dashed trunk, each with its own dashed bus.
-export function mapRows<T>(kids: readonly T[], cols: number): { bus: 'solid' | 'dashed'; rows: T[][] } {
-  const rows = appGrid(kids, cols)
+export function mapRows<T>(kids: readonly T[], cols: number, w = APP_CARD_W): { bus: 'solid' | 'dashed'; rows: T[][] } {
+  const rows = appGrid(kids, cols, w)
   return { bus: rows.length > 1 ? 'dashed' : 'solid', rows }
 }
 

@@ -183,13 +183,13 @@ test('desktop map: siblings that do not fit wrap into rows hung off a dashed tru
   await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
   for (let i = 1; i <= 8; i++) await $.agent.spawn({ tool_use_id: `w${i}`, prompt: 'p', description: `🛠️ Mid-level · 🪶 Haiku · 🟢 baixo: tarefa ${i}` } as any)
   const u1 = await mountApp($, 112)
-  const k = await boxKeys(u1) // (112 - 2 + 2) / 28 = 4 per row -> 2 rows
+  const k = await boxKeys(u1) // 8 siblings -> 16-wide cards, 6 per row -> 2 rows
   await u1.unmount()
   expect(k.filter(x => x.startsWith('trunk-'))).toEqual(['trunk-session'])
   expect(k.filter(x => x.startsWith('rowbus-')).length).toBe(2)
-  const k2 = await boxKeys(await mountApp($, 400)) // everything fits: one solid bus, no trunk
-  expect(k2.filter(x => x.startsWith('trunk-')).length).toBe(0)
-  expect(k2.filter(x => x.startsWith('rowbus-')).length).toBe(0)
+  const k2 = await boxKeys(await mountApp($, 400)) // wide pane still caps at 6 per row (user 2026-11-15)
+  expect(k2.filter(x => x.startsWith('trunk-')).length).toBe(1)
+  expect(k2.filter(x => x.startsWith('rowbus-')).length).toBe(2)
 })
 
 test('desktop map: role on every card and a lit pulse on the dashed bus of a row with a running child', async ($, on) => {

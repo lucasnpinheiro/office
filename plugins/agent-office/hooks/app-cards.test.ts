@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, segTone, barTone, cardBg, onCard, WAIT_WHITE } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, appCardW, appPerRow, segTone, barTone, cardBg, onCard, WAIT_WHITE } from './app-cards'
 import type { AgentLike } from './office'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES } from './capabilities'
@@ -113,7 +113,7 @@ test('grid: cards wrap into rows by pane width (horizontal and vertical), never 
   const ids = Array.from({ length: 7 }, (_, i) => String(i))
   const rowsOf = (cols: number) => appGrid(ids, cols).map(r => r.length)
   expect(rowsOf(120)).toEqual([4, 3]) // 26-wide cards + gap 2: 4 fit in 120
-  expect(rowsOf(200)).toEqual([7])
+  expect(rowsOf(200)).toEqual([6, 1]) // never more than 6 side by side
   expect(rowsOf(10)).toEqual([1, 1, 1, 1, 1, 1, 1]) // narrower than one card: one per row, none dropped
   expect(appGrid(['a'], 120)).toEqual([['a']])
   expect(appGrid([], 120)).toEqual([])
@@ -151,4 +151,15 @@ test('cards 25% smaller: 26-wide (was 34), line blinks while running, white whil
   expect(cardBg('failed')).toBe('error')
   expect(cardBg('running')).toBeUndefined()
   expect([barTone('failed'), onCard('failed', 'error'), onCard('running', 'error')]).toEqual([WAIT_WHITE, WAIT_WHITE, 'error']) // review: no red line on the red card
+})
+
+test('dynamic width: cards shrink with the sibling count so up to 6 sit side by side; never wider than 26 nor narrower than 15', () => {
+  const six = Array.from({ length: 6 }, (_, i) => i)
+  expect(appCardW(3, 120)).toBe(26) // few cards keep full width
+  expect(appCardW(6, 120)).toBe(18)
+  expect(appGrid(six, 120, appCardW(6, 120)).map(r => r.length)).toEqual([6])
+  expect(appGrid(Array.from({ length: 9 }, (_, i) => i), 120, appCardW(9, 120)).map(r => r.length)).toEqual([6, 3]) // cap 6 per row
+  expect(appCardW(6, 60)).toBe(15) // narrow pane: floor, then wraps
+  expect(appGrid(six, 60, appCardW(6, 60)).map(r => r.length)).toEqual([3, 3])
+  expect(appPerRow(300)).toBe(6)
 })
