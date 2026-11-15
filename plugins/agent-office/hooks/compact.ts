@@ -467,6 +467,14 @@ function stateBar(n: Node, frac: number, cells: number, c: Caps, frame: number):
   const done = Math.min(head ? S - 1 : S, Math.round(Math.max(0, Math.min(1, frac)) * S))
   return segBar(Array.from({ length: S }, (_, i) => (i < done ? STATE_COLOR.done : i === done && head ? head : DIM)), ws, c)
 }
+// Title beside the pill: line 1 keeps the pill; a title that does not fit wraps by word to a full-width line 2 (max 2 rows, the 2nd is cut with … by the caller).
+export function titleRows(title: string, room1: number): string[] {
+  if (strWidth(title) <= room1 || room1 < 4) return [title]
+  const head = takeWidth(title, room1)
+  const sp_ = title[head.length] === ' ' ? head.length : head.lastIndexOf(' ')
+  if (sp_ <= 0) return ['', title] // first word wider than the room: never split it, the whole title goes to line 2
+  return [title.slice(0, sp_), title.slice(sp_).trimStart()]
+}
 // Design card (Proto5 / Chips5, the same anatomy in the terminal): title + state pill, chips (1-2 rows), worktree + role
 // (1-2 rows), step segments, status + cost and time. Height follows content (design); the pane scrolls instead of shrinking a card.
 function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number, tag: CardTag = {}, run?: RunNode): Line[] {
@@ -545,7 +553,15 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   return [
     edgeLine(b.tl, b.tr, tag.up ? (c.ascii ? '+' : '┴') : undefined),
     // the pill is on every card and never goes; the title shortens with … to make room. A done card has no ✓ prefix (the pill says Concluído)
-    split([...(n.state === 'done' ? [] : [seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id })]), seg(c, full, undefined, { bold: true, node: id })], [seg(c, pill, col_, { bold: true })], true), // a cut title ends in … (video: "Operações bitwise 0b1010 e shi")
+    ...(() => {
+      const g = n.state === 'done' ? [] : [seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id })]
+      const gw = lineWidth(g), pw = strWidth(pill)
+      const [t1, t2] = titleRows(full, inner - pw - 1 - gw)
+      return [
+        split([...g, seg(c, t1!, undefined, { bold: true, node: id })], [seg(c, pill, col_, { bold: true })], true),
+        ...(t2 ? [body(clip([seg(c, t2, undefined, { bold: true, node: id })], inner))] : []),
+      ]
+    })(),
     ...chipRows.map(t => body(clip([seg(c, t, DIM, { node: id })], inner))),
     ...flowRows,
     body(bar),

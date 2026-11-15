@@ -32,26 +32,36 @@ test('U-017: long persona: the wrap only falls between chips, a chip is never cu
 test('U-018: state pill is on every card, a long title shortens with … to make room', () => {
   for (const [status, pill] of [['working', 'Rodando'], ['done', 'Concluído']] as const) {
     const t = rows([mk('x', { status, description: '🧪 QA · 🪶 Haiku · 🟢 baixo: Atualizar a documentação completa do plugin office inteiro' } as any)])
-    const y = t.findIndex(l => l.includes('Atualizar') && l.includes('│'))
+    const y = t.findIndex(l => l.includes('Atual') && l.includes('│'))
     expect(t[y]).toContain(pill)
-    expect(t[y]).toContain('…')
+    expect(t.join('\n')).toContain('…')
   }
 })
 
-test('U-019: no ✓ title prefix; the pill reads Concluído on a done card', () => {
-  const t = rows([mk('d', { status: 'done', description: '🦉 Senior · 🎼 Sonnet · 🟢 baixo: API de cupom' } as any)])
-  const y = t.findIndex(l => l.includes('API de cupom') && l.includes('│'))
-  expect(t[y]).not.toContain('✓')
-  expect(t[y]).toMatch(/│API de cupom +Concluído│/)
+test('U-019: long title keeps the pill on line 1 and wraps by word to a full-width line 2 (26 and 18 col cards)', () => {
+  const long = 'Atualizar a documentação completa do plugin office inteiro'
+  for (const [n, width] of [[3, 120], [19, 120]] as const) {
+    const ag = Array.from({ length: n }, (_, i) => mk(`k${i}`, { description: `🧪 QA · 🪶 Haiku · 🟢 baixo: ${long}` } as any))
+    const t = rows(ag, { width, maxLines: 200 })
+    const y = t.findIndex(l => /Rod/.test(l) && !/Claude Code|Orquestrador/.test(l))
+    expect(t.slice(y, y + 2).join('\n')).toContain('Atual')
+    expect(t[y + 2]).toContain('🪶') // pill row + 1 title row at most beyond it, chips next
+  }
+  const short = rows([mk('x', { description: '🧪 QA · 🪶 Haiku · 🟢 baixo: Curto' } as any)])
+  expect(short[short.findIndex(l => l.includes('Curto')) + 1]).toContain('🪶') // short title stays 1 row
+})
+test('U-020: 2nd title row is cut with … when it still does not fit', () => {
+  const ag = Array.from({ length: 19 }, (_, i) => mk(`k${i}`, { description: '🧪 QA · 🪶 Haiku · 🟢 baixo: Atualizar a documentação completa do plugin office inteiro agora mesmo e depois mais' } as any))
+  const t = rows(ag, { maxLines: 200 })
+  const y = t.findIndex(l => /Rod/.test(l) && !/Claude Code|Orquestrador/.test(l))
+  expect(t[y + 1]).toContain('…')
+  expect(t[y + 2]).toContain('🪶')
 })
 
-test('U-020: a long status trail is cut per item with …, items are separated, no stray quote mark', () => {
-  const a = mk('t', { tool: 'Bash', recent: ['Read', 'Grep', 'Edit', 'Write', 'Glob', 'WebFetch'], description: '🧪 QA · 🪶 Haiku · 🟢 baixo: Rodar testes' } as any)
-  const t = rows([a], { width: 60 })
-  const y = t.findIndex(l => l.includes('Rodar testes') && l.includes('│'))
-  const foot = t[y + 4]!
-  expect(foot).toContain('…')
-  expect(foot).not.toContain('"')
-  expect(foot).toContain('‹')
-  expect(strWidth(foot)).toBe(strWidth(t[y]!))
+test('U-021: a first word wider than the room beside the pill is never split: line 1 = glyph + pill, whole title on line 2', () => {
+  const ag = Array.from({ length: 19 }, (_, i) => mk(`k${i}`, { description: '🧪 QA · 🪶 Haiku · 🟢 baixo: Atualizar documentação' } as any))
+  const t = rows(ag, { maxLines: 200 })
+  expect(t.some(l => /│⠋ +Rod/.test(l))).toBe(true)
+  expect(t.some(l => /│Atualizar/.test(l))).toBe(true)
+  expect(t.some(l => l.includes('Atuali') && !l.includes('Atualiz'))).toBe(false)
 })

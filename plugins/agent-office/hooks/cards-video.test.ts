@@ -14,6 +14,7 @@ const NAMES = [
   'Calc conversão de bases', 'Operações bitwise 0b1010 e shifts', 'Conversões bin/oct/hex 255 e 42',
   'média, mediana e moda de [2,4,4,7]', 'desvio padrão populacional, amostral', 'Raízes de x^3-6x^2+11x-6 #1', 'Determinante e inversa de matriz 3x3',
 ]
+const key = (n: string) => n.split(' ').find(w => w.length >= 5)!.slice(0, 5)
 const scene = () => [mk('root', { description: 'Claude Code' }), ...NAMES.map((n, i) => mk(`c${i}`, { description: n, parentAgentId: 'g-root' }))]
 
 // every scroll step the window can take: the titles visible at each step, with the status row of the same card
@@ -28,19 +29,19 @@ test('video layout: the pane body is filled to 55 rows, footer in the last row, 
   const t = lines(ag)
   expect(t.length).toBe(55)
   const all = steps(ag).join('\n')
-  for (const n of NAMES) expect(all).toContain(n.slice(0, 8)) // a 34-col card holds the title or its start, then …
+  for (const n of NAMES) expect(all).toContain(key(n)) // a long title wraps onto a 2nd row; its first 5+ char word starts there
 })
 
 test('video layout: a title is never cut mid-word without an ellipsis (Operações bitwise…, desvio padrão…, am)', () => {
   const ag = scene()
   for (const step of steps(ag)) {
     for (const n of NAMES) {
-      const head = n.slice(0, 8)
+      const head = key(n)
       for (const row of step.split('\n')) {
         const at = row.indexOf(head)
         if (at < 0) continue
-        const seg = row.slice(at, at + n.length + 1)
-        expect(seg.startsWith(n) || seg.includes('…')).toBe(true)
+        const w = n.split(' ').find(x => x.length >= 5)!
+        expect(row.slice(at).startsWith(w) || row.includes('…')).toBe(true) // whole word or cut with …, never split across rows
       }
     }
   }

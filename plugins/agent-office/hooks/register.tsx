@@ -6,9 +6,9 @@ import { detailData } from './view-detail'
 import type { Register, EngineInterface } from 'claude-code'
 import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, paneBodyLines, drawSig, ticker } from './office'
-import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS } from './monitor'
+import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS, strWidth } from './monitor'
 import { TONE as TONE_OF } from './app-cards'
-import { mapScrollStep, renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
+import { mapScrollStep, renderCompact, titleRows, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
@@ -697,17 +697,24 @@ export const register: Register = on => {
     // motion on the app surfaces: spinner glyph, a sweeping indeterminate bar and a pulse along the dashed buses (off with reduced motion)
     const fr = caps.reducedMotion ? 0 : frameFor(all, now)
     const glyphOf = (c: AppCard) => (c.state === 'running' && !caps.reducedMotion ? spinnerGlyph(fr, false) : c.glyph)
+    const PILL_W = (c: AppCard) => strWidth(PILL[c.state] ?? '')
     const appCardBox = (c: AppCard, kids = false, w = APP_CARD_W) => (
       <Box key={`app-${c.id}`} flexDirection="column" borderStyle={selected === c.id ? 'double' : 'round'} borderColor={selected && selected !== c.id ? 'subtle' : c.tone} backgroundColor={cardBg(c.state)} width={w}>
-        <Box flexDirection="row" justifyContent="space-between">
-          {/* the title shortens with … (truncate-end); the pill is on every card and never shrinks; a done card has no ✓ prefix */}
-          {c.id === 'session' ? <Text color={cardBg(c.state) ? undefined : c.tone} bold wrap="truncate-end">{`${c.state === 'done' ? '' : `${glyphOf(c)} `}${c.title}${kids ? ' ▾' : ''}`}</Text> : (
-            <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>
-              <Text color={cardBg(c.state) ? undefined : c.tone} bold wrap="truncate-end">{`${c.state === 'done' ? '' : `${glyphOf(c)} `}${c.title}${kids ? ' ▾' : ''}`}</Text>
-            </Button>
-          )}
-          <Text color={cardBg(c.state) ? undefined : c.tone} wrap="truncate-end">{PILL[c.state] ?? ''}</Text>
-        </Box>
+        {(() => {
+          // pill stays on line 1; a long title wraps by word to a full-width line 2, then cuts with …
+          const full = `${c.state === 'done' ? '' : `${glyphOf(c)} `}${c.title}${kids ? ' ▾' : ''}`
+          const [t1, t2] = titleRows(full, w - 2 - PILL_W(c) - 1)
+          const tc = cardBg(c.state) ? undefined : c.tone
+          const tx = (t: string) => <Text color={tc} bold wrap="truncate-end">{t}</Text>
+          const wrap = (t: string) => (c.id === 'session' ? tx(t) : <Button plain key={`app-open-${c.id}`} onPress={() => void act(`open:${c.id}`)}>{tx(t)}</Button>)
+          return (<>
+            <Box flexDirection="row" justifyContent="space-between">
+              {wrap(t1!)}
+              <Text color={tc} wrap="truncate-end">{PILL[c.state] ?? ''}</Text>
+            </Box>
+            {t2 ? wrap(t2) : null}
+          </>)
+        })()}
         {/* chips wrap between whole chips: each chip is its own item, the separator leads the next one */}
         <Box flexDirection="row" flexWrap="wrap">
           {c.chips.map((ch, i) => <Text key={`chip-${c.id}-${i}`} dimColor>{`${i ? ' · ' : ''}${ch}`}</Text>)}
