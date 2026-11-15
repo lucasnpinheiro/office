@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.15 (agent-office, estimated agent cost, two-line titles)
+
+- Per-agent cost is estimated from the agent's tokens x a per-model price table (`hooks/price.ts`, haiku/sonnet/opus), shown with the `~$` prefix in the card, the detail view and the cost view; "—" when there are no tokens. Tokens are one sum, so the split is an assumed 80% input / 20% output. The session total is unchanged.
+- Long titles in narrow cards: the pill stays on line 1, the title wraps by word to a full second line and is cut with "…" only at its end (max 2 lines); a word is never split. Terminal and app.
+
 ## 0.28.14 (agent-office, nested map rows and mock card style)
 
 - Terminal and app map: every parent lays its children in rows of up to 6 at the parent's width (no stacked column, no side trunk); card width 18..34 (app 18..26), columns drop to 1 before any data is cut; depth 10 then a "+N ocultos" marker; one bus per row with vertical drops.
