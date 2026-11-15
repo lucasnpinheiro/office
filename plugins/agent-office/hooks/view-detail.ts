@@ -125,7 +125,7 @@ export function detailView(agents: AgentLike[], id: string, now: number, o: { ca
   const pct = n.state === 'done' ? 1 : total ? done / total : undefined
   const cells = Math.min(20, Math.max(8, W - 12)), fill = Math.round((pct ?? 0) * cells)
   const out: Line[] = [
-    padTo([s('← voltar (b)', { fg: DIM, act: 'back' })], W, [s(`Office › ${parentAgent ? nm(parentAgent) + ' › ' : ''}${nm(n)}`)]),
+    padTo([s('[← voltar]', { fg: DIM, act: 'back' })], W, [s(`Office › ${parentAgent ? nm(parentAgent) + ' › ' : ''}${nm(n)}`)]),
     [s(`${gv.glyph.trim()} ${nodeView(n.state, { ascii: true, color: false }).label}`, { fg: col, bold: true }), s(`   ${persona.join(' · ')}`, { fg: DIM })],
     [s(metrics.join('  '), { fg: DIM })],
     [s('█'.repeat(fill), { fg: col }), s('░'.repeat(cells - fill), { fg: MUTED }), s(pct === undefined ? '  sem total conhecido' : `  ${Math.round(pct * 100)}%`, { fg: DIM })],

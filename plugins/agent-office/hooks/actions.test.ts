@@ -174,7 +174,7 @@ test('footer: no orphan "x:" rows, every row fits the width, j/k are visible ite
       expect([...t].length).toBeLessThanOrEqual(cols)
     }
     const all = texts.join('\n')
-    expect(all).toContain('j: descer'); expect(all).toContain('k: subir')
+    expect(all).toContain('j: desce'); expect(all).toContain('k: sobe')
     for (const k of ['g: ', 'o: ', 'f: ', 's: ', 'v: ', 'q: ']) expect(all).toContain(k)
     // groups keep order: filtros before visão before sair
     expect(all.indexOf('g: ')).toBeLessThan(all.indexOf('v: ')); expect(all.indexOf('v: ')).toBeLessThan(all.indexOf('q: '))
@@ -183,13 +183,24 @@ test('footer: no orphan "x:" rows, every row fits the width, j/k are visible ite
   expect(footerRows(ui, false, 60).length).toBeGreaterThan(1)
 })
 
+// T-005 U-021/U-022 (REQ-009): legenda por item inteiro, rótulos "j: desce" / "k: sobe" na lista e no detalhe
+test('T-005 U-021 legenda 60 colunas: itens inteiros, nenhuma palavra cortada, sem j:/k: órfão', () => {
+  for (const ui of [{ ...initialUi(), view: 'compact' as const, mode: 'cards' as const }, { ...initialUi(), view: 'compact' as const, mode: 'cards' as const, selected: 'a1' }]) {
+    const texts = footerRows(ui, false, 60).map(r => r.map(x => x.t).join(''))
+    for (const t of texts) expect(t.trim()).not.toMatch(/(^|\s)[a-z]:$/i)
+    const all = texts.join('\n')
+    expect(all).toContain('j: desce'); expect(all).toContain('k: sobe')
+    expect(all).not.toMatch(/j: rolar|k: rolar|descer|subir|subi(?!r)/)
+  }
+})
+
 test('detail footer: b voltar, p/n irmão, j/k rolar, q fechar, in that order, no orphan rows', () => {
   const ui = { ...initialUi(), view: 'compact' as const, mode: 'cards' as const, selected: 'a1' }
   for (const cols of [60, 80, 160]) {
     const texts = footerRows(ui, false, cols).map(r => r.map(x => x.t).join(''))
     for (const t of texts) { expect(t.trim()).not.toMatch(/^[a-z]:$/i); expect([...t].length).toBeLessThanOrEqual(cols) }
     const all = texts.join('\n')
-    const pos = ['b: ', 'p/n', 'j: rolar', 'k: rolar', 'q: '].map(k => all.indexOf(k))
+    const pos = ['b: ', 'p/n', 'j: desce', 'k: sobe', 'q: '].map(k => all.indexOf(k))
     expect(pos.every(p => p >= 0)).toBe(true); expect([...pos].sort((x, y) => x - y)).toEqual(pos)
   }
 })

@@ -91,13 +91,13 @@ const groupOf = (act: string): number => (act === 'group' || act === 'sort' || a
 export function footerRows(s: Ui, side: boolean, cols: number): FooterSeg[][] {
   const scroll = !s.searching && s.mode === 'cards' && s.view === 'compact' && !s.selected // j/k scroll the card list: shown, not hidden buttons
   const nav: FooterSeg[] = [
-    ...(scroll ? [{ t: 'j: descer', act: 'scrollDown', hotkey: 'j' }, { t: 'k: subir', act: 'scrollUp', hotkey: 'k' }] : []),
+    ...(scroll ? [{ t: 'j: desce', act: 'scrollDown', hotkey: 'j' }, { t: 'k: sobe', act: 'scrollUp', hotkey: 'k' }] : []),
     ...footerTail(s).replace(/^ · /, '').split(' · ').map(t => ({ t, dim: true })),
   ]
   if (s.selected && !side && !s.searching) { // detail: b voltar · p/n irmão · j/k rolar · q fechar
     const items: FooterSeg[] = [
       ...hotkeysFor(s, side).filter(h => h.act === 'back').map(h => ({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })),
-      { t: 'p/n irmão', dim: true }, { t: 'j: rolar ↓', act: 'scrollDown', hotkey: 'j' }, { t: 'k: rolar ↑', act: 'scrollUp', hotkey: 'k' },
+      { t: 'p/n irmão', dim: true }, { t: 'j: desce', act: 'scrollDown', hotkey: 'j' }, { t: 'k: sobe', act: 'scrollUp', hotkey: 'k' },
       ...hotkeysFor(s, side).filter(h => h.act === 'close').map(h => ({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })),
     ]
     const rows: FooterSeg[][] = []
