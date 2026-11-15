@@ -50,16 +50,16 @@ test('tabs scroll horizontally on a narrow pane and keep the active one visible'
   expect(strWidth(tabs)).toBeLessThanOrEqual(60)
 })
 
-test('50 sub-levels: every card reachable by scrolling, none hidden, n/total shown', () => {
+test('50 sub-levels: the 10 drawn levels are reachable by scrolling, n/total shown, the rest is +N ocultos', () => {
   const chain = Array.from({ length: 50 }, (_, i) => ({ ...mk(`d${i}`), ...(i ? { parentAgentId: `g-d${i - 1}` } : {}) }) as AgentLike)
   const seen = new Set<string>()
-  for (let scroll = 0; scroll <= 420; scroll += 96) {
-    const t = rows(chain, { maxLines: 130, scroll }).join('\n')
+  for (let scroll = 0; scroll <= 420; scroll += 24) {
+    const t = rows(chain, { maxLines: 60, scroll }).join('\n')
     for (const m of t.matchAll(/Dev: d\d+/g)) seen.add(m[0])
     expect(t).toMatch(/\d+\/\d+/)
   }
-  expect(seen.size).toBe(50)
-  expect(rows(chain, { maxLines: 500 }).join('\n')).toContain('Dev: d49')
+  expect(seen.size).toBe(10) // T-001: depth limit 10, the rest folds into "+N ocultos"
+  expect(rows(chain, { maxLines: 500 }).join('\n')).toContain('+40 ocultos')
 })
 
 test('cards view keeps a finished agent for 30 s after it ends (then it leaves, see cards-visible B2)', () => {

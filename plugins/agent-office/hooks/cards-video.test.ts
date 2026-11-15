@@ -50,7 +50,7 @@ test('video layout: every visible card is whole in each step (status row present
   const ag = scene()
   for (const step of steps(ag)) {
     const titles = NAMES.filter(n => step.includes(n.slice(0, 8))).length
-    const status = [...step.matchAll(/executando/g)].length
+    const status = [...step.matchAll(/▸ /g)].length
     expect(status).toBeGreaterThanOrEqual(titles)
   }
 })

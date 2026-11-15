@@ -433,7 +433,7 @@ const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: ST
 // how far the cards view can scroll right now (module memory set by the last render; the reducer clamps with it)
 export const scrollInfo = { max: 0, units: [] as number[] } // units: first row of each card block the window can start at (one card per press)
 const MIN_CARD_ROWS = CARD_H + 3 // a pane shorter than this still gets room for one full card and its notes
-export type CardTag = { role?: string; wt?: string; br?: string; up?: boolean; down?: boolean; wf?: string } // wf: workflow run id
+export type CardTag = { role?: string; wt?: string; br?: string; up?: boolean; down?: boolean; wf?: string; w?: number } // wf: workflow run id
 const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
 // Step segments of the design card: one run of cells per tool step (width by duration, colour by result), the live one last.
 function stepBar(run: RunNode | undefined, n: Node, cells: number, c: Caps, frame: number): Line | undefined {
@@ -469,7 +469,7 @@ function stateBar(n: Node, frac: number, cells: number, c: Caps, frame: number):
 // Design card (Proto5 / Chips5, the same anatomy in the terminal): title + state pill, chips (1-2 rows), worktree + role
 // (1-2 rows), step segments, status + cost and time. Height follows content (design); the pane scrolls instead of shrinking a card.
 function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: number, idx: number, tag: CardTag = {}, run?: RunNode): Line[] {
-  const b = boxChars(c), inner = CARD_W - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
+  const b = boxChars(c), cw = tag.w ?? CARD_W, inner = cw - 2, col_ = stateColor(n.state), edge = BORDER[n.state]
   const k = growth(c, n, idx, now)
   const id = n.id
   const ch = chips(n.persona, n.model, n.effort)
@@ -499,7 +499,7 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
   const usd = run?.usage.costUsd
   const meta = `${usd === undefined ? pctText : fmtUsd(usd)} · ${time}`
   // borders carry only the tree: the connector enters at the top centre and leaves at the bottom centre
-  const mid = CARD_W / 2 - 1 // inner index of the centre column
+  const mid = Math.floor(cw / 2) - 1 // inner index of the centre column
   const edgeLine = (l: string, r: string, joint: string | undefined): Line =>
     joint ? [seg(c, l + b.h.repeat(mid), edge), seg(c, joint, edge), seg(c, b.h.repeat(inner - mid - 1) + r, edge)] : [seg(c, l + b.h.repeat(inner) + r, edge)]
   const pill = c.ascii ? asciiText(PILL[n.state] ?? '') : PILL[n.state] ?? ''
@@ -555,74 +555,71 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const J = c.ascii ? { d: '+', u: '+', x: '+', tl: '+', tr: '+', l: '+', bl: '+' } : { d: '┬', u: '┴', x: '┼', tl: '╭', tr: '╮', l: '├', bl: '╰' }
   const flowOf = (n: Node) => (n.git?.worktree ? n.git.branch ?? n.git.worktree : '')
   const agentKids = (n: Node) => sortNodes(n.children.filter(k => k.kind === 'agent' && keep.has(k.id)), v.sort)
-  const maxPer = v.containerPx === undefined ? Infinity : appColumns(v.containerPx)
-  const TM = 2 // trunk column + one blank
-  type M = { w: number; h: number; rows: Node[][] }
+  const maxPer = v.containerPx === undefined ? 6 : Math.min(6, appColumns(v.containerPx))
+  const CARD_MIN = 18, MAX_LEVEL = 10
+  type M = { w: number; cw: number; h: number; rows: Node[][]; hidden: number }
   const memo = new Map<Node, M>()
   const hs = new Map<Node, number>()
-  const tagOf = (n: Node, depth: number, up: boolean, down: boolean): CardTag => ({ role: n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente', wt: flowOf(n), br: n.kind === 'session' ? v.branch : undefined, wf: n.workflow, up, down })
+  const tagOf = (n: Node, depth: number, up: boolean, down: boolean, w?: number): CardTag => ({ role: n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente', wt: flowOf(n), br: n.kind === 'session' ? v.branch : undefined, wf: n.workflow, up, down, w })
   // card height by content: drawn once here, the same rows as draw() (role only changes agente/subagente, same width class)
-  const hOf = (n: Node, depth: number) => { let h = hs.get(n); if (h === undefined) hs.set(n, h = card(n, nm, c, now, frame, 0, tagOf(n, depth, false, false), runs?.get(n.id)).length); return h }
-  const measure = (n: Node, avail: number, depth = 0): M => {
+  const hOf = (n: Node, depth: number, cw: number) => { let h = hs.get(n); if (h === undefined) hs.set(n, h = card(n, nm, c, now, frame, 0, tagOf(n, depth, false, false, cw), runs?.get(n.id)).length); return h }
+  const count = (n: Node): number => agentKids(n).reduce((a, k) => a + 1 + count(k), 0)
+  // every parent splits its children in rows of up to 6; avail = the parent's own slot, so each level narrows and never overflows
+  const measure = (n: Node, avail: number, cw: number, depth = 0): M => {
     const hit = memo.get(n); if (hit) return hit
-    const kids = agentKids(n), inner = Math.max(CARD_W, avail - TM), rows: Node[][] = []
-    let cur: Node[] = [], used = 0
-    const stack = n !== g.root // design 2026-11-14: agents in one row under the root, subagents stacked in their parent's column
-    for (const k of kids) {
-      const w = measure(k, inner, depth + 1).w
-      if (cur.length && (stack || used + CARD_GAP + w > inner || cur.length >= maxPer)) { rows.push(cur); cur = []; used = 0 }
-      used += (cur.length ? CARD_GAP : 0) + w; cur.push(k)
-    }
-    if (cur.length) rows.push(cur)
+    const kids = agentKids(n), rows: Node[][] = []
+    const hidden = depth >= MAX_LEVEL ? count(n) : 0
+    const list = hidden ? [] : kids
+    const cols = Math.max(1, Math.min(maxPer, list.length, Math.floor((avail + CARD_GAP) / (CARD_MIN + CARD_GAP))))
+    const slot = Math.floor((avail - CARD_GAP * (cols - 1)) / cols), kw = Math.max(CARD_MIN, Math.min(CARD_W, slot))
+    for (let i = 0; i < list.length; i += cols) rows.push(list.slice(i, i + cols))
+    for (const k of list) measure(k, slot, kw, depth + 1)
     const rowW = rows.map(r => r.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0))
-    const tm = rows.length > 1 ? TM : 0
-    const m = { w: Math.max(CARD_W, tm + Math.max(0, ...rowW)), h: hOf(n, depth) + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows }
+    const m = { w: Math.max(cw, ...rowW), cw, h: hOf(n, depth, cw) + (hidden ? 1 : 0) + rows.reduce((a, r) => a + 1 + Math.max(...r.map(k => memo.get(k)!.h)), 0), rows, hidden }
     memo.set(n, m); return m
   }
   const grid: { x: number; w: number; l: Line }[][] = []
   const put = (x: number, y: number, l: Line) => { (grid[y] ??= []).push({ x, w: l.reduce((a, q) => a + strWidth(q.t), 0), l }) }
   let idx = 0
   const draw = (n: Node, x0: number, y0: number, depth: number, up: boolean) => {
-    const m = memo.get(n)!
-    const tm = m.rows.length > 1 ? TM : 0
-    const bx = x0 + tm + Math.floor((m.w - tm - CARD_W) / 2), pcx = bx + CARD_W / 2 // centred over the rows, not the trunk
+    const m = memo.get(n)!, cw = m.cw
+    const bx = x0 + Math.floor((m.w - cw) / 2), pcx = bx + Math.floor(cw / 2)
     starts?.push(y0)
-    card(n, nm, c, now, frame, idx++, tagOf(n, depth, up, m.rows.length > 0), runs?.get(n.id)).forEach((l, r) => put(bx, y0 + r, l))
+    const ch = hOf(n, depth, cw)
+    card(n, nm, c, now, frame, idx++, tagOf(n, depth, up, m.rows.length > 0, cw), runs?.get(n.id)).forEach((l, r) => put(bx, y0 + r, l))
+    if (m.hidden) { put(bx, y0 + ch, [seg(c, `+${m.hidden} ocultos`, DIM)]); return }
     if (!m.rows.length) return
-    let y = y0 + hOf(n, depth)
-    const busYs: number[] = []
+    let y = y0 + ch
     m.rows.forEach((row, ri) => {
       const rw = row.reduce((a, k, i) => a + memo.get(k)!.w + (i ? CARD_GAP : 0), 0)
-      let sx = x0 + tm + Math.floor((m.w - tm - rw) / 2)
+      let sx = x0 + Math.floor((m.w - rw) / 2)
       const slots = row.map(k => { const q = sx; sx += memo.get(k)!.w + CARD_GAP; return q })
-      const cxs = row.map((k, i) => slots[i]! + Math.floor((memo.get(k)!.w - CARD_W) / 2) + CARD_W / 2)
-      const lo = Math.min(cxs[0]!, ri === 0 ? pcx : Infinity, tm ? x0 : Infinity), hi = Math.max(cxs[cxs.length - 1]!, ri === 0 ? pcx : -Infinity)
+      const cxs = row.map((k, i) => slots[i]! + Math.floor((memo.get(k)!.w - memo.get(k)!.cw) / 2) + Math.floor(memo.get(k)!.cw / 2))
+      const lo = Math.min(cxs[0]!, pcx), hi = Math.max(cxs[cxs.length - 1]!, pcx) // each row: its own bus under the parent column, drops at every child
       const live = !c.reducedMotion && row.some(k => k.state === 'running')
       const pulse = live ? frame % (hi - lo + 1) : -1
       const bus: Line = []
       for (let x = lo; x <= hi; x++) {
-        const ci = cxs.indexOf(x), isP = ri === 0 && x === pcx, isT = tm > 0 && x === x0
-        const ch = lo === hi ? V
-          : isT ? (ri === 0 ? J.tl : ri === m.rows.length - 1 ? J.bl : J.l)
-            : ci >= 0 && isP ? J.x
-              : isP ? J.u
-                : ci >= 0 ? (x === lo ? J.tl : x === hi ? J.tr : J.d)
-                  : H
-        const lit = ch === H && pulse >= 0 && (x - lo === pulse || x - lo === (pulse + 1) % (hi - lo + 1))
+        const ci = cxs.indexOf(x), isP = x === pcx
+        const ch2 = lo === hi ? V
+          : ci >= 0 && isP ? (ri === 0 ? J.x : J.d)
+            : isP ? J.u
+              : ci >= 0 ? (x === lo ? J.tl : x === hi ? J.tr : J.d)
+                : H
+        const lit = ch2 === H && pulse >= 0 && (x - lo === pulse || x - lo === (pulse + 1) % (hi - lo + 1))
         const fg = ci >= 0 ? stateColor(row[ci]!.state) : lit ? lighten(STATE_COLOR.running) : DIM
         const last = bus[bus.length - 1]
-        const sg = seg(c, ch, fg)
-        if (last && last.fg === sg.fg) last.t += ch; else bus.push(sg)
+        const sg = seg(c, ch2, fg)
+        if (last && last.fg === sg.fg) last.t += ch2; else bus.push(sg)
       }
-      put(lo, y, bus); busYs.push(y)
+      put(lo, y, bus)
       row.forEach((k, i) => draw(k, slots[i]!, y + 1, depth + 1, true))
       y += 1 + Math.max(...row.map(k => memo.get(k)!.h))
     })
-    if (tm) for (let yy = busYs[0]! + 1; yy < busYs[busYs.length - 1]!; yy++) if (!busYs.includes(yy)) put(x0, yy, [seg(c, V, DIM)])
   }
   const lines: Line[] = []
   {
-    const rm = measure(g.root, v.width)
+    const rm = measure(g.root, v.width, CARD_W)
     draw(g.root, Math.max(0, Math.floor((v.width - rm.w) / 2)), 0, 0, false)
     for (let y = 0; y < grid.length; y++) {
       const out: Line = []

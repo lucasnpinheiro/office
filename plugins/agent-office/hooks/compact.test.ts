@@ -92,22 +92,17 @@ test('preview: colored diff, text, image fallback', () => {
 })
 
 const many = (n: number, parent?: string) => Array.from({ length: n }, (_, i) => mk('s' + i, parent ? { parentAgentId: parent } : {}))
-const cardCount = (out: string) => out.split('\n').map(l => (l.match(/╭[─┴]{32}╮/g) ?? []).length).filter(k => k > 0)
-test('cards: siblings per row follow the pane width: 120 -> 3, 200 -> 5, 34-col cards, 8 rows each', () => {
+const cardCount = (out: string) => out.split('\n').map(l => (l.match(/╭[─┴]{16,32}╮/g) ?? []).length).filter(k => k > 0)
+test('cards: U-001 up to 6 siblings per row, 7th opens row 2, width dynamic (18..34)', () => {
   const o120 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 }))
-  expect(cardCount(o120)).toEqual([1, 3, 3, 1]) // the parent card (main session), then the wrapped sibling rows
+  expect(cardCount(o120)).toEqual([1, 6, 1]) // the parent card (main session), then rows of 6
   const o200 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 200, maxCardRows: 99 }))
-  expect(cardCount(o200)).toEqual([1, 5, 2])
-  const lines = o120.split('\n'); const top = lines.findIndex(l => /^ +╭─{32}╮/.test(l)); const bot = lines.findIndex((l, i) => i > top && /^ +╰/.test(l))
-  expect(bot - top + 1).toBe(8)
+  expect(cardCount(o200)).toEqual([1, 6, 1])
 })
-test('cards: wrapped sibling rows hang off a dotted trunk on the left, each child under its own drop', () => {
-  const lines = txt(renderCompact(many(4), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n') // top-level row wraps
-  const first = lines.find(l => /^ *╭┄/.test(l))!, last = lines.find(l => /^ *╰┄/.test(l))!
-  expect(first).toBeDefined(); expect(last).toBeDefined()
-  expect(first.match(/[┬┼╮]/g)!.length).toBe(3) // three children on the first row
-  expect(last.match(/[┬╮]/g)!.length).toBe(1) // the fourth wraps
-  expect(lines.some(l => /^ *┊ ╭/.test(l))).toBe(true) // the trunk runs beside the first row
+test('cards: T-001 REQ-004 wrapped rows each get their own bus under the parent, no trunk on the left', () => {
+  const lines = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n')
+  expect(lines.filter(l => /^ *╭┄/.test(l) || /^ *╭[┄┬]*┴/.test(l) || /┄/.test(l)).length).toBeGreaterThanOrEqual(2) // one bus per row of children
+  expect(lines.some(l => /^ *┊ ╭/.test(l))).toBe(false); expect(lines.some(l => /├/.test(l))).toBe(false)
   const one = txt(renderCompact([mk('p', { agentId: 'P' })], T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n')
   expect(one.some(l => /^ +┊$/.test(l))).toBe(true) // single child (session -> P): a straight dotted drop
 })

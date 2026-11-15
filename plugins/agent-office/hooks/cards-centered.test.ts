@@ -16,7 +16,7 @@ const tree = [mk('a'), mk('b'), mk('c'), mk('s', { parentAgentId: 'g-b' })]
 
 test('centred: the parent card is centred over its children and the block is centred in the pane', () => {
   const t = rows(tree)
-  const tops = t.filter(l => /╭[─┴]{32}╮/.test(l) && !l.startsWith('╭'))
+  const tops = t.filter(l => /╭[─┴]{16,32}╮/.test(l) && !l.startsWith('╭'))
   const kidsRow = tops.find(l => (l.match(/╭/g) ?? []).length === 3)!
   const blockW = 3 * CARD_W + 2 * 2
   expect(lead(kidsRow)).toBe(Math.floor((120 - blockW) / 2))
@@ -57,14 +57,14 @@ for (const width of [60, 72, 80, 100, 120, 160, 200]) test(`responsive @${width}
   const many = [mk('p'), ...Array.from({ length: 7 }, (_, i) => mk(`k${i}`, { parentAgentId: 'g-p' })), mk('z', { parentAgentId: 'g-k1' })]
   const t = rows(many, { width })
   for (const l of t) expect(strWidth(l)).toBeLessThanOrEqual(width)
-  expect((t.join('\n').match(/╭[─┴]{32}╮/g) ?? []).length).toBe(10) // session + 9 agents
-  expect((t.join('\n').match(/╰─[^╭╰]{31}╯/g) ?? []).length).toBe(10)
+  expect((t.join('\n').match(/╭[─┴]{16,32}╮/g) ?? []).length).toBe(10) // session + 9 agents
+  expect((t.join('\n').match(/╰─[^╭╰]{15,31}╯/g) ?? []).length).toBe(10)
 })
 
 test('empty session: the orchestrator card and the waiting line are centred, under the Office header', () => {
   const t = rows([])
   expect(t[0]).toMatch(/^Office · /)
-  const top = t.find(l => /^ +╭─{32}╮/.test(l))!
+  const top = t.find(l => /^ +╭─{16,32}╮/.test(l))!
   expect(lead(top)).toBe((120 - CARD_W) / 2)
   expect(t.join('\n')).toContain('orquestrador')
   const wait = t.find(l => l.includes('Aguardando agentes'))!
@@ -93,7 +93,7 @@ test('cards never shrink and none is dropped: a short pane shows a window of ful
   expect(first.join('\n')).toMatch(/1\/\d+/); expect(first.join('\n')).not.toContain('cards ocultos')
   expect(last.join('\n')).toMatch(/(\d+)\/\1/)
   // this card (two chip rows) is 8 rows: top border, 6 body rows, bottom border
-  const top = first.findIndex(l => /╭─{32}╮/.test(l) && !l.startsWith('╭'))
+  const top = first.findIndex(l => /╭─{16,32}╮/.test(l) && !l.startsWith('╭'))
   for (let r = 1; r <= 6; r++) expect(first[top + r]).toContain('│')
   expect(first[top + 7]).toContain('╰')
 })
@@ -126,11 +126,12 @@ test('no scroll buttons or j/k hotkeys: j/k scroll invisibly; the footer lists n
   expect(keys('cards')).not.toContain('j'); expect(keys('cards')).not.toContain('k')
 })
 
-test('depth: a chain of 20 nested agents is drawn, each under its parent', () => {
+test('depth: a chain of 20 nested agents is drawn down to level 10, each under its parent', () => {
   const chain = Array.from({ length: 20 }, (_, i) => mk(`d${i}`, i ? { parentAgentId: `g-d${i - 1}` } : {}))
   const out = rows(chain, { maxLines: 9999 }).join('\n')
-  for (let i = 0; i < 20; i++) expect(out).toContain(`Dev: d${i}`)
-  expect((out.match(/╭[─┴]{32}╮/g) ?? []).length).toBe(21)
+  for (let i = 0; i < 10; i++) expect(out).toContain(`Dev: d${i}`) // T-001 U-006: 10 levels drawn, the rest is "+N ocultos"
+  expect(out).not.toContain('Dev: d10'); expect(out).toContain('+10 ocultos')
+  expect((out.match(/╭[─┴]{16,32}╮/g) ?? []).length).toBe(11)
 })
 
 test('orchestrator card (terminal) reads Orquestrador with persona · modelo · esforço, never Claude Code', () => {
