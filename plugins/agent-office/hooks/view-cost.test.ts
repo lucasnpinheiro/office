@@ -5,10 +5,10 @@ import { detectCaps } from './compact'
 import { CAPABILITIES } from './capabilities'
 import type { AgentLike } from './office'
 
-// T-010 (Visão Custo). Rendered output is tested as text; ACs from tasks/T-010-cost-tools-views.md.
+// Per-agent cost is estimated from tokens x model price (price.ts); `—` when tokens are unknown.
 // Cost is never invented: per-agent cost stays `—` (no price table); tokens come from turn.step usage.
 const T = 1_000_000
-const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, agentId: `g-${id}`, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o })
+const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, agentId: `g-${id}`, description: `Dev: ${id}`, status: 'working', model: 'sonnet', startedAt: T, seenAt: T, ...o })
 const txt = (ls: { t: string }[][]) => ls.map(l => l.map(s => s.t).join('')).join('\n')
 const caps = detectCaps({ LANG: 'pt_BR.UTF-8' })
 const model = (agents: AgentLike[], sessionTokens?: number) => buildRunModel(agents, T + 5000, CAPABILITIES, sessionTokens)
@@ -67,7 +67,7 @@ test('custo largo: árvore com ├ e └ e colunas tokens, custo e tempo', () =>
   const lines = txt(costLines(model(tree), T + 5000, wide())).split('\n')
   expect(lines.some(l => l.includes('├'))).toBe(true)
   expect(lines.some(l => l.includes('└'))).toBe(true)
-  expect(lines.slice(2).find(l => l.includes('Dev: a'))).toMatch(/27,0k\s+~\$ —\s+00:04/)
+  expect(lines.slice(2).find(l => l.includes('Dev: a'))).toMatch(/27,0k\s+~\$0,15\s+00:04/)
 })
 
 // RED: barra da linha do tempo em █ e deslocada pelo início do agente
@@ -92,4 +92,10 @@ test('custo largo: sem tokens mostra — e rodapé de sem dado', () => {
 test('custo 60 colunas: mantém o cabeçalho antigo', () => {
   const out = txt(costLines(model(known), T + 5000, { width: 80, caps }))
   expect(out.split('\n')[0]).toMatch(/Custo · total/)
+})
+
+test('custo estreito: agente com tokens mostra ~$ estimado; sem tokens mostra ~$ —', () => {
+  const out = txt(costLines(model([...known, mk('c', { status: 'done', endedAt: T + 2000 })]), T + 5000, { width: 80, caps }))
+  expect(out).toMatch(/Dev: a.*12,3 mil\s+~\$0,07/)
+  expect(out).toMatch(/c .*—\s+~\$ —/)
 })

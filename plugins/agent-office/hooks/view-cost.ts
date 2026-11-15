@@ -1,6 +1,5 @@
 // Visão Custo (T-010, AC-031 a AC-033). Pure: renders from the RunModel only (no engine, no clock, no I/O).
-// Tokens come from turn.step usage. Cost is never invented: no price table, so per-agent `~$` stays `—`;
-// the session USD shows only when the caller read it from the engine (`sessionUsd`), else `~$ —`. A total that leaves out an unknown agent is marked `parcial`.
+// Tokens come from turn.step usage. Per-agent `~$` is the estimate set on RunNode.usage.costUsd (price.ts); `~$ —` when unknown.
 import type { RunModel, RunNode } from './run-model'
 import type { Caps } from './compact'
 import type { Line, Seg } from './monitor'
@@ -67,7 +66,7 @@ export function wideCostLines(model: RunModel, now: number, v: { width: number; 
     out.push([
       seg(name),
       seg(bar.padEnd(cells)),
-      seg(` ${tokens}   ~$ —  ${d === undefined ? '—' : fmtMMSS(d)}`),
+      seg(` ${tokens}   ${n.usage.costUsd === undefined ? '~$ —' : fmtUsd(n.usage.costUsd)}  ${d === undefined ? '—' : fmtMMSS(d)}`),
     ])
     const cb = top0 ? '' : base + (last ? '  ' : '│ ')
     walk(kids.get(n.id) ?? [], cb, false)
@@ -103,7 +102,7 @@ export function costLines(model: RunModel, now: number, v: { width: number; caps
       seg(name + ' '),
       seg(fill.repeat(filled), undefined),
       seg(track.repeat(cells - filled), DIM),
-      seg(` ${tokens}  ~$ —  ${d === undefined ? '—' : fmtMMSS(d)}`),
+      seg(` ${tokens}  ${n.usage.costUsd === undefined ? '~$ —' : fmtUsd(n.usage.costUsd)}  ${d === undefined ? '—' : fmtMMSS(d)}`),
     ])
   }
   return out

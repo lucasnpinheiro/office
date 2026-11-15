@@ -1,5 +1,6 @@
 // Run model: pure graph, progress and the RunModel the renderers read. No engine APIs, no clock, no I/O:
 // the caller passes `now`. Extracted from monitor.ts (T-002); monitor.ts re-exports it until the views migrate.
+import { estimateCostUsd } from './price'
 import { parseDescription, modelLabel, EFFORT_DISPLAY } from './persona'
 import type { AgentRecord } from './office'
 import type { GitInfo } from './git'
@@ -261,6 +262,7 @@ const validTime = (t?: number): number | undefined => (typeof t === 'number' && 
 
 // Session tokens = per-agent counts + the main session's own turn.step tokens. Undefined when nothing is known.
 // Partial (never presented as complete) when some agent is unknown or the main-session figure is not captured.
+const withCost = (u: Usage, model?: string): Usage => (u.costUsd === undefined && estimateCostUsd(model, u.tokens) !== undefined ? { ...u, costUsd: estimateCostUsd(model, u.tokens) } : u)
 const sumTokens = (nodes: RunNode[], sessionTokens?: number): { tokens?: number; partial: boolean } => {
   const known = nodes.map(n => n.usage.tokens).filter((t): t is number => t !== undefined)
   if (!known.length && sessionTokens === undefined) return { tokens: undefined, partial: false }
@@ -282,7 +284,7 @@ export function buildRunModel(agents: readonly AgentRecord[], now: number, caps:
       state: RUN_STATE[n.state],
       worktree: n.git?.worktree ? { path: n.git.worktree, branch: n.git.branch } : undefined,
       startedAt: validTime(n.start), endedAt: validTime(n.end),
-      steps: rec?.steps ?? [], droppedSteps: rec?.droppedSteps ?? 0, usage: rec?.usage ?? {}, promptMasked: rec?.prompt, error: n.error, // rec.prompt is stored already masked (mask.ts)
+      steps: rec?.steps ?? [], droppedSteps: rec?.droppedSteps ?? 0, usage: withCost(rec?.usage ?? {}, n.model), promptMasked: rec?.prompt, error: n.error, // rec.prompt is stored already masked (mask.ts)
       total: tasks.length ? { done: tasks.filter(c => c.state === 'done').length, of: tasks.length } : undefined,
     })
   }

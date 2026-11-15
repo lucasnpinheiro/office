@@ -57,7 +57,7 @@ test('AC-008: tokens de turn.step somam por agente (entrada + saída + cache)', 
   expect(a.usage).toEqual({ tokens: 18 })
   const model = buildRunModel([a], T0 + 1000, caps)
   expect(model.totals.tokens).toBe(18)
-  expect(model.nodes[0]?.usage).toEqual({ tokens: 18 })
+  expect(model.nodes[0]?.usage.tokens).toBe(18) // costUsd is now estimated from tokens + model (price.ts)
 })
 
 // AC-009 / S-009 / I-009: a capture error returns the agent untouched and writes nothing
