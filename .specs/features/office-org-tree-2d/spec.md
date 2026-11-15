@@ -1,5 +1,7 @@
 # Spec: office-org-tree-2d (agent-office 0.28.5, cards 0.28.6, 0.28.7)
 
+> Superseded in part by office-map-mock-style (0.28.14): children are no longer stacked; every parent lays its children in rows of up to 6.
+
 ## Problema
 Em 0.28.4 o mapa de cards desenha todos os níveis na horizontal: os filhos de cada card (inclusive subagentes)
 abrem um barramento lateral, então a árvore cresce só para os lados. O cartão do Orquestrador mostra

@@ -2,12 +2,12 @@
 id: T-001
 title: Terminal: árvore em linhas de 6, largura por pai, nível 10
 type: frontend
-status: TODO
-progress: 0/3
+status: DONE
+progress: 3/3
 updated: 2026-11-15
 depends_on: []
 branch: task/T-001-terminal-tree
-pr:
+pr: #70
 covers: [REQ-001, REQ-002, REQ-003, REQ-004]
 estimate: L
 skills: [code-quality, performance]

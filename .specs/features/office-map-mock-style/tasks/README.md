@@ -1,6 +1,6 @@
 ---
-status: TODO
-progress: 0/6
+status: DONE
+progress: 6/6
 updated: 2026-11-15
 ---
 # Tasks — office-map-mock-style

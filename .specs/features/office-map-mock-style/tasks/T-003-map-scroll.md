@@ -2,12 +2,12 @@
 id: T-003
 title: Rolagem j/k do Mapa, indicador e resize
 type: frontend
-status: TODO
-progress: 0/3
+status: DONE
+progress: 3/3
 updated: 2026-11-15
 depends_on: [T-001, T-002]
 branch: task/T-003-map-scroll
-pr:
+pr: #71
 covers: [REQ-005]
 estimate: M
 skills: [code-quality, performance]

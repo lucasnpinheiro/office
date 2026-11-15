@@ -2,12 +2,12 @@
 id: T-002
 title: App: mapTree recursivo em linhas de 6, APP_CARD_MIN 18
 type: frontend
-status: TODO
-progress: 0/3
+status: DONE
+progress: 3/3
 updated: 2026-11-15
 depends_on: []
 branch: task/T-002-app-tree
-pr:
+pr: #69
 covers: [REQ-001, REQ-002, REQ-003, REQ-004]
 estimate: L
 skills: [code-quality, performance]

@@ -2,12 +2,12 @@
 id: T-004
 title: Card: meta sem quebra, pill sempre, rodapé limpo
 type: frontend
-status: TODO
-progress: 0/3
+status: DONE
+progress: 3/3
 updated: 2026-11-15
 depends_on: [T-001]
 branch: task/T-004-card-anatomy
-pr:
+pr: #73
 covers: [REQ-006, REQ-007, REQ-008]
 estimate: M
 skills: [code-quality, performance]
