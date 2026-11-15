@@ -48,3 +48,32 @@ svg(detailCompact(agents as any, 'b', now, caps)!, 'docs/images/detail.svg')
 svg(renderCompact(agents as any, now, { ...base, mode: 'cards', caps: detectCaps({ OFFICE_ASCII: '1' }) }), 'docs/images/ascii.svg')
 anim('docs/images/waterfall-anim.svg', 'waterfall', 10, 250)
 anim('docs/images/cards-anim.svg', 'cards', 10, 250)
+
+// App surface Mapa (0.28.13): schematic SVG of the REAL appMap + appCardW/mapRows layout (cell grid), not a screenshot.
+import { appMap, appCardW, mapRows } from '../plugins/agent-office/hooks/app-cards'
+function appMapSvg(file: string, cols: number, n: number) {
+  const ag = Array.from({ length: n }, (_, i) => mk(`m${i}`, `🛠️ Mid-level · 🪶 Haiku · 🟢 baixo: tarefa ${i + 1}`, i === 0 ? { status: 'done', endedAt: now - 5000 } : i === 1 ? { status: 'error', endedAt: now - 3000, error: 'falha' } : {}))
+  const tree = appMap(ag as any, now, {}), w = appCardW(tree.children.length, cols), { rows } = mapRows(tree.children, cols, w)
+  const cw = 8.4, lh = 18, ch = 7, tone: Record<string, string> = { running: '#7aa7ff', done: '#6fcf8a', failed: '#ff7b72', attention: '#f2c94c', pending: '#a8a7a1', inactive: '#a8a7a1' }
+  const cut = (s: string, k: number) => [...s].slice(0, k).join('')
+  const card = (c: any, cx: number, cy: number, cwid: number) => {
+    const x = 12 + cx * cw, y = 12 + cy * lh, W = cwid * cw, t = tone[c.state] ?? FG, fail = c.state === 'failed', ink = fail ? '#1f1f1e' : FG, k = cwid - 2
+    const tx = (r: number, s: string, f = ink, b = false) => `<text x="${x + cw}" y="${y + r * lh + 14}" fill="${f}"${b ? ' font-weight="bold"' : ''} xml:space="preserve">${esc(cut(s, k))}</text>`
+    return `<rect x="${x}" y="${y}" width="${W}" height="${ch * lh}" rx="8" fill="${fail ? '#ff7b72' : '#2a2a28'}" stroke="${t}"/>` +
+      tx(0.3, `${c.glyph} ${c.title}`, fail ? ink : t, true) + tx(1.3, c.chips.join(' · '), fail ? ink : '#a8a7a1') + tx(2.3, c.role ?? '', fail ? ink : '#a8a7a1') +
+      `<rect x="${x + cw}" y="${y + 3.6 * lh}" width="${W - 2 * cw}" height="6" fill="${fail ? '#1f1f1e' : '#3d3d3a'}"/><rect x="${x + cw}" y="${y + 3.6 * lh}" width="${(W - 2 * cw) * (c.pct ?? 0.3)}" height="6" fill="${fail ? '#ffffff' : t}"/>` +
+      tx(4.6, `${c.pctText}  ${c.time}`, fail ? ink : '#a8a7a1')
+  }
+  const rw = (r: unknown[]) => r.length * w + (r.length - 1) * 2
+  const full = Math.max(...rows.map(rw), 26), out: string[] = [card(tree.card, Math.floor((full - 26) / 2), 0, 26)]
+  rows.forEach((r, ri) => {
+    const y0 = ch + 1 + ri * (ch + 2), x0 = Math.floor((full - rw(r)) / 2)
+    out.push(`<line x1="${12 + (x0 + w / 2) * cw}" x2="${12 + (x0 + rw(r) - w / 2) * cw}" y1="${12 + (y0 - 0.5) * lh}" y2="${12 + (y0 - 0.5) * lh}" stroke="#6b6a65" stroke-width="2"${rows.length > 1 ? ' stroke-dasharray="6 4"' : ''}/>`)
+    r.forEach((k, i) => out.push(card(k.card, x0 + i * (w + 2), y0, w)))
+  })
+  if (rows.length) out.splice(1, 0, `<line x1="${12 + (full / 2) * cw}" x2="${12 + (full / 2) * cw}" y1="${12 + ch * lh}" y2="${12 + (ch + 0.5) * lh}" stroke="#6b6a65" stroke-width="2"/>`)
+  const W = full * cw + 24, H = (ch + 1 + rows.length * (ch + 2)) * lh + 12
+  writeFileSync(file, `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" font-family="Menlo,Consolas,monospace" font-size="12"><rect width="100%" height="100%" rx="8" fill="#1f1f1e"/>\n${out.join('\n')}\n</svg>\n`)
+}
+appMapSvg('docs/images/app-map-6.svg', 120, 6)
+appMapSvg('docs/images/app-map-9.svg', 120, 9)
