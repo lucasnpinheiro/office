@@ -2,12 +2,12 @@
 id: T-005
 title: Legenda e detalhe: rótulos e quebras
 type: frontend
-status: TODO
-progress: 0/3
+status: DONE
+progress: 3/3
 updated: 2026-11-15
 depends_on: []
 branch: task/T-005-legend-detail
-pr:
+pr: #72
 covers: [REQ-009, REQ-010]
 estimate: M
 skills: [code-quality, performance]

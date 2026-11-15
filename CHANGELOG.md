@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.14 (agent-office, nested map rows and mock card style)
+
+- Terminal and app map: every parent lays its children in rows of up to 6 at the parent's width (no stacked column, no side trunk); card width 18..34 (app 18..26), columns drop to 1 before any data is cut; depth 10 then a "+N ocultos" marker; one bus per row with vertical drops.
+- Map j/k scroll 3 lines, clamped, with "↑ mais" / "↓ mais".
+- Cards: state pill on every card (replaces the ✓ prefix; the title shortens), persona · model · effort chips never split, footer tool chain cut per item with "…".
+- Legend "j: desce" / "k: sobe" wrapped by whole item; detail view has a single "[← voltar]", no empty-row artefact.
+
 ## 0.28.13 (agent-office, dynamic card width)
 
 - App map and grid: `appCardW(count, cols)` sizes cards between 15 and 26 cols so min(count, 6) fit one row; `appPerRow` caps at 6. Tests in `app-cards.test.ts` and `real-render.test.ts`.

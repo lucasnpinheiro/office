@@ -1,5 +1,7 @@
 # office-app-dynamic-cards
 
+> Superseded in part by office-map-mock-style (0.28.14): children are no longer stacked; every parent lays its children in rows of up to 6.
+
 Status: DONE (0.28.13)
 
 ## Request (pt-BR, 2026-11-15)

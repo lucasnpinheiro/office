@@ -2,12 +2,12 @@
 id: T-006
 title: Versão 0.28.14, README e notas de supersede
 type: frontend
-status: TODO
-progress: 0/3
+status: DONE
+progress: 3/3
 updated: 2026-11-15
 depends_on: [T-001, T-002, T-003, T-004, T-005]
 branch: task/T-006-docs-version
-pr:
+pr: (this PR)
 covers: [REQ-011]
 estimate: S
 skills: [code-quality, performance]
