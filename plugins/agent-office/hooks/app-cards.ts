@@ -62,22 +62,25 @@ export function appCards(agents: AgentRecord[], now: number, o: { query?: string
 }
 
 // Org chart for the app surfaces: the session card on top, each agent under its parent. Same Graph as the terminal map.
-export type AppMapNode = { card: AppCard; children: AppMapNode[]; layout: 'row' | 'column' } // row under the root, column deeper
+export const MAP_MAX_DEPTH = 10 // visible sublevels under the root (root = 0); the model and the detail still reach everything
+export type AppMapNode = { card: AppCard; children: AppMapNode[]; hidden?: number } // hidden: descendants not drawn at the depth cap ("+N ocultos")
 export function appMap(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; git?: GitInfo; model?: RunModel }): AppMapNode {
   const g = buildGraph(agents, now, o.git)
   const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = runsOf(agents, now, o.model)
-  const walk =(n: Node, depth = 0): AppMapNode => ({
+  const kidsOf = (n: Node) => n.children.filter(k => k.kind === 'agent' && keep.has(k.id))
+  const count = (n: Node): number => kidsOf(n).reduce((a, k) => a + 1 + count(k), 0)
+  const walk = (n: Node, depth = 0): AppMapNode => ({
     card: n.kind === 'session' ? { ...cardOf(n, nm, now), title: n.name, status: undefined, role: 'orquestrador' }
       : { ...cardOf(n, nm, now, by.get(n.id)), role: depth <= 1 ? 'agente' : 'subagente' },
-    children: n.children.filter(k => k.kind === 'agent' && keep.has(k.id)).map(k => walk(k, depth + 1)),
-    layout: depth === 0 ? 'row' : 'column',
+    children: depth >= MAP_MAX_DEPTH ? [] : kidsOf(n).map(k => walk(k, depth + 1)),
+    ...(depth >= MAP_MAX_DEPTH && count(n) ? { hidden: count(n) } : {}),
   })
   return walk(g.root) // design legend: the session card is the root (Orquestrador over one top agent, Claude Code over several)
 }
 
 // Card grid: rows of as many 34-wide cards (gap 2) as the pane holds; an explicit row per chunk, so the layout never depends on flex wrap.
 export const APP_CARD_W = 26, APP_GAP = 2 // 25% under the old 34 (user: cards too big with many agents)
-export const APP_CARD_MIN = 15, APP_MAX_ROW = 6 // user 2026-11-15: up to 6 side by side, cards shrink with the sibling count
+export const APP_CARD_MIN = 18, APP_MAX_ROW = 6 // user 2026-11-15: up to 6 side by side, cards shrink with the sibling count
 export const appPerRow = (cols: number, w = APP_CARD_W): number => Math.min(APP_MAX_ROW, Math.max(1, Math.floor((cols - 2 + APP_GAP) / (w + APP_GAP))))
 // Width that fits min(count, 6) cards in the pane, between APP_CARD_MIN and APP_CARD_W. Cell grid: no font size, so width is the lever.
 export const appCardW = (count: number, cols: number): number =>
@@ -92,6 +95,15 @@ export function appGrid<T>(items: readonly T[], cols: number, w = APP_CARD_W): T
 export function mapRows<T>(kids: readonly T[], cols: number, w = APP_CARD_W): { bus: 'solid' | 'dashed'; rows: T[][] } {
   const rows = appGrid(kids, cols, w)
   return { bus: rows.length > 1 ? 'dashed' : 'solid', rows }
+}
+
+// Rows of one parent's children: cols = min(6, n, what fits in avail at the 18 floor); w shrinks to fit, never under 18 (then cols drops, down to 1).
+export function appTreeRows<T>(kids: readonly T[], avail: number): { w: number; rows: T[][] } {
+  const cols = Math.min(APP_MAX_ROW, kids.length, Math.max(1, Math.floor((avail + APP_GAP) / (APP_CARD_MIN + APP_GAP))))
+  const w = Math.max(APP_CARD_MIN, Math.min(APP_CARD_W, Math.floor((avail - APP_GAP * (cols - 1)) / Math.max(1, cols))))
+  const rows: T[][] = []
+  for (let i = 0; i < kids.length; i += cols) rows.push(kids.slice(i, i + cols))
+  return { w, rows }
 }
 
 // Card line motion and tint (design Chips5 v2): the running segment blinks with the frame, waiting is white, failure tints the whole card.

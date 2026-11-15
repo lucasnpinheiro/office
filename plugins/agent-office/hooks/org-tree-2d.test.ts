@@ -43,11 +43,11 @@ test('orchestrator card: 🧭 Squad Leader · Opus · baixo (design), never 🎯
   expect(appMap([], T, {}).card.chips).toEqual(['🧭 Squad Leader', '👑 Opus', '🟢 baixo'])
 })
 
-test('app: depth 1 lays out in a row, depth >= 2 in a column; the session is the root (Claude Code over several top agents, Orquestrador over one)', () => {
+test('app: every parent partitions its children; the session is the root (Claude Code over several top agents, Orquestrador over one)', () => {
   const m = appMap(tree, T + 5000, {})
-  expect(m.card.title).toBe('Claude Code'); expect(m.layout).toBe('row')
+  expect(m.card.title).toBe('Claude Code')
   const a = m.children.find(n => n.card.id === 'a')!
-  expect(a.layout).toBe('column'); expect(a.children.map(n => n.card.id)).toEqual(['t1', 't2'])
+  expect(a.children.map(n => n.card.id)).toEqual(['t1', 't2'])
   expect(appMap([mk('solo')], T + 5000, {}).card.title).toBe('Orquestrador')
 })
 

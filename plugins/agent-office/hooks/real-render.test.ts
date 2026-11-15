@@ -178,21 +178,21 @@ test('desktop map: a single top-level agent with no children is drawn as the roo
   expect(t.some(x => x.includes('Aguardando agentes'))).toBe(false)
 })
 
-test('desktop map: siblings that do not fit wrap into rows hung off a dashed trunk, each row with a dashed bus (same rule as the terminal)', async ($, on) => {
+test('desktop map: siblings that do not fit wrap into rows of up to 6 under the parent, each row with its own solid bus, no side trunk (U-009, REQ-004)', async ($, on) => {
   setup($, on)
   await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
   for (let i = 1; i <= 8; i++) await $.agent.spawn({ tool_use_id: `w${i}`, prompt: 'p', description: `🛠️ Mid-level · 🪶 Haiku · 🟢 baixo: tarefa ${i}` } as any)
   const u1 = await mountApp($, 112)
   const k = await boxKeys(u1) // 8 siblings -> 16-wide cards, 6 per row -> 2 rows
   await u1.unmount()
-  expect(k.filter(x => x.startsWith('trunk-'))).toEqual(['trunk-session'])
-  expect(k.filter(x => x.startsWith('rowbus-')).length).toBe(2)
+  expect(k.filter(x => x.startsWith('trunk-'))).toEqual([])
+  expect(k.filter(x => x.startsWith('row-session-')).length).toBe(2)
   const k2 = await boxKeys(await mountApp($, 400)) // wide pane still caps at 6 per row (user 2026-11-15)
-  expect(k2.filter(x => x.startsWith('trunk-')).length).toBe(1)
-  expect(k2.filter(x => x.startsWith('rowbus-')).length).toBe(2)
+  expect(k2.filter(x => x.startsWith('trunk-')).length).toBe(0)
+  expect(k2.filter(x => x.startsWith('row-session-')).length).toBe(2)
 })
 
-test('desktop map: role on every card and a lit pulse on the dashed bus of a row with a running child', async ($, on) => {
+test('desktop map: role on every card', async ($, on) => {
   setup($, on)
   on('tool.call', async () => ({ result: { stdout: 'ok', stderr: '' } }) as any)
   await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
@@ -201,6 +201,4 @@ test('desktop map: role on every card and a lit pulse on the dashed bus of a row
   const ui = await mountApp($, 112)
   const t = (await ui.findAll({ type: 'Text' })).map((x: any) => String(x.text))
   expect(t).toContain('orquestrador'); expect(t.filter((x: string) => x === 'agente').length).toBe(8)
-  const lit = (await ui.findAll({ type: 'Box' })).filter((b: any) => String(b.key ?? b.props?.key ?? '').startsWith('dash-rowbus-') && b.props?.backgroundColor === 'suggestion')
-  expect(lit.length).toBeGreaterThan(0)
 })

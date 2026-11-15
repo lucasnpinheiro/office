@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, appCardW, appPerRow, segTone, barTone, cardBg, onCard, WAIT_WHITE } from './app-cards'
+import { isAppSurface, appCards, appMap, appGrid, mapRows, APP_CARD_W, appCardW, appPerRow, appTreeRows, APP_CARD_MIN, segTone, barTone, cardBg, onCard, WAIT_WHITE } from './app-cards'
 import type { AgentLike } from './office'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES } from './capabilities'
@@ -133,8 +133,7 @@ test('root rule (design legend): one top agent keeps the Orquestrador root; two 
   expect(one.card.id).toBe('session'); expect(one.card.title).toBe('Orquestrador'); expect(one.children.map(c => c.card.id)).toEqual(['a'])
   for (const ag of [[mk('a'), mk('b')], [mk('a'), mk('b'), mk('c')]]) {
     const m = appMap(ag, T + 5000, {})
-    expect(m.card.id).toBe('session'); expect(m.card.title).toBe('Claude Code'); expect(m.layout).toBe('row')
-    expect(m.children.map(c => c.card.id)).toEqual(ag.map(x => x.id))
+    expect(m.card.id).toBe('session'); expect(m.card.title).toBe('Claude Code'); expect(m.children.map(c => c.card.id)).toEqual(ag.map(x => x.id))
   }
   expect(appMap([], T, {}).card.title).toBe('Orquestrador')
   // subagents do not count: one top agent with two children is still a single top-level agent
@@ -159,7 +158,29 @@ test('dynamic width: cards shrink with the sibling count so up to 6 sit side by 
   expect(appCardW(6, 120)).toBe(18)
   expect(appGrid(six, 120, appCardW(6, 120)).map(r => r.length)).toEqual([6])
   expect(appGrid(Array.from({ length: 9 }, (_, i) => i), 120, appCardW(9, 120)).map(r => r.length)).toEqual([6, 3]) // cap 6 per row
-  expect(appCardW(6, 60)).toBe(15) // narrow pane: floor, then wraps
+  expect(appCardW(6, 60)).toBe(18) // narrow pane: floor 18, then wraps (U-010)
   expect(appGrid(six, 60, appCardW(6, 60)).map(r => r.length)).toEqual([3, 3])
   expect(appPerRow(300)).toBe(6)
+})
+
+test('U-009/U-010/U-011: APP_CARD_MIN 18; appCardW(9,60)=18; appPerRow(30,18)=1; appMap has no column layout', () => {
+  expect(APP_CARD_MIN).toBe(18); expect(appCardW(9, 60)).toBe(18); expect(appPerRow(30, 18)).toBe(1)
+  const m = appMap([mk('a', { agentId: 'g-a' }), mk('b')], T + 5000, {})
+  expect('layout' in m).toBe(false); expect('layout' in m.children[0]!).toBe(false)
+})
+
+test('U-009 appTreeRows: every parent splits children in rows of 6 by its own avail; below 18 only cols shrink, never under 18 wide', () => {
+  const k = (n: number) => Array.from({ length: n }, (_, i) => i)
+  const a = appTreeRows(k(8), 120); expect(a.rows.map(r => r.length)).toEqual([6, 2]); expect(a.w).toBe(18)
+  expect(appTreeRows(k(7), 300).rows.map(r => r.length)).toEqual([6, 1])
+  expect(appTreeRows(k(2), 120).w).toBe(26) // few kids keep full width
+  const n = appTreeRows(k(3), 18); expect(n.rows.map(r => r.length)).toEqual([1, 1, 1]); expect(n.w).toBe(18) // avail < 18: one column
+  expect(appTreeRows(k(4), 30).rows.map(r => r.length)).toEqual([1, 1, 1, 1]); expect(appTreeRows([], 120).rows).toEqual([])
+})
+
+test('U-012: depth 10 drops deeper agents and records how many are hidden (+N ocultos)', () => {
+  const chain = Array.from({ length: 12 }, (_, i) => mk(`n${i + 1}`, { agentId: `g${i + 1}`, ...(i ? { parentAgentId: `g${i}` } : {}) }))
+  let n = appMap(chain, T + 5000, {}); for (let d = 0; d < 10; d++) n = n.children[0]!
+  expect(n.card.id).toBe('n10'); expect(n.children).toEqual([]); expect(n.hidden).toBe(2)
+  expect(appMap(chain.slice(0, 5), T + 5000, {}).hidden).toBeUndefined()
 })
