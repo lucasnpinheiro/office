@@ -17,7 +17,7 @@ import type { RunModel, RunNode } from './run-model'
 import { costLines, fmtTokens, fmtUsd } from './view-cost'
 import { toolLines } from './view-tools'
 import { workflowView } from './view-workflow'
-import { detailView } from './view-detail'
+import { detailView, detailScrollStep } from './view-detail'
 import { termLevel, effectiveCols, appColumns, rowStyle, fitAgora } from './layout'
 
 export { isQuotaError }
@@ -431,6 +431,7 @@ const timeline = (g: Graph, now: number) => {
 // Card anatomy (design): name, icon+persona, icon+model · icon+effort, tool/status row, bar + metric + time. Border by state.
 const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: STATE_COLOR.failed, attention: STATE_COLOR.attention, done: '#4b5563', pending: '#4b5563', inactive: '#4b5563' }
 // how far the cards view can scroll right now (module memory set by the last render; the reducer clamps with it)
+export const mapScrollStep = (cur: number, dir: 'scrollDown' | 'scrollUp'): number => detailScrollStep(Math.min(cur, scrollInfo.max), dir, scrollInfo.max + 1) // j/k: 3 lines, clamped (REQ-005)
 export const scrollInfo = { max: 0, units: [] as number[] } // units: first row of each card block the window can start at (one card per press)
 const MIN_CARD_ROWS = CARD_H + 3 // a pane shorter than this still gets room for one full card and its notes
 export type CardTag = { role?: string; wt?: string; br?: string; up?: boolean; down?: boolean; wf?: string; w?: number } // wf: workflow run id
@@ -729,7 +730,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         const stop = Math.min(first, mi)
         const pos = `${stop + 1}/${mi + 1}` // position in scroll stops (one card each): the last stop reads k/k
         const note = (t: string): Line => centre([seg(v.caps, t, DIM)], w)
-        out.push(note(`${stop > 0 ? (v.caps.ascii ? '^ ' : '↑ ') : ''}${pos}`))
+        out.push(note(`${stop > 0 ? (v.caps.ascii ? '^ mais ' : '↑ mais ') : ''}${pos}`))
         // scrollbar: track + thumb on the last column, thumb size and place proportional to the window
         const thumbH = Math.max(1, Math.min(room, Math.round(room * room / total)))
         const top = Math.round((room - thumbH) * (maxRow ? Math.min(off, maxRow) / maxRow : 0))
@@ -739,7 +740,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
           const used = lineWidth(l)
           out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM)])
         }
-        out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v ' : '↓ ') : ''}${pos}`))
+        out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`))
       }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))

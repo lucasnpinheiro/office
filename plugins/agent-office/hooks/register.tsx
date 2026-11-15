@@ -8,7 +8,7 @@ import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, paneBodyLines, drawSig, ticker } from './office'
 import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS } from './monitor'
 import { TONE as TONE_OF } from './app-cards'
-import { scrollInfo, renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
+import { mapScrollStep, renderCompact, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
 import { buildRunModel } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
@@ -308,10 +308,8 @@ async function dispatch($: EngineInterface, a: string) {
     return
   }
   if (a === 'scrollDown' || a === 'scrollUp') {
-    // one card per press: the window moves from one card block to the next (compact.ts scrollInfo.units), clamped to the last render's max
-    const cur = Math.min(Number(await read($, scrollAt)) || 0, scrollInfo.max)
-    const next = a === 'scrollDown' ? scrollInfo.units.find(u => u > cur) ?? scrollInfo.max : [...scrollInfo.units].reverse().find(u => u < cur) ?? 0
-    await update($, scrollAt, () => Math.min(scrollInfo.max, Math.max(0, next)))
+    const to = mapScrollStep(Number(await read($, scrollAt)) || 0, a)
+    await update($, scrollAt, () => to)
     $.ui.invalidate('ui.render')
     return
   }

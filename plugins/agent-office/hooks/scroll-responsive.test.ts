@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { renderCompact, detectCaps } from './compact'
+import { renderCompact, detectCaps, scrollInfo, mapScrollStep } from './compact'
 import { strWidth } from './monitor'
 import { paneBodyLines } from './office'
 import type { AgentLike } from './office'
@@ -72,4 +72,31 @@ test('70 agents: every card renders in cards view (no 60 cap)', () => {
   const ag = Array.from({ length: 70 }, (_, i) => mk(`z${i}`))
   const t = renderCompact(ag, T + 5000, { ...base, maxLines: 2000 }).map(l => l.map(s => s.t).join('')).join('\n')
   for (let i = 0; i < 70; i++) expect(t).toContain(`Dev: z${i}`)
+})
+
+// T-003 (office-map-mock-style REQ-005)
+test('U-013 map j/k: +3 / -3 lines, clamped at 0 and at the last scroll position', () => {
+  rows(many, { maxLines: 30 })
+  expect(scrollInfo.max).toBeGreaterThan(6)
+  expect(mapScrollStep(0, 'scrollDown')).toBe(3)
+  expect(mapScrollStep(3, 'scrollUp')).toBe(0)
+  expect(mapScrollStep(0, 'scrollUp')).toBe(0)
+  expect(mapScrollStep(scrollInfo.max - 1, 'scrollDown')).toBe(scrollInfo.max)
+  expect(mapScrollStep(scrollInfo.max, 'scrollDown')).toBe(scrollInfo.max)
+})
+
+test('U-014 indicators: "↓ mais" at the top, "↑ mais" at the end, none when everything fits', () => {
+  rows(many, { maxLines: 30 })
+  const top = rows(many, { maxLines: 30, scroll: 0 }).join('\n'), end = rows(many, { maxLines: 30, scroll: scrollInfo.max }).join('\n')
+  expect(top).toContain('↓ mais'); expect(top).not.toContain('↑ mais')
+  expect(end).toContain('↑ mais'); expect(end).not.toContain('↓ mais')
+  expect(rows(many.slice(0, 2), { maxLines: 200 }).join('\n')).not.toMatch(/mais/)
+})
+
+test('U-015 resize 120 -> 60 keeps every node (re-measured, same data), stale scroll re-clamped', () => {
+  const names = (t: string) => new Set(t.match(/Dev: n\d+/g))
+  const seen = (width: number) => { const s = new Set<string>(); rows(many, { width, maxLines: 30 }); for (const u of [0, ...scrollInfo.units]) for (const n of names(rows(many, { width, maxLines: 30, scroll: u }).join('\n'))) s.add(n); return s }
+  expect(seen(60).size).toBe(30)
+  expect(seen(120).size).toBe(30)
+  expect(rows(many, { width: 60, maxLines: 30, scroll: 99999 }).join('\n')).toContain('↑ mais')
 })
