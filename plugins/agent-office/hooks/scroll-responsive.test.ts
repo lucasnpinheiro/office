@@ -94,9 +94,11 @@ test('U-014 indicators: "↓ mais" at the top, "↑ mais" at the end, none when 
 })
 
 test('U-015 resize 120 -> 60 keeps every node (re-measured, same data), stale scroll re-clamped', () => {
-  const names = (t: string) => new Set(t.match(/Dev: n\d+/g))
-  const seen = (width: number) => { const s = new Set<string>(); rows(many, { width, maxLines: 30 }); for (const u of [0, ...scrollInfo.units]) for (const n of names(rows(many, { width, maxLines: 30, scroll: u }).join('\n'))) s.add(n); return s }
+  // short titles: at 18 cols the pill always stays and a long title is cut (T-004), so ids must fit
+  const short = many.map(a => ({ ...a, description: a.id }))
+  const names = (t: string) => new Set(t.match(/\bn\d+\b/g))
+  const seen = (width: number) => { const s = new Set<string>(); rows(short, { width, maxLines: 30 }); for (const u of [0, ...scrollInfo.units]) for (const n of names(rows(short, { width, maxLines: 30, scroll: u }).join('\n'))) s.add(n); return s }
   expect(seen(60).size).toBe(30)
   expect(seen(120).size).toBe(30)
-  expect(rows(many, { width: 60, maxLines: 30, scroll: 99999 }).join('\n')).toContain('↑ mais')
+  expect(rows(short, { width: 60, maxLines: 30, scroll: 99999 }).join('\n')).toContain('↑ mais')
 })
