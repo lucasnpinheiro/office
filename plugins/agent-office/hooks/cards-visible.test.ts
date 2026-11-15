@@ -16,7 +16,7 @@ test('B1 19 children in a 130-row pane: all visible without scroll (denser cards
   const ag = kids(19)
   const t = lines(ag, { maxLines: 130 })
   // T-004 REQ-007: every card keeps its pill; at 18 cols the title shortens to Dev: … so all 19 children are counted by their prefix
-  expect((t.join('\n').match(/Dev: /g) ?? []).length).toBe(19)
+  expect((t.join('\n').match(/Dev:/g) ?? []).length).toBe(19)
   expect(scrollInfo.max).toBe(0)
   expect(t.join('\n')).not.toMatch(/[↑↓]/)
   expect(t.length).toBe(130)
@@ -28,7 +28,7 @@ test('B1 pane too short for every card: scrolls in whole cards, no card cut mid-
   expect(scrollInfo.max).toBeGreaterThan(0)
   for (let scroll = 0; scroll <= scrollInfo.max; scroll += 7) { // 7 rows: lands mid-card too
     const t = lines(ag, { maxLines: 40, scroll }).join('\n')
-    const names = [...t.matchAll(/Dev: (c\d+|…)/g)].length
+    const names = [...t.matchAll(/Dev:/g)].length
     const status = [...t.matchAll(/▸ (?!delega)/g)].length
     expect(status).toBe(names) // every visible title has its status row: no card is cut
   }

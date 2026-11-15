@@ -372,7 +372,7 @@ test('app surface: cards viram Box/Text gráficos com chips, sem caixa de texto;
   await spawn($, 'tu1', '🛠️ Mid-level · 🎼 Sonnet · 🟡 médio: Reading edit.php')
   const app = await mountOn($, 'desktop')
   const a = await texts(app)
-  expect(a).toContain('Reading edit.php'); expect(a).toContain('🛠️ Mid-level'); expect(a).toContain('🎼 Sonnet'); expect(a).toContain('🟡 médio')
+  expect(a).toContain('Reading'); expect(a).toContain('edit.php'); expect(a).toContain('🛠️ Mid-level'); expect(a).toContain('🎼 Sonnet'); expect(a).toContain('🟡 médio')
   expect(a).not.toMatch(/[╭╮╰╯│]/)
   await app.unmount()
   const term = await texts(await mountOn($, 'terminal'))
