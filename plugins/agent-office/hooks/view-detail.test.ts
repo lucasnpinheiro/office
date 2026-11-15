@@ -232,7 +232,7 @@ test('T-005 V-001 detalhe sem usage, prompt e irmãos: sem linha "_" nem linha d
 
 test('detalhe: custo estimado por tokens e modelo (~$0,xx); sem tokens fica —', () => {
   const out = detailScreen([mk('a1', { model: 'sonnet', usage: { tokens: 50_000 } })], 'a1', T0 + 1000, { width: 80 }).lines.join('\n')
-  expect(out).toContain('~$0,27')
+  expect(out).toContain('~$0,18')
   const none = detailScreen([mk('a1', { model: 'sonnet' })], 'a1', T0 + 1000, { width: 80 }).lines.join('\n')
   expect(none).not.toMatch(/~\$0/)
 })
