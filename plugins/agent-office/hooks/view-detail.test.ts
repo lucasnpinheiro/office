@@ -19,7 +19,7 @@ test('AC-027 detalhe: breadcrumb, linha de estado, resultado e linha do tempo na
     recent: ['Read tests/checkout', 'Bash npm test'], prompt: 'Rodar os testes de checkout.',
   })
   const lines = detailScreen([a], 'a1', T0 + 8000).lines
-  expect(lines[0]).toMatch(/^← voltar \(b\) +Office › Tester$/)
+  expect(lines[0]).toMatch(/^\[← voltar\] +Office › Tester$/)
   expect(lines[1]).toBe('✗ Falhou   Agente · Haiku · baixo')
   expect(lines[2]).toBe('⧉ spec/checkout-api  ⏱ 00:07')
   expect(lines[3]).toMatch(/^░{20}  sem total conhecido$/)
@@ -188,4 +188,44 @@ test('detail scroll: j/k move the body by 3 lines, clamped to 0 and to the last 
   expect(detailScrollStep(3, 'scrollUp', 20)).toBe(0)
   expect(detailScrollStep(0, 'scrollUp', 20)).toBe(0)
   expect(detailScrollStep(5, 'scrollDown', 0)).toBe(0)
+})
+
+// T-005 (REQ-010): detalhe com um só "[← voltar]", custo real, sem linha "_", prompt por palavra, Irmãos com rótulo antes
+test('T-005 U-023 detalhe: um só [← voltar], sem [ [ e sem b voltar', () => {
+  const out = detailScreen([mk('a1', { prompt: 'Rodar testes.' })], 'a1', T0 + 1000, { width: 80 }).lines.join('\n')
+  expect(out.match(/← voltar/g)).toHaveLength(1)
+  expect(out).toContain('[← voltar]')
+  expect(out).not.toMatch(/\[ ?\[/)
+  expect(out).not.toMatch(/b voltar/)
+})
+
+test('T-005 U-024 detalhe: custo real aparece; "~$ —" nunca', () => {
+  const out = detailScreen([mk('a1', { usage: { tokens: 1200, costUsd: 0.5 } })], 'a1', T0 + 1000, { width: 80 }).lines.join('\n')
+  expect(out).toContain('~$0,50')
+  expect(out).not.toMatch(/~\$ —/)
+})
+
+test('T-005 U-025 detalhe: sem linha "_" e prompt quebra só entre palavras inteiras', () => {
+  const prompt = 'uma frase longa com palavras inteiras que precisam quebrar por linha sem nenhuma palavra cortada no meio do texto'
+  const lines = detailScreen([mk('a1', { prompt })], 'a1', T0 + 1000, { width: 40 }).lines
+  expect(lines.some(l => l.trim() === '_')).toBe(false)
+  const from = lines.indexOf('▌ SOLICITAÇÃO'), to = lines.findIndex((l, i) => i > from && l.startsWith('▌ '))
+  const words = new Set(prompt.split(' '))
+  for (const l of lines.slice(from + 1, to)) for (const w of l.trim().replace(/ …$/, '').split(' ').filter(Boolean)) expect(words.has(w)).toBe(true)
+})
+
+test('T-005 U-026 detalhe: Irmãos i/n: rótulo primeiro, itens separados por espaço', () => {
+  const kids = [1, 2, 3].map(i => mk(`s${i}`, { agentId: `S${i}`, parentAgentId: 'P', description: `Dev: irmao${i}`, status: 'done' }))
+  const lines = detailScreen([mk('p1', { agentId: 'P' }), mk('s0', { agentId: 'S0', parentAgentId: 'P', description: 'Dev: meio' }), ...kids], 's0', T0 + 1000, { width: 100 }).lines
+  const row = lines.find(l => l.includes('Irmãos 1/4:'))!
+  expect(row.trimStart().startsWith('Irmãos 1/4:')).toBe(true)
+  expect(row).toMatch(/irmao1\S* {2}\S|irmao1 {2}|irmao1/)
+  expect(lines.some(l => /^\s*(irmao|meio)/.test(l) && !l.includes('Irmãos'))).toBe(false)
+})
+
+test('T-005 V-001 detalhe sem usage, prompt e irmãos: sem linha "_" nem linha de só separador', () => {
+  const lines = detailScreen([mk('a1', { prompt: '' })], 'a1', T0 + 1000, { width: 60 }).lines
+  expect(lines.some(l => l.trim() === '_' || /^[·|\s]+$/.test(l) && l.trim().length > 0)).toBe(false)
+  expect(lines.some(l => l.includes('SOLICITAÇÃO'))).toBe(true)
+  expect(lines.join('\n')).not.toMatch(/Irmãos/)
 })

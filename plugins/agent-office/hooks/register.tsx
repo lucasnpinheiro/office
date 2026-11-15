@@ -659,6 +659,7 @@ export const register: Register = on => {
     // (ASCII mode maps every segment, footer and map included, so no non-ASCII glyph reaches the terminal)
     const draw = (line0: typeof f.lines[number]) => { const line = caps.ascii ? asciiLine(line0) : line0; return (
       <Box flexDirection="row">
+        {line.length === 0 ? <Text> </Text> : null}
         {line.map(s =>
           s.attach ? (
             <Button plain key={`a-${s.attach}`} onPress={() => void (async () => { await update($, attachAt, () => s.attach!); $.ui.invalidate('ui.render') })()}><Text color={s.fg}>{s.t}</Text></Button>
@@ -892,7 +893,6 @@ export const register: Register = on => {
     if (detail) {
       return (
         <Box flexDirection="column">
-          <Button onPress={() => void act('back')}>{'[← Voltar ao mapa]'}</Button>
           {detail.map(draw)}
           {keysRow}
         </Box>
