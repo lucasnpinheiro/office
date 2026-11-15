@@ -2,6 +2,7 @@
 // Puro: sem engine, sem disco. Todo texto vindo do agente (nome, ferramenta, worktree, pai, filhos, prompt, erro) passa por
 // maskText antes de ser desenhado. `detailView` entrega Lines com os segmentos clicáveis (links, p/n, anexos); `detailScreen`
 // entrega só o texto dessas mesmas linhas.
+import { estimateCostUsd } from './price'
 import { buildGraph, durationOf } from './run-model'
 import type { Node } from './run-model'
 import type { AgentLike } from './office'
@@ -49,6 +50,7 @@ export function miniBar(done: number, total: number | undefined, color: string):
 
 // Layout 0.28.10 (approved): voltar + breadcrumb, estado, métricas, barra, then SOLICITAÇÃO / ANDAMENTO / CONCLUSÃO / CONTEXTO.
 const kTok = (n: number): string => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n))
+const costOf = (a: AgentLike, n: Node): number | undefined => a.usage?.costUsd ?? estimateCostUsd(n.model, a.usage?.tokens)
 const money = (v: number): string => `~$${v.toFixed(2).replace('.', ',')}`
 const escRe = (t: string): string => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 // Prompt boilerplate that says nothing about the task: output-style lines and bare directory lines.
@@ -121,7 +123,7 @@ export function detailView(agents: AgentLike[], id: string, now: number, o: { ca
   const head = (t: string, right = ''): Line => [s('▌ ', { fg: col }), s(t, { bold: true }), ...(right ? padTo([], W - strWidth(t) - 2, [s(right, { fg: DIM })]) : [])]
 
   const metrics = [`⧉ ${shortPath(br ?? wt ?? '—', Math.max(12, Math.floor(W / 2)))}`, `⏱ ${fmt(durationOf(n, now))}`,
-    ...(a.usage?.tokens !== undefined ? [`${kTok(a.usage.tokens)} tok`] : []), ...(a.usage?.costUsd !== undefined ? [money(a.usage.costUsd)] : [])]
+    ...(a.usage?.tokens !== undefined ? [`${kTok(a.usage.tokens)} tok`] : []), ...(costOf(a, n) !== undefined ? [money(costOf(a, n)!)] : [])]
   const pct = n.state === 'done' ? 1 : total ? done / total : undefined
   const cells = Math.min(20, Math.max(8, W - 12)), fill = Math.round((pct ?? 0) * cells)
   const out: Line[] = [
@@ -216,7 +218,7 @@ export function detailData(agents: AgentLike[], id: string, now: number): Detail
     done: a.todos?.length ? a.todos.filter(t => t.status === 'completed').length : kids.filter(k => k.state === 'done').length,
     total: a.todos?.length ? a.todos.length : undefined,
     time: fmt(durationOf(n, now)), tokens: a.usage?.tokens !== undefined ? String(a.usage.tokens) : '—',
-    cost: a.usage?.costUsd !== undefined ? `$${a.usage.costUsd.toFixed(2)}` : '—',
+    cost: costOf(a, n) !== undefined ? money(costOf(a, n)!) : '—',
     error: n.error ? maskText(n.error) : undefined, steps, prompt: a.prompt ? maskText(a.prompt) : '—',
   }
 }
