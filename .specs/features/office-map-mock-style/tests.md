@@ -5,7 +5,7 @@ updated: 2026-11-15
 ---
 # Tests — office-map-mock-style
 
-Runner: `rtk npx vitest run` ou o comando do repo (ler package.json na implementação). Baseline de falhas pré-existentes registrada antes da T-001.
+Runner: o comando de teste do repo (ler package.json na implementação). Baseline de falhas pré-existentes registrada antes da T-001.
 Cobertura planejada: linhas >= 93% em compact.ts, app-cards.ts, actions.ts, view-detail.ts (diff).
 
 | Tipo | Arquivo | Linhas de teste |

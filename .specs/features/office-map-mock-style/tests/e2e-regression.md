@@ -8,4 +8,4 @@ contract: test-flow/1
 ---
 # Tests — e2e-regression
 
-N/A — regressão = suite agent-office completa no gate pré-merge (rtk npm test); ver tests.md.
+N/A — regressão = suite agent-office completa no gate pré-merge (npm test); ver tests.md.

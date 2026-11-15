@@ -24,6 +24,6 @@ j/k rolam o Mapa (3 linhas, clamp), indicador mais acima/abaixo, resize invalida
 plugins/agent-office/hooks/register.tsx (act scrollDown/Up ~302-314); compact.ts renderCompact windowing; scroll-responsive.test.ts
 
 ## Aceite
-- [ ] RED primeiro nos testes citados, depois GREEN (TDD); `rtk` em todo comando.
+- [ ] RED primeiro nos testes citados, depois GREEN (TDD).
 - [ ] Testes: tests/unit.md U-013..U-015, tests/integration.md I-002
 - [ ] Só arquivos listados mudam; phpcs n/a (TS); suite do diff antes, suite completa no gate.

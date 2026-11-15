@@ -24,6 +24,6 @@ chipRows atômico por chip; pill sempre (título encurta); pill substitui ✓; s
 compact.ts card(); register.tsx appCardBox; cards-*.test.ts
 
 ## Aceite
-- [ ] RED primeiro nos testes citados, depois GREEN (TDD); `rtk` em todo comando.
+- [ ] RED primeiro nos testes citados, depois GREEN (TDD).
 - [ ] Testes: tests/unit.md U-016..U-020, tests/ui-design.md D-002
 - [ ] Só arquivos listados mudam; phpcs n/a (TS); suite do diff antes, suite completa no gate.
