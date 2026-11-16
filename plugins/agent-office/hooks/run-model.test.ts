@@ -199,3 +199,12 @@ test('nextState: cada seta do ciclo de vida existe e o resto fica', () => {
   expect(nextState('stopped', 'retry')).toBe('stopped')
   expect(nextState('done', 'retry')).toBe('done') // repetir só sai de Falhou
 })
+
+// U-201: the probe picks the limits object out of $.session.usage(); no such field = undefined (nothing changes)
+test('limitsRawOf: limits object from usage(), undefined without one', () => {
+  const rl = { five_hour: { used_percentage: 4, resets_at: 1 } }
+  expect(runModel.limitsRawOf({ cost: { usd: 1 }, rate_limits: rl })).toBe(rl)
+  expect(runModel.limitsRawOf({ cost: { usd: 1 } })).toBeUndefined()
+  expect(runModel.limitsRawOf(undefined)).toBeUndefined()
+  expect(runModel.limitsRawOf({ rate_limits: 5 })).toBeUndefined()
+})

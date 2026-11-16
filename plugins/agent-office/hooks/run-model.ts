@@ -306,3 +306,10 @@ export function buildRunModel(agents: readonly AgentRecord[], now: number, caps:
     caps,
   }
 }
+
+// probe (REQ-201, shape NOT verified against the engine): the plan-limits object inside `$.session.usage()`; absent = undefined
+export function limitsRawOf(u: unknown): Record<string, unknown> | undefined {
+  const o = (u as { rate_limits?: unknown; limits?: unknown } | undefined)
+  const r = o?.rate_limits ?? o?.limits
+  return r && typeof r === 'object' ? r as Record<string, unknown> : undefined
+}

@@ -10,7 +10,7 @@ import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMM
 import { TONE as TONE_OF } from './app-cards'
 import { mapScrollStep, renderCompact, titleRows, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
-import { buildRunModel } from './run-model'
+import { buildRunModel, limitsRawOf } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
 import { sideDetail } from './layout'
 import { detailView, detailScrollStep } from './view-detail'
@@ -32,6 +32,7 @@ const PANE = 'agent-office'
 const office = atom({ plugin: 'agent-office', key: 'agents' } as const, [])
 const isOpen = atom({ plugin: 'agent-office', key: 'open' } as const, false)
 const sessionTokensAt = atom({ plugin: 'agent-office', key: 'sessionTokens' } as const, null as number | null) // main-session tokens, null = unknown
+const sessionLimitsAt = atom({ plugin: 'agent-office', key: 'sessionLimits' } as const, null as Record<string, unknown> | null) // raw plan limits from `$.session.usage()`, null = engine gave none
 const sessionUsdAt = atom({ plugin: 'agent-office', key: 'sessionUsd' } as const, null as number | null) // `$.session.usage().cost.usd` (CLI), null = unknown
 const sessionToolAt = atom({ plugin: 'agent-office', key: 'sessionTool' } as const, {})
 const collapsedAt = atom({ plugin: 'agent-office', key: 'collapsed' } as const, [])
@@ -206,6 +207,8 @@ async function refreshUsd($: EngineInterface) {
     const u = await $.session.usage()
     const usd = (u as { cost?: { usd?: unknown } } | undefined)?.cost?.usd
     if (typeof usd === 'number' && Number.isFinite(usd) && usd >= 0) await update($, sessionUsdAt, () => usd)
+    const lim = limitsRawOf(u)
+    if (lim) await update($, sessionLimitsAt, () => lim)
   } catch { /* no usage: header keeps no figure */ } finally { usdBusy = false }
 }
 
