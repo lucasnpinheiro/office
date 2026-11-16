@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.17 (agent-office, header plan limits)
+
+- Header: `5h N% · reinicia em Xh Ym` and `Semana N% · reinicia em Xd Yh` (plus `Semana <modelo>`) on an extra line in the terminal and app headers, only when `$.session.usage()` exposes plan limits (`rate_limits.five_hour` / `seven_day[_model]`, shape unverified). Missing, NaN or out-of-range data hides the segment. Elapsed keeps counting from the 1st agent.
+
 ## 0.28.16 (agent-office, central-gap connector, current prices)
 
 - Terminal map: when a parent's children span 2+ rows, row 1 leaves a central gap between its middle cards (odd counts split larger on the left) and the parent's line descends through it to the next row's bus; it never crosses a card. The app map (flexbox, no bus) is unchanged.
