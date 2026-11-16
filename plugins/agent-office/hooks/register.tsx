@@ -10,7 +10,7 @@ import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMM
 import { TONE as TONE_OF } from './app-cards'
 import { mapScrollStep, renderCompact, titleRows, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
-import { buildRunModel, limitsRawOf } from './run-model'
+import { buildRunModel, limitsRawOf, usageLimits } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
 import { sideDetail } from './layout'
 import { detailView, detailScrollStep } from './view-detail'
@@ -236,7 +236,7 @@ async function wantSize($: EngineInterface, list: OfficeAgent[], collapsed: stri
   const usd: number | null = await read($, sessionUsdAt)
   const lines = renderCompact(list, now, {
     width: wcols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt), expanded: new Set(), maxCardRows: 99,
-    model: await runModelOf($, list, now), captureIo: await captureIoOf($), sessionUsd: usd ?? undefined, ahead: aheadNow(),
+    model: await runModelOf($, list, now), captureIo: await captureIoOf($), sessionUsd: usd ?? undefined, limits: (await read($, sessionLimitsAt)) ?? undefined, ahead: aheadNow(),
   })
   return { rows: Math.min(40, Math.max(8, lines.length + 1)), columns: wcols }
 }
@@ -637,7 +637,7 @@ export const register: Register = on => {
       expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, scroll: await read($, scrollAt), branch: sgit?.branch,
       maxLines: paneBodyLines(e.props as { bodyRows?: number } | undefined, e.viewport),
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
-      model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, ahead: aheadNow(),
+      model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, limits: (await read($, sessionLimitsAt)) ?? undefined, ahead: aheadNow(),
       containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,
     }
     // detail screen (view-detail.ts, T-009) for both the compact and the map view; an agent that left the list falls back to the list with a warning
@@ -813,6 +813,7 @@ export const register: Register = on => {
     const onApp = isAppSurface((e as { surface?: string }).surface)
     const TABS: [string, string, string][] = [['map', 'Mapa', 'tab:map'], ['tree', 'Árvore', 'tab:tree'], ['grouped', 'Worktrees', 'tab:grouped'], ['workflow', 'Workflow', 'tab:workflow'], ['cost', 'Custo', 'tab:cost'], ['tools', 'Ferramentas', 'tab:tools']]
     const curTab = view === 'map' ? 'map' : (await read($, modeAt)) as string
+    const limLines = usageLimits((await read($, sessionLimitsAt)) ?? undefined, now)
     const appChrome = () => {
       const g = buildGraph(all, now, sgit)
       const ags = [...g.nodes.values()].filter(n => n.kind === 'agent')
@@ -826,6 +827,7 @@ export const register: Register = on => {
             <Text dimColor>{`· ${proj}${sgit?.branch ? ` · ⎇ ${sgit.branch}` : ''}`}</Text>
           </Box>
           <Text dimColor>{`${ags.length ? fmtMMSS(elapsedOf(g, now)) : '--:--'} · ${cnt('running')} rodando · ${cnt('done')} concluídos · ${cnt('failed')} falha`}</Text>
+          {limLines.length > 0 && <Text dimColor>{limLines.join(' · ')}</Text>}
           <Box flexDirection="row" flexWrap="wrap" gap="xs">
             {ags.map(n => <Box key={`seg-${n.id}`} width={3} height={1} backgroundColor={TONE_OF[n.state]} />)}
           </Box>

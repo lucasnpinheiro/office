@@ -11,7 +11,7 @@ import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
 import { worktreePartition, groupDivider, restDivider, agentsLine } from './view-worktrees'
 import type { AheadInfo } from './git'
-import { buildRunModel, RUN_STATE } from './run-model'
+import { buildRunModel, RUN_STATE, usageLimits } from './run-model'
 import { chips } from './persona'
 import type { RunModel, RunNode } from './run-model'
 import { costLines, fmtTokens, fmtUsd } from './view-cost'
@@ -85,6 +85,7 @@ export type CView = {
   model?: RunModel // built once by the caller (register.tsx) with the session tokens; built here from the agents when absent
   captureIo?: boolean // OFFICE_CAPTURE_IO=1: the Tools view may show masked input/output
   sessionUsd?: number // `$.session.usage().cost.usd`, only when the engine gave it
+  limits?: unknown // raw plan limits from `$.session.usage()`; invalid/absent = no header segment
   containerPx?: number // app container width (px), only when the engine reports it (ADR 0002: containerWidth not-verified); absent = terminal rules
 }
 // Árvore: por padrão todos os cards aparecem abertos. Opt-in (tecla g, item em expanded): irmãos do mesmo estado acima de 8 viram um grupo `Rodando ×N` (AC-019).
@@ -221,7 +222,8 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
     return [...(i ? sp(1) : []), seg(c, H.repeat(per + (i < extra ? 1 : 0)), worst(grp))]
   }).flat() : []
   // sem agente não há progresso a mostrar: a barra de segmentos só existe quando há agentes (AC-020)
-  return [spread(left, right, w), fit(counts, w), ...(ns.length ? [bar] : [])]
+  const lim = usageLimits(v.limits, now)
+  return [spread(left, right, w), fit(counts, w), ...(lim.length ? [fit([seg(c, lim.join(' · '), DIM)], w)] : []), ...(ns.length ? [bar] : [])]
 }
 
 // View tabs of the design (Mapa, Árvore, Worktrees, Custo, Ferramentas; Workflow only while a run exists): a click picks the mode.
