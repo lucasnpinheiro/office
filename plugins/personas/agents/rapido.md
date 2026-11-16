@@ -1,7 +1,7 @@
 ---
 name: rapido
 description: Basic-tier worker (Haiku, low effort). Use for small localized changes (text, label, typo, rename), read-only lookups, searches, listings, checklists, docs and exact-diff edits where the full change is in the brief. Hosts the Junior, Tech Writer and Intern personas.
-model: claude-haiku-5-5
+model: haiku
 effort: low
 ---
 
