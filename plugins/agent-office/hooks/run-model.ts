@@ -313,3 +313,27 @@ export function limitsRawOf(u: unknown): Record<string, unknown> | undefined {
   const r = o?.rate_limits ?? o?.limits
   return r && typeof r === 'object' ? r as Record<string, unknown> : undefined
 }
+
+// REQ-202/203: header segments from the plan limits (field names NOT verified against the engine: five_hour, seven_day, seven_day_<model>,
+// each { used_percentage 0..100, resets_at epoch seconds }). Anything missing or invalid is omitted, never invented nor zero.
+export function usageLimits(raw: unknown, now: number): string[] {
+  if (!raw || typeof raw !== 'object') return []
+  const left = (ms: number, days: boolean): string => {
+    const m = Math.max(0, Math.floor(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mi = m % 60
+    const f = (n: number, u: string, rest: string) => (rest ? `${n}${u} ${rest}` : `${n}${u}`)
+    return days && d > 0 ? f(d, 'd', h ? `${h}h` : '') : f(Math.floor(m / 60), 'h', mi ? `${mi}m` : '')
+  }
+  const order = (k: string) => (k === 'five_hour' ? 0 : k === 'seven_day' ? 1 : 2)
+  return Object.entries(raw as Record<string, unknown>)
+    .filter(([k]) => k === 'five_hour' || k.startsWith('seven_day'))
+    .sort(([a], [b]) => order(a) - order(b))
+    .flatMap(([k, v]) => {
+      const e = v as { used_percentage?: unknown; resets_at?: unknown } | null
+      const p = e?.used_percentage
+      if (typeof p !== 'number' || !Number.isFinite(p) || p < 0 || p > 100) return []
+      const label = k === 'five_hour' ? '5h' : k === 'seven_day' ? 'Semana' : `Semana ${k.slice('seven_day_'.length)}`
+      const r = e?.resets_at
+      const reset = typeof r === 'number' && Number.isFinite(r) && r > 0 ? ` · reinicia em ${left(r * 1000 - now, k !== 'five_hour')}` : ''
+      return [`${label} ${Math.round(p)}%${reset}`]
+    })
+}

@@ -307,3 +307,16 @@ test('card chips: description without the format falls back to generic persona, 
   expect(o).toContain('sem formato')
   expect(o).toMatch(/│🤖 Agente\s+│/)
 })
+
+// U-206/D-201: header unchanged without limits; with limits an extra dim line, never cut mid-word at width 60
+test('header limits: absent = identical header; present = extra line', () => {
+  const ag = [mk('a')]
+  const base = txt(cardsOut(ag)).split('\n')
+  const now = T + 9000
+  const limits = { five_hour: { used_percentage: 4, resets_at: Math.floor((now + 4 * 3_600_000) / 1000) } }
+  expect(txt(cardsOut(ag, { limits: undefined })).split('\n')).toEqual(base)
+  expect(txt(cardsOut(ag, { limits: { five_hour: { used_percentage: NaN } } })).split('\n')).toEqual(base)
+  const withL = txt(cardsOut(ag, { limits })).split('\n')
+  expect(withL[2]).toBe('5h 4% · reinicia em 4h'); expect(withL.length).toBe(base.length + 1)
+  expect(txt(cardsOut(ag, { limits, width: 60 })).split('\n')[2]).toBe('5h 4% · reinicia em 4h')
+})

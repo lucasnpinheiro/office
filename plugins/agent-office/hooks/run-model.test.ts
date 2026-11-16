@@ -208,3 +208,19 @@ test('limitsRawOf: limits object from usage(), undefined without one', () => {
   expect(runModel.limitsRawOf(undefined)).toBeUndefined()
   expect(runModel.limitsRawOf({ rate_limits: 5 })).toBeUndefined()
 })
+
+// U-202..U-205: plan limits, hidden when the engine gave nothing valid
+const HR = 3_600_000
+test('usageLimits: 5h and weekly segments with remaining time; model weekly when present', () => {
+  const now = 1_000_000_000_000
+  const at = (ms: number) => Math.floor((now + ms) / 1000)
+  expect(runModel.usageLimits({ five_hour: { used_percentage: 4, resets_at: at(4 * HR) } }, now)).toEqual(['5h 4% · reinicia em 4h'])
+  expect(runModel.usageLimits({ seven_day: { used_percentage: 12, resets_at: at(48 * HR) } }, now)).toEqual(['Semana 12% · reinicia em 2d'])
+  expect(runModel.usageLimits({ five_hour: { used_percentage: 4, resets_at: at(4 * HR + 30 * 60000) }, seven_day: { used_percentage: 12, resets_at: at(50 * HR) }, seven_day_opus: { used_percentage: 7, resets_at: at(50 * HR) } }, now))
+    .toEqual(['5h 4% · reinicia em 4h 30m', 'Semana 12% · reinicia em 2d 2h', 'Semana opus 7% · reinicia em 2d 2h'])
+})
+test('usageLimits: NaN, negative, >100, wrong shape or nothing omit the segment', () => {
+  const bad = (p: unknown) => runModel.usageLimits({ five_hour: { used_percentage: p, resets_at: 1 } }, 0)
+  expect(bad(NaN)).toEqual([]); expect(bad(-1)).toEqual([]); expect(bad(101)).toEqual([]); expect(bad('4')).toEqual([])
+  expect(runModel.usageLimits(undefined, 0)).toEqual([]); expect(runModel.usageLimits(5, 0)).toEqual([])
+})
