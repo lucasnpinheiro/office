@@ -76,7 +76,7 @@ test('hotkeys are unique per view and off while searching', async () => {
   expect(hotkeysFor(c0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q'])
   expect(hotkeysFor({ ...c0, selected: 'a' }, false).map(h => h.key)).toEqual(['b', 'q'])
   expect(hotkeysFor({ ...c0, selected: 'a' }, true).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'b', 'q'])
-  expect(hotkeysFor(s0, false).map(h => h.key)).toEqual(['v', 'f', 'q']) // map footer: visão · falhas · fechar
+  expect(hotkeysFor(s0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q']) // REQ-503: map footer = every tab's footer
   expect(hotkeysFor({ ...s0, selected: 'a' }, false).map(h => h.key)).toEqual(['v', 'b', 'q'])
 })
 
@@ -136,18 +136,14 @@ test('v do mapa mantém o modo que o usuário escolheu; sem escolha entra na ár
 })
 
 // Achado PR 19: Custo, Ferramentas e Workflow não filtram nem buscam; f e s não aparecem nem ligam nesses modos.
-test('hotkeys: f e s somem em Custo, Ferramentas e Workflow e voltam nos demais modos', () => {
+test('REQ-503 hotkeys: o mesmo rodapé em toda aba, e nenhuma linha começa ou termina com |', () => {
   const base = { ...initialUi(), view: 'compact' as const }
-  for (const mode of ['cost', 'tools', 'workflow'] as const) {
-    const keys = hotkeysFor({ ...base, mode }, false).map(h => h.key)
-    expect(keys).not.toContain('f')
-    expect(keys).not.toContain('s')
-    expect(keys).toContain('g')
-  }
-  for (const mode of ['tree', 'grouped', 'cards', 'waterfall'] as const) {
-    const keys = hotkeysFor({ ...base, mode }, false).map(h => h.key)
-    expect(keys).toContain('f')
-    expect(keys).toContain('s')
+  for (const mode of ['tree', 'grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow', 'map'] as const) {
+    expect(hotkeysFor({ ...base, mode }, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q'])
+    for (const cols of [40, 80, 160]) for (const row of footerRows({ ...base, mode }, false, cols)) {
+      const t = row.map(x => x.t).join('').trim()
+      expect(t.startsWith('|') || t.endsWith('|')).toBe(false)
+    }
   }
 })
 

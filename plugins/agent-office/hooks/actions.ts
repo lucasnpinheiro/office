@@ -60,15 +60,14 @@ export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
   if (s.searching) return []
   // Letras e rótulos vêm do KEY_MAP único (vocabulary.ts), não de literais por tela.
   const hk = (act: string): Hotkey => ({ key: keyOf(act) ?? '', label: labelOf(act) ?? act, act })
-  // Custo, Ferramentas e Workflow não passam pelo filtro de falhas nem pela busca: f e s não são desenhados nem ligados ali.
-  const filterable = s.mode !== 'cost' && s.mode !== 'tools' && s.mode !== 'workflow'
-  const list: Hotkey[] = [hk('group'), hk('sort'), ...(filterable ? [hk('failed'), hk('search')] : []), hk('view')]
+  // REQ-503: o mesmo rodapé em toda aba (modo, ordenar, falhas, buscar, visão), sem condicionar ao modo.
+  const list: Hotkey[] = [hk('group'), hk('sort'), hk('failed'), hk('search'), hk('view')]
   const back: Hotkey = { ...hk('back'), label: s.attach ? 'fechar preview' : hk('back').label }
   const close = hk('close')
   const view = hk('view')
   // map footer (design Term5): v visão · f falhas · q fechar (the v cycle differs by surface, so no sequence is promised here)
   const mapView: Hotkey = view
-  if (s.view === 'map') return s.selected ? [mapView, back, close] : [mapView, hk('failed'), close]
+  if (s.view === 'map' && s.selected) return [mapView, back, close]
   if (s.selected && !side) return [back, close]
   return s.selected ? [...list, back, close] : [...list, close]
 }

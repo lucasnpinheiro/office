@@ -4,6 +4,18 @@
 
 - Detail ANDAMENTO lines read `▸ <Tool> <target>`: no repeated name (`Skill Skill`), Skill shows the skill name, Bash shows its description (program only when absent, never a bare flag like `-d`). New `stats.toolLine` (REQ-504).
 
+## 0.28.28 (agent-office, same footer in every tab)
+
+- Footer hotkeys (`g modo · o ordenar · f só falhas · s buscar · v visão · q fechar`) are the same in every tab, Mapa, Custo, Ferramentas and Workflow included; one source, `footerRows`/`hotkeysFor` (REQ-503).
+
+## 0.28.27 (agent-office, empty state)
+
+- With no agents every mode shows only the waiting line and the legend: the horizontal rule between them is no longer drawn (REQ-502).
+
+## 0.28.26 (agent-office, one app chrome)
+
+- App surfaces (desktop, vscode, mobile): every mode and state (empty, running, detail) draws the same header from `appChrome` (`Office · repo · ⎇ branch · #sha`, `~$cost` when known, `0 falhas` plural, tabs). `renderCompact` takes `chrome: false` so the ANSI header and tab row are not drawn twice. Terminal unchanged. REQ-501.
+
 ## 0.28.25 (agent-office, grouped without Atenção block)
 
 - Grouped mode drops the fixed "Atenção (N)" block also when worktrees exist: failed/attention agents already sit under their worktree divider; the "Atenção" pill on cards stays. App surface (register.tsx) has no equivalent block.
