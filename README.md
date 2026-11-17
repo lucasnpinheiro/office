@@ -305,6 +305,14 @@ Credits: the waterfall idea (spans on a time axis, staggered reveal, shimmer) wa
 "Trace waterfall" component at https://kobra.systems/components/trace-waterfall, a paid proprietary product. Nothing
 was copied; the effect is re-implemented from scratch with block characters.
 
+### Parity with the demo video
+
+Checked against `agent-office-demo.mp4` (14 chapters). Shipped on terminal and desktop: install, header, map, card
+anatomy, states, cards, grouped, cost, tools, detail, commands and layout. Still open
+(`openspec/changes/office-video-gaps/proposal.md`): waterfall `agora` line, critical-path marker ("segura o fim") and
+pending-row label; grouped/cost/tools draw as text cells (not graphical) in the desktop app; desktop rendering is not
+yet verified with real captures.
+
 ## Optional parts
 
 - **personas**: installing it opts in to the router hook (one `[model-router]` suggestion per prompt; Laya if
