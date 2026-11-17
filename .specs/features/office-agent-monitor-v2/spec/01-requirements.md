@@ -97,7 +97,7 @@ Ver `spec.md`.
 4. WHERE `CAPABILITIES` for falso para uma ação, the system SHALL não desenhar botão nem tecla dessa ação em nenhuma superfície. (AC-041)
 ### US-13 — Usar o painel em qualquer largura (REQ-013, T-013)
 **Acceptance Criteria**
-1. WHEN a largura mudar, the system SHALL usar 100+ colunas completo, 60 a 99 compacto, abaixo de 60 só lista, e no app 1, 2, 3 e 4 colunas em 0, 520, 780 e 1040 px de container. (AC-042)
+1. WHEN a largura mudar, the system SHALL usar 100+ colunas completo, 36 a 99 compacto, abaixo de 36 só lista, e no app 1, 2, 3 e 4 colunas em 0, 520, 780 e 1040 px de container. (AC-042)
 2. WHERE o container tiver menos de 900 px, the system SHALL abrir o detalhe sobre a lista, e abaixo de 520 px SHALL trocar cards por linhas de status, nome e tempo. (AC-043)
 3. IF a largura for desconhecida ou zero, the system SHALL usar o layout de uma coluna, encolher primeiro o `agora` e manter custo, tempo, falha e decisão visíveis. (AC-044)
 ### US-14 — Perceber mudanças sem distração (REQ-014, T-014)

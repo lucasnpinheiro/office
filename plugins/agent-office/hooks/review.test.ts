@@ -117,7 +117,7 @@ test('ASCII mode: every rendered char is ASCII (header, cards, footer, detail)',
   expect(statusText(ag, T0 + 5000, true).replace(/[\x00-\x7f]/g, '')).toBe('')
 })
 
-test('header keeps the "Office" title visible at 60 columns (T-013: below 60 is list only)', () => {
+test('header keeps the "Office" title visible at 60 columns (T-013: below 36 is list only)', () => {
   const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
   const ag = Array.from({ length: 5 }, (_, i) => mk({ id: 'h' + i, agentId: 'gh' + i }))
   const lines = renderCompact(ag, T0 + 5000, { width: 60, caps, mode: 'map', query: '', expanded: new Set(), maxCardRows: 4, project: 'meuprojeto', sessionId: 'abcdef123' })

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28.21 (agent-office, narrow panel cards)
+
+- Terminal compact threshold 60 -> 36 columns: the 53-column side panel (120x40) now draws bordered cards instead of one line per agent; below 36 stays list only.
+- Short pane (bottom panel, up to 12 rows): header collapses to one title+counts line so the first card starts on row 3.
+- Pane height now uses `scroll.bodyRows` (rows the host really shows) before the terminal rows.
+
 ## 0.28.20 (agent-office, Atenção fix)
 
 - Grouped with no worktrees: the `Atenção (N)` block no longer repeats agents already under the state dividers (`Falhou ×N`, `Atenção ×N`); each agent appears once. With worktrees the pinned block is unchanged.

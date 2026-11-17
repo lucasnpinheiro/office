@@ -6,7 +6,7 @@ import { strWidth, takeWidth } from './monitor'
 export type TermLevel = 'full' | 'compact' | 'list'
 
 export const DEFAULT_COLS = 80
-export const TERM_FULL = 100, TERM_COMPACT = 60
+export const TERM_FULL = 100, TERM_COMPACT = 36
 // min do container (px) -> colunas de cards
 export const APP_STEPS: readonly [number, number][] = [[1040, 4], [780, 3], [520, 2], [0, 1]]
 export const DETAIL_SIDE_PX = 900, ROW_BELOW_PX = 520

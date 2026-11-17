@@ -29,7 +29,7 @@ test('caps: color truecolor > 256 > 16 > mono; reduced motion', () => {
   expect(quantize('#ff0000', 'truecolor')).toBe('#ff0000')
 })
 test('layout level by width', () => {
-  expect(layoutLevel(120)).toBe('full'); expect(layoutLevel(70)).toBe('abbr'); expect(layoutLevel(40)).toBe('line')
+  expect(layoutLevel(120)).toBe('full'); expect(layoutLevel(70)).toBe('abbr'); expect(layoutLevel(30)).toBe('line')
 })
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
 const v = { width: 110, caps, mode: 'tree' as const, query: '', expanded: new Set<string>(), maxCardRows: 3 }
@@ -78,8 +78,8 @@ test('status line and quota error', () => {
   const out = txt(renderCompact([mk('q', { status: 'error', endedAt: T + 1, error: 'usage limit reached' })], T + 5, v))
   expect(out).toContain('▲')
 })
-test('narrow width (< 60) shows only the list: no header, no footer (T-013, AC-042)', () => {
-  const ls = renderCompact([mk('a')], T + 1, { ...v, width: 40 })
+test('narrow width (< 36) shows only the list: no header, no footer (T-013, AC-042)', () => {
+  const ls = renderCompact([mk('a')], T + 1, { ...v, width: 30 })
   expect(txt(ls)).toContain('Dev: a'); expect(txt(ls)).not.toContain('Office'); expect(txt(ls)).not.toContain('Concluído')
 })
 test('detail: deps navigable, siblings, attachments', () => {

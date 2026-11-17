@@ -63,7 +63,7 @@ Cor clara dos estados neutros vem de `muted`; o canvas só lista a escura para e
 | `1` `2` `3` | opções na tela Decisões | | |
 
 ## Larguras (Foundations5, Responsive5)
-Terminal: 100+ completo; 60 a 99 compacto; abaixo de 60 só lista. App por container: 1, 2, 3, 4 colunas em 0, 520, 780, 1040 px. Detalhe ao lado a partir de 900 px, abaixo cobre a lista. Abaixo de 520 px, linhas de status, nome e tempo; filhos recuados com guia. Nome quebra, nunca corta; encolhe primeiro o `agora`. Card com 3 alturas: compacto, padrão, expandido. Abas em rolagem horizontal, ativa visível. Ações presas ao fim do detalhe. Falha e decisão sempre primeiro. Alvo de toque 44 px no app, se a superfície permitir.
+Terminal: 100+ completo; 36 a 99 compacto (cards em caixa); abaixo de 36 só lista. Painel baixo (até 12 linhas): cabeçalho de uma linha. App por container: 1, 2, 3, 4 colunas em 0, 520, 780, 1040 px. Detalhe ao lado a partir de 900 px, abaixo cobre a lista. Abaixo de 520 px, linhas de status, nome e tempo; filhos recuados com guia. Nome quebra, nunca corta; encolhe primeiro o `agora`. Card com 3 alturas: compacto, padrão, expandido. Abas em rolagem horizontal, ativa visível. Ações presas ao fim do detalhe. Falha e decisão sempre primeiro. Alvo de toque 44 px no app, se a superfície permitir.
 
 ## Movimento (Foundations5)
 | Efeito | App | Terminal |

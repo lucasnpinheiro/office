@@ -639,7 +639,7 @@ export const register: Register = on => {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
       expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, scroll: await read($, scrollAt), branch: sgit?.branch,
-      maxLines: paneBodyLines(e.props as { bodyRows?: number } | undefined, e.viewport),
+      maxLines: paneBodyLines(e.props as { bodyRows?: number; scroll?: { bodyRows?: number } } | undefined, e.viewport),
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, limits: (await read($, sessionLimitsAt)) ?? undefined, ahead: aheadNow(),
       containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,
