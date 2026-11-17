@@ -21,7 +21,9 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
   // g em árvore: primeiro recolhe irmãos iguais em grupos (opt-in; o padrão mostra todos), depois passa ao modo seguinte.
   if (a === 'group') {
     if (s.mode === 'tree' && ctx.collapsed !== false && !s.expanded.includes(TREE_FOLD)) return { state: { ...s, expanded: [...s.expanded, TREE_FOLD] } }
-    return { state: { ...s, mode: nextModeOf(s.mode, ctx.workflow === true), modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_FOLD) } }
+    const mode = nextModeOf(s.mode, ctx.workflow === true)
+    // the app's Mapa tab is the map view: g landing on map goes there, any other mode leaves it (tab highlight = what is drawn)
+    return { state: { ...s, mode, view: mode === 'map' ? 'map' : s.view, modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_FOLD) } }
   }
   // tabs of the app pane: Mapa = map view; every other tab is the compact view in that mode
   if (a === 'tab:map') return { state: { ...s, view: 'map', selected: '', attach: '', filter: 'all' } }
@@ -64,8 +66,8 @@ export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
   const back: Hotkey = { ...hk('back'), label: s.attach ? 'fechar preview' : hk('back').label }
   const close = hk('close')
   const view = hk('view')
-  // map footer (design Term5): v visão (mapa › árvore › cards) · f falhas · q fechar
-  const mapView: Hotkey = { ...view, label: 'visão (mapa › árvore › cards)' }
+  // map footer (design Term5): v visão · f falhas · q fechar (the v cycle differs by surface, so no sequence is promised here)
+  const mapView: Hotkey = view
   if (s.view === 'map') return s.selected ? [mapView, back, close] : [mapView, hk('failed'), close]
   if (s.selected && !side) return [back, close]
   return s.selected ? [...list, back, close] : [...list, close]

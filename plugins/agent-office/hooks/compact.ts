@@ -230,7 +230,7 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
 // View tabs of the video (VIEW_TABS, 8 always; Workflow dimmed while no run exists): a click picks the mode.
 function tabsLine(agents: AgentLike[], v: CView): Line {
   const c = v.caps
-  const tabs = VIEW_TABS as unknown as [Mode, string][]
+  const tabs: readonly (readonly [Mode, string])[] = VIEW_TABS
   const noWf = !agents.some(a => a.workflow) // workflow stays listed, dimmed while no run exists
   const one = ([m, label]: [Mode, string]): Seg[] => [seg(c, ` ${label} `, noWf && m === 'workflow' && v.mode !== m ? DIM : undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
   // too narrow for every tab: the strip scrolls, dropping tabs from the left until the active one is visible (design: tabs scroll horizontally)
@@ -246,7 +246,7 @@ function filterBar(g: Graph, v: CView): Line {
   const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const bad = ns.filter(n => n.state === 'failed' || n.state === 'attention').length
   const btn = (t: string, act: string, on: boolean): Seg[] => [seg(c, ` ${t} `, undefined, { act, btn: true, variant: on ? 'primary' : 'secondary', bold: on }), ...sp(1)]
-  return fit([...btn('Agrupado', 'mode:grouped', v.mode === 'grouped'), ...btn(`Todos os cards ${ns.length}`, 'mode:map', v.mode !== 'grouped' && v.filter !== 'failed'),
+  return fit([...btn('Agrupado', 'mode:grouped', v.mode === 'grouped'), ...btn(`Todos os cards ${ns.length}`, 'mode:cards', v.mode === 'cards' && v.filter !== 'failed'),
     ...btn(`Falhas ${bad}`, 'failed', v.filter === 'failed'), ...(v.query ? [seg(c, `busca: ${v.query}`, DIM)] : [])], v.width)
 }
 
@@ -594,14 +594,13 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const c = v.caps, frame = v.frame ?? 0
   const V = c.ascii ? ':' : '┊', H = c.ascii ? '.' : '┄'
   const J = c.ascii ? { d: '+', u: '+', x: '+', tl: '+', tr: '+', l: '+', bl: '+' } : { d: '┬', u: '┴', x: '┼', tl: '╭', tr: '╮', l: '├', bl: '╰' }
-  const flowOf = (n: Node) => (n.git?.worktree ? n.git.branch ?? n.git.worktree : '')
   const agentKids = (n: Node) => sortNodes(n.children.filter(k => k.kind === 'agent' && keep.has(k.id)), v.sort)
   const maxPer = v.containerPx === undefined ? 6 : Math.min(6, appColumns(v.containerPx))
   const CARD_MIN = 18, MAX_LEVEL = 10, GAP = 3
   type M = { w: number; cw: number; h: number; rows: Node[][]; hidden: number; px: number }
   const memo = new Map<Node, M>()
   const hs = new Map<Node, number>()
-  const tagOf = (n: Node, depth: number, up: boolean, down: boolean, w?: number): CardTag => ({ role: n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente', wt: flowOf(n), br: n.kind === 'session' ? v.branch : undefined, wf: n.workflow, up, down, w })
+  const tagOf = (n: Node, depth: number, up: boolean, down: boolean, w?: number): CardTag => ({ role: roleOf(n, depth), wt: flowOf(n), br: n.kind === 'session' ? v.branch : undefined, wf: n.workflow, up, down, w })
   // card height by content: drawn once here, the same rows as draw() (role only changes agente/subagente, same width class)
   const hOf = (n: Node, depth: number, cw: number) => { let h = hs.get(n); if (h === undefined) hs.set(n, h = card(n, nm, c, now, frame, 0, tagOf(n, depth, false, false, cw), runs?.get(n.id)).length); return h }
   const count = (n: Node): number => agentKids(n).reduce((a, k) => a + 1 + count(k), 0)
@@ -684,15 +683,19 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   return lines
 }
 
+const flowOf = (n: Node) => (n.git?.worktree ? n.git.branch ?? n.git.worktree : '')
+const roleOf = (n: Node, depth: number) => (n.kind === 'session' ? 'orquestrador' : depth <= 1 ? 'agente' : 'subagente')
 // Cards mode: a plain grid of every agent card (no bus, no hierarchy), as many columns as the width allows.
-function gridLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, runs: Map<string, RunNode>): Line[] {
+function gridLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, runs: Map<string, RunNode>, starts: number[] = []): Line[] {
   const c = v.caps, frame = v.frame ?? 0
   const ns = sortNodes([...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id)), v.sort)
   const cw = Math.max(18, Math.min(CARD_W, v.width)), per = Math.max(1, Math.floor((v.width + CARD_GAP) / (cw + CARD_GAP)))
+  const depthOf = (n: Node) => { let d = 0; for (let p = g.nodes.get(n.parentId); p && p !== g.root; p = g.nodes.get(p.parentId)) d++; return d + 1 }
   const out: Line[] = []
   for (let i = 0; i < ns.length; i += per) {
-    const cards = ns.slice(i, i + per).map((n, k) => card(n, nm, c, now, frame, i + k, { role: 'agente', wt: n.git?.worktree ? n.git.branch ?? n.git.worktree : '', wf: n.workflow, up: false, down: false, w: cw }, runs.get(n.id)))
+    const cards = ns.slice(i, i + per).map((n, k) => card(n, nm, c, now, frame, i + k, { role: roleOf(n, depthOf(n)), wt: flowOf(n), wf: n.workflow, up: false, down: false, w: cw }, runs.get(n.id)))
     const h = Math.max(...cards.map(x => x.length))
+    starts.push(out.length)
     for (let r = 0; r < h; r++) out.push(cards.flatMap((x, k) => [...(k ? sp(CARD_GAP) : []), ...(x[r] ?? sp(cw))]))
     out.push([])
   }
@@ -765,7 +768,25 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
       for (const n of bad) out.push(fit([seg(v.caps, '  ' + glyph(v.caps, n.state) + ' ', stateColor(n.state), { node: n.id }),
         seg(v.caps, nm.get(n.id) ?? n.name, undefined, { bold: true, node: n.id }), seg(v.caps, n.error ? '  ' + n.error : '', DIM)], w))
     }
-    if (v.mode === 'cards') out.push(...gridLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r]))))
+    if (v.mode === 'cards') {
+      // same window as the map: whole card rows only, j/k scroll through scrollInfo; a short pane no longer overflows
+      const starts: number[] = []
+      const rows = gridLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r])), starts)
+      const avail = v.maxLines === undefined ? Infinity : Math.max(MIN_CARD_ROWS, v.maxLines - out.length - foot.length)
+      if (rows.length <= avail) { scrollInfo.max = 0; scrollInfo.units = []; out.push(...rows) }
+      else {
+        const bounds = [...starts, rows.length]
+        let mi = 0
+        while (mi < starts.length - 1 && rows.length - bounds[mi]! > avail) mi++ // last start whose tail still fits
+        const off = Math.min(Math.max(0, v.scroll ?? 0), bounds[mi]!)
+        scrollInfo.max = bounds[mi]!; scrollInfo.units = bounds.slice(0, mi + 1)
+        let first = 0
+        while (first < starts.length - 1 && bounds[first + 1]! <= off) first++
+        let last = first + 1
+        while (last < starts.length && bounds[last + 1]! - bounds[first]! <= avail) last++ // whole card rows only
+        out.push(...rows.slice(bounds[first], bounds[last]))
+      }
+    }
     else if (v.mode === 'map') {
       // every card keeps its full anatomy (design: no denser form); a pane too short shows a window that scrolls in whole
       // card rows (a row of cards and the bus above it, never cut)

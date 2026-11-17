@@ -379,6 +379,7 @@ export const register: Register = on => {
       const v = want === 'map' ? 'map' : want ? 'compact' : cur === 'map' ? 'compact' : 'map'
       await update($, viewAt, () => v)
       if (want === 'map' && onTerminal()) await update($, modeAt, () => 'map') // the terminal's map is the centred org chart
+      if (want === 'cards') { await update($, modeAt, () => 'cards'); await update($, modeChosenAt, () => true) } // view cards = the grid mode
       await update($, autoViewAt, () => false) // an explicit choice is never overridden by the surface default
       $.ui.invalidate('ui.render')
       bg(resizeIfNeeded($))
@@ -386,8 +387,9 @@ export const register: Register = on => {
     }
     if (w0 === 'mode' || w0 === 'g') {
       const cur = (await read($, modeAt)) as Mode
-      if (arg && w0 === 'mode' && !MODES.includes(arg as Mode)) return { text: `Modo desconhecido: ${arg}. Use ${MODES.join('|')}.` } // keeps the current mode
-      const m = MODES.includes(arg as Mode) ? (arg as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group', await groupCtx($, await readUi($))).state.mode
+      const want = arg.toLowerCase()
+      if (want && !MODES.includes(want as Mode)) return { text: `Modo desconhecido: ${arg}. Use ${MODES.join('|')}.` } // keeps the current mode (mode and g alike)
+      const m = want ? (want as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group', await groupCtx($, await readUi($))).state.mode
       await update($, modeAt, () => m); await update($, modeChosenAt, () => true); $.ui.invalidate('ui.render'); return { text: `Modo: ${m}.` }
     }
     if (w0 === 'search' || w0 === 'buscar') { await update($, queryAt, () => arg); $.ui.invalidate('ui.render'); return { text: arg ? `Busca: ${arg}` : 'Busca limpa.' } }
@@ -871,7 +873,7 @@ export const register: Register = on => {
         </Box>
       )
     }
-    if (isAppSurface((e as { surface?: string }).surface) && view === 'compact' && !selected && !attach && (await read($, modeAt)) === 'cards') {
+    if (isAppSurface((e as { surface?: string }).surface) && view === 'compact' && !selected && !attach && ['map', 'cards'].includes((await read($, modeAt)) as string)) { // app: map and cards modes both draw the graphical grid
       const cards = appCards(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
       return (
         <Box flexDirection="column" gap="sm">
