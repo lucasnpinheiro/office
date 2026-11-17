@@ -323,7 +323,7 @@ async function dispatch($: EngineInterface, a: string) {
   if (ui.selected && !((await read($, office)) as OfficeAgent[]).some(x => x.id === ui.selected)) ui.selected = ''
   const r = applyAction(ui, a, a === 'group' ? await groupCtx($, ui) : { terminal: onTerminal() })
   if (r.close) return closeOffice($)
-  if (r.state.selected !== ui.selected) await update($, scrollAt, () => 0) // opening or leaving a detail starts at the top
+  if (r.state.selected !== ui.selected || r.state.mode !== ui.mode || r.state.view !== ui.view) await update($, scrollAt, () => 0) // opening or leaving a detail, or changing tab, starts at the top
   await writeUi($, r.state)
   $.ui.invalidate('ui.render')
   if (a === 'view') bg(resizeIfNeeded($)) // map and compact want different pane sizes
@@ -636,11 +636,13 @@ export const register: Register = on => {
     const sidFallback: string = await read($, sidAt)
     const ioFlag = await captureIoOf($)
     const usd: number | null = await read($, sessionUsdAt)
+    // REQ-603: the hotkey rows are drawn under the compact frame, so the frame gets the pane rows minus them (the footer never leaves the screen)
+    const hkRows = view === 'compact' && !selected ? footerRows({ ...(await readUi($)), selected }, false, cols).length : 0
     const compactView: CView = {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
       expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, chrome: !isAppSurface((e as { surface?: string }).surface), scroll: await read($, scrollAt), branch: sgit?.branch,
-      maxLines: paneBodyLines(e.props as { bodyRows?: number; scroll?: { bodyRows?: number } } | undefined, e.viewport),
+      maxLines: Math.max(1, paneBodyLines(e.props as { bodyRows?: number; scroll?: { bodyRows?: number } } | undefined, e.viewport) - hkRows),
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, limits: (await read($, sessionLimitsAt)) ?? undefined, ahead: aheadNow(),
       containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,
