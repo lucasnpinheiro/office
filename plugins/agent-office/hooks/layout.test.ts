@@ -18,8 +18,8 @@ const NOW = T + 65_000
 const widest = (ls: { t: string }[][]) => Math.max(...ls.map(l => l.map(s => s.t).join('').length))
 
 test('U-019 terminal: 59/60/99/100 colunas', () => {
-  expect([termLevel(59), termLevel(60), termLevel(99), termLevel(100)]).toEqual(['list', 'compact', 'compact', 'full'])
-  expect([layoutLevel(59), layoutLevel(60), layoutLevel(99), layoutLevel(100)]).toEqual(['line', 'abbr', 'abbr', 'full'])
+  expect([termLevel(35), termLevel(36), termLevel(99), termLevel(100)]).toEqual(['list', 'compact', 'compact', 'full'])
+  expect([layoutLevel(35), layoutLevel(36), layoutLevel(99), layoutLevel(100)]).toEqual(['line', 'abbr', 'abbr', 'full'])
 })
 test('U-019 app: colunas em 519/520/779/780/1039/1040 px', () => {
   expect([0, 519, 520, 779, 780, 1039, 1040].map(appColumns)).toEqual([1, 1, 2, 2, 3, 3, 4])
@@ -52,12 +52,12 @@ test('I-042 renderCompact 100 colunas é completo; 60 é compacto sem perder est
   expect(widest(full)).toBeLessThanOrEqual(100); expect(widest(comp)).toBeLessThanOrEqual(60)
   expect(txt(full)).toContain('Bash') // agora visível com espaço
 })
-test('I-042 abaixo de 60 só lista: sem cabeçalho, rodapé nem legenda; falha primeiro e tempo mantidos', () => {
-  const out = renderCompact(agents, NOW, view({ width: 59 })), t = txt(out)
+test('I-042 abaixo de 36 só lista: sem cabeçalho, rodapé nem legenda; falha primeiro e tempo mantidos', () => {
+  const out = renderCompact(agents, NOW, view({ width: 35 })), t = txt(out)
   expect(t).not.toContain('Office'); expect(t).not.toContain('Geral')
   expect(t).toContain('boom'); expect(t).toContain('01:05'); expect(widest(out)).toBeLessThanOrEqual(59)
   expect(t.indexOf('boom')).toBeLessThan(t.indexOf('run'))
-  expect(txt(renderCompact([], NOW, view({ width: 40 })))).toContain('Aguardando')
+  expect(txt(renderCompact([], NOW, view({ width: 30 })))).toContain('Aguardando')
 })
 test('I-044 largura 0/NaN: uma coluna a 80, falha primeiro, tempo visível', () => {
   for (const w of [0, NaN]) {

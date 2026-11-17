@@ -91,8 +91,9 @@ export function paneWidth(props?: { bodyColumns?: number }, viewport?: { columns
 
 // Rows the pane body may take: the pane's own (`bodyRows`, the room the engine gives) or the whole viewport. The cards view
 // measures its own chrome (header, tabs, banners, footer) against it, so it fills the room exactly (B1).
-export function paneBodyLines(props?: { bodyRows?: number }, viewport?: { rows?: number }): number {
-  return props?.bodyRows || viewport?.rows || 30
+// scroll.bodyRows is what the host really shows (an inline pane on a 24-row terminal gets 6); viewport.rows is the whole terminal
+export function paneBodyLines(props?: { bodyRows?: number; scroll?: { bodyRows?: number } }, viewport?: { rows?: number }): number {
+  return props?.bodyRows || props?.scroll?.bodyRows || viewport?.rows || 30
 }
 
 // Signature of what a redraw would show: data + animation frame + second (the clocks). Equal = skip the redraw.

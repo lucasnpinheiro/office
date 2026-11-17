@@ -55,7 +55,7 @@ export const sortNodes = (ns: Node[], sort: CView['sort'] = 'time'): Node[] =>
   sort === 'state' ? [...ns].sort((a, b) => RANK[a.state] - RANK[b.state])
     : sort === 'name' ? [...ns].sort((a, b) => a.name.localeCompare(b.name)) : ns
 
-// 100+ full, 60 a 99 compact (abbr), abaixo de 60 só lista (line); largura desconhecida cai em 80 (layout.ts, AC-042/AC-044)
+// 100+ full, 36 a 99 compact (abbr), abaixo de 36 só lista (line); largura desconhecida cai em 80 (layout.ts, AC-042/AC-044)
 export const layoutLevel = (w: number): 'full' | 'abbr' | 'line' => ({ full: 'full', compact: 'abbr', list: 'line' } as const)[termLevel(w)]
 
 // ---------- glyphs ----------
@@ -224,6 +224,8 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   }).flat() : []
   // sem agente não há progresso a mostrar: a barra de segmentos só existe quando há agentes (AC-020)
   const lim = usageLimits(v.limits, now)
+  // short pane (bottom panel of a 24-row terminal): one title+counts line, no bar, so a card gets the rows
+  if (v.maxLines !== undefined && v.maxLines <= 12) return [spread([left[0]!, ...dot ? [dot] : [], ...counts], right, w)]
   return [spread(left, right, w), fit(counts, w), ...(lim.length ? [fit([seg(c, lim.join(' · '), DIM)], w)] : []), ...(ns.length ? [bar] : [])]
 }
 
@@ -743,7 +745,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const v: CView = { ...v0, width: w, mode: rows ? 'tree' : v0.mode }
   const g = buildGraph(agents, now)
   if (layoutLevel(w) === 'line') {
-    // abaixo de 60 colunas só a lista: falha e decisão primeiro, depois as linhas da árvore
+    // abaixo de 36 colunas só a lista: falha e decisão primeiro, depois as linhas da árvore
     const nm0 = names(g), keep0 = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
     if (agents.length === 0) return [fit([seg(v.caps, 'Aguardando agentes…', DIM)], w)]
     const list = [...pinnedLines(g, nm0, keep0, v), ...treeLines(g, nm0, keep0, now, { ...v, mode: 'tree' })]
