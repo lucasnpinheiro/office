@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.35 (agent-office, every tab fits the pane)
+
+- Every tab fits the terminal height: list tabs (Árvore, Waterfall, Custo, Ferramentas, Workflow) are a window with `↑ N mais` / `↓ N mais`, the pane reserves the hotkey rows so the footer is always visible, j/k scroll every list tab and the offset resets on tab change (REQ-603).
+
 ## 0.28.34 (agent-office, one active tab, one rule)
 
 - The active tab (and filter button) is marked in the text, `[Mapa]`, so the host focus cursor can no longer be mistaken for it; tabs are plain buttons. The header rule is one solid line (slices touch) (REQ-602). UNVERIFIED: host focus rendering not captured.

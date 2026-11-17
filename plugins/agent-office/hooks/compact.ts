@@ -762,6 +762,20 @@ export function treeHasCollapsed(agents: AgentLike[], now: number, v: Pick<CView
   })
 }
 
+// REQ-603: window of `avail` rows over a list body, with `↑ N mais` / `↓ N mais` notes taking a row each; the rows above and below
+// are counted, never silently dropped. Sets scrollInfo so j/k clamp to the last window.
+export function windowBody(body: Line[], avail: number, scroll: number, c: Caps, w: number): Line[] {
+  if (body.length <= avail) { scrollInfo.max = 0; scrollInfo.units = []; return body }
+  const maxOff = body.length - avail + 1
+  scrollInfo.max = maxOff; scrollInfo.units = []
+  const off = Math.min(Math.max(0, scroll), maxOff)
+  let room = avail - (off > 0 ? 1 : 0)
+  if (body.length - off > room) room--
+  const below = body.length - off - room
+  const note = (t: string): Line => centre([seg(c, t, DIM)], w)
+  return [...(off > 0 ? [note(`${c.ascii ? '^' : '↑'} ${off} mais`)] : []), ...body.slice(off, off + room), ...(below > 0 ? [note(`${c.ascii ? 'v' : '↓'} ${below} mais`)] : [])]
+}
+
 export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line[] {
   const w = effectiveCols(v0.width) // 0, negativa ou NaN: 80 colunas, uma coluna (AC-044)
   // app com container < 520 px: cards viram linhas de estado, nome e tempo (AC-043)
@@ -789,6 +803,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     const wait: Line = [seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)]
     out.push(v.mode === 'map' ? centre(wait, w) : wait)
   } else {
+    const bodyStart = out.length
     if (v.mode === 'cards') {
       // same window as the map: whole card rows only, j/k scroll through scrollInfo; a short pane no longer overflows
       const starts: number[] = []
@@ -860,6 +875,8 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
       out.push(...workflowView(wf, vocabOf(v.caps)))
     } else if (v.mode === 'grouped') out.push(...groupedLines(g, agents, nm, keep, now, v))
     else out.push(...treeLines(g, nm, keep, now, v))
+    // REQ-603: the list tabs share the map's rule, the body is a window that leaves the footer on screen
+    if (v.mode !== 'map' && v.mode !== 'cards' && v.maxLines !== undefined) out.push(...windowBody(out.splice(bodyStart), Math.max(5, v.maxLines - bodyStart - foot.length), v.scroll ?? 0, v.caps, w))
   }
   out.push(...foot)
   const cut = clipOf(v.caps) // REQ-606: every row is cut with …, never a bare clip
