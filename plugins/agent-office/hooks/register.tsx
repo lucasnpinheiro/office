@@ -674,7 +674,7 @@ export const register: Register = on => {
           ) : s.act && s.hotkey ? (
             <Button plain hotkey={ui.searching ? undefined : s.hotkey} key={`h-${s.hotkey}`} label={s.t.slice(3)} onPress={() => void act(s.act!)}>{s.t.slice(3)}</Button>
           ) : s.act && s.btn ? (
-            <Button variant={s.variant} key={`b-${s.act}`} label={s.t.trim()} onPress={() => void act(s.act!)}>{s.t.trim()}</Button>
+            <Button plain key={`b-${s.act}`} label={s.t.trim()} onPress={() => void act(s.act!)}>{s.t.trim()}</Button>
           ) : s.act ? (
             <Button plain key={`c-${s.act}-${s.t}`} onPress={() => void act(s.act!)}><Text color={s.fg} bold={s.bold} dimColor={s.dim}>{s.t}</Text></Button>
           ) : s.node && s.hotkey ? (

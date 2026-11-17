@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.34 (agent-office, one active tab, one rule)
+
+- The active tab (and filter button) is marked in the text, `[Mapa]`, so the host focus cursor can no longer be mistaken for it; tabs are plain buttons. The header rule is one solid line (slices touch) (REQ-602). UNVERIFIED: host focus rendering not captured.
+
 ## 0.28.33 (agent-office, rows cut with ellipsis)
 
 - Every row of `renderCompact` is cut with `…` at the pane width (long Worktrees agent line, Mapa legend); no bare clip (REQ-606).

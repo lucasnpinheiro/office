@@ -172,11 +172,11 @@ test('header (design): Office · project · #sid with tokens or cost on the righ
 test('agent bar: one full-width segment per agent in its state colour; view tabs under it', () => {
   const ls = cardsOut([mk('a', { status: 'done', endedAt: T + 100 }), mk('b')])
   const bar = ls[2]!
-  expect(bar.map(x => x.t).join('')).toMatch(/^━+ ━+$/)
+  expect(bar.map(x => x.t).join('')).toMatch(/^━+$/)
   expect(bar.filter(x => x.t.includes('━')).map(x => x.fg)).toEqual(['#6FD08C', '#7FA9FF'])
   expect(bar.reduce((k, x) => k + [...x.t].length, 0)).toBe(120)
   const tabs = ls.find(l => l.some(x => x.act === 'mode:tree'))!
-  expect(tabs.map(x => x.t).join('')).toMatch(/Mapa +Árvore +Worktrees +Cards +Waterfall +Custo +Ferramentas +Workflow/)
+  expect(tabs.map(x => x.t).join('')).toMatch(/\[?Mapa\]? +Árvore +Worktrees +Cards +Waterfall +Custo +Ferramentas +Workflow/)
   expect(tabs.find(x => x.act === 'mode:map')!.variant).toBe('primary')
 })
 test('no slanted parallelogram glyphs anywhere (render badly in terminals)', () => {
@@ -338,5 +338,18 @@ test('T-502 sem agentes: nenhum modo emite régua sem conteúdo; legenda e esper
     expect(out, mode).toContain('Aguardando agentes')
     expect(out, mode).toContain('Concluído')
     expect(out, mode).not.toMatch(/^[─-]{10,}$/m)
+  }
+})
+
+test('T-602 active tab is marked in the text itself (same with or without focus); header rule is one solid line', () => {
+  const caps = detectCaps({ TERM: 'xterm', LANG: 'pt_BR.UTF-8' })
+  const ag = [mk('a'), mk('b'), mk('c')]
+  for (const mode of ['map', 'tree', 'waterfall', 'cost'] as const) {
+    const ls = renderCompact(ag, T + 1000, { width: 100, caps, mode, query: '', expanded: new Set(), maxCardRows: 4, sort: 'time', filter: 'all' } as any)
+    const tabs = ls.find(l => l.some(s => s.act === 'mode:map'))!.map(s => s.t).join('')
+    const label = { map: 'Mapa', tree: 'Árvore', waterfall: 'Waterfall', cost: 'Custo' }[mode]
+    expect(tabs).toContain(`[${label}]`); expect((tabs.match(/\[/g) ?? []).length).toBe(1)
+    const rule = ls.map(l => l.map(s => s.t).join('')).find(t => /^━+/.test(t))!
+    expect(rule).not.toContain(' ')
   }
 })

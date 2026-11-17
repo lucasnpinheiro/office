@@ -15,7 +15,7 @@ const txt = (ls: { t: string }[][]) => ls.map(l => l.map(s => s.t).join('')).joi
 test('U-301 tab strip lists the 8 tabs in video order, each clickable', () => {
   const ls = draw([mk('a')], 'map')
   const tabs = ls.find(l => l.some(s => s.act === 'mode:map'))!
-  expect(tabs.map(s => s.t).join('')).toMatch(/Mapa +Árvore +Worktrees +Cards +Waterfall +Custo +Ferramentas +Workflow/)
+  expect(tabs.map(s => s.t).join('')).toMatch(/\[?Mapa\]? +Árvore +Worktrees +Cards +Waterfall +Custo +Ferramentas +Workflow/)
   expect(tabs.filter(s => s.act).map(s => s.act)).toEqual(VIEW_TABS.map(([m]) => `mode:${m}`))
   expect(VIEW_TABS.map(([m]) => m)).toEqual(['map', 'tree', 'grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow'])
   expect(tabs.find(s => s.act === 'mode:map')!.variant).toBe('primary')
