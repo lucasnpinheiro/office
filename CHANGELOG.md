@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.24 (agent-office, waterfall video gaps)
+
+- Waterfall: `│` now column over the bars (bar wins) with an `agora` label under the axis; `◂ fim` (ASCII `< fim`) on the agent that holds the end, only with 2+ agents; queued agents show `aguarda 1ª ação…` instead of a bar.
+
 ## 0.28.22 (agent-office, short card)
 
 - Pane body of 8 rows or fewer (`scroll.bodyRows`; 80x24 gives 6): a card is 4 rows (name + pill, model + status/time, borders) so one fits whole; the map's `n/total` notes are dropped there. Taller panes keep the full card.
