@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.28 (agent-office, same footer in every tab)
+
+- Footer hotkeys (`g modo · o ordenar · f só falhas · s buscar · v visão · q fechar`) are the same in every tab, Mapa, Custo, Ferramentas and Workflow included; one source, `footerRows`/`hotkeysFor` (REQ-503).
+
 ## 0.28.27 (agent-office, empty state)
 
 - With no agents every mode shows only the waiting line and the legend: the horizontal rule between them is no longer drawn (REQ-502).
