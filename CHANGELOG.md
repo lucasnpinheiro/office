@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.28 (agent-office, same footer in every tab)
+
+- Footer hotkeys (`g modo · o ordenar · f só falhas · s buscar · v visão · q fechar`) are the same in every tab, Mapa, Custo, Ferramentas and Workflow included; one source, `footerRows`/`hotkeysFor` (REQ-503).
+
 ## 0.28.26 (agent-office, one app chrome)
 
 - App surfaces (desktop, vscode, mobile): every mode and state (empty, running, detail) draws the same header from `appChrome` (`Office · repo · ⎇ branch · #sha`, `~$cost` when known, `0 falhas` plural, tabs). `renderCompact` takes `chrome: false` so the ANSI header and tab row are not drawn twice. Terminal unchanged. REQ-501.
