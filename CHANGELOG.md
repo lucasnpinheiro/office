@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.27 (agent-office, empty state)
+
+- With no agents every mode shows only the waiting line and the legend: the horizontal rule between them is no longer drawn (REQ-502).
+
 ## 0.28.26 (agent-office, one app chrome)
 
 - App surfaces (desktop, vscode, mobile): every mode and state (empty, running, detail) draws the same header from `appChrome` (`Office · repo · ⎇ branch · #sha`, `~$cost` when known, `0 falhas` plural, tabs). `renderCompact` takes `chrome: false` so the ANSI header and tab row are not drawn twice. Terminal unchanged. REQ-501.
