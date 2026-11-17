@@ -1,6 +1,6 @@
 ---
 status: READY
-progress: 0/6
+progress: 0/7
 updated: 2026-11-17
 ---
 # office-cli-visual-standard (agent-office, base main 95ebc8c)
@@ -23,7 +23,7 @@ Pedido 2026-11-17: 18 capturas reais do painel CLI (terminal, "compact frame") e
 
 ## Requisitos
 - REQ-601 Um único rodapé: rótulos completos do KEY_MAP, mesmas teclas em toda aba, quebra por largura real (margem de 2 colunas, item nunca encolhe), nunca corta no meio da palavra.
-- REQ-602 Um único estilo de aba ativa (texto invertido fixo, sem depender do foco) e uma única régua de header contínua.
+- REQ-602 Um único estilo de aba ativa (marcador no texto, `[Aba]`, sem depender do foco) e uma única régua de header contínua.
 - REQ-603 Toda aba cabe na altura do terminal: corpo em janela, indicador `↓ N mais` (e `↑ N mais`), rodapé sempre visível; j/k rolam em toda aba de lista.
 - REQ-604 Um só formato de tempo em toda tela: `mm:ss` abaixo de 1 h, `h:mm:ss` a partir de 1 h (header, cards, Waterfall, Custo, detalhe, eixo).
 - REQ-605 Nomes duplicados ganham `#n` em todas as abas (Waterfall, Custo, Ferramentas, Workflow), e o truncamento preserva o sufixo (`QA: teste de r… #3`).
@@ -37,7 +37,7 @@ Fora de escopo: itens 8, 9, 10; redesign do mapa/cards; superfície app.
 - Nome: `clipName(name, w)` em monitor.ts: separa sufixo ` #n`, corta o resto com `…`. RunModel recebe o mapa `names()`.
 - Truncamento final: `fit` ganha modo `ellipsis` usado no `map` final de renderCompact.
 - Rodapé: footerRows recebe `cols - 2`; no register.tsx cada item com `flexShrink={0}`.
-- Aba ativa: `variant` fixo + sem `hotkey/focus` pintando diferente; o foco usa sublinhado, não inversão.
+- Aba ativa: marcador `[Aba]` no texto e botões `plain`; o foco do host fica só como cursor.
 Índice: tasks/README.md · tests.md · acceptance/cli-visual.feature
 Evidência: render headless de cada aba + detalhe em 80/120/160 colunas x 24/40 linhas (6 agentes de mesmo nome, execução > 3 h).
 Não verificado: largura real do painel no host (causa do item 1 inferida do render e do Yoga); item 7 só reproduzido por leitura.
