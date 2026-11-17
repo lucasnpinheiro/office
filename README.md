@@ -221,8 +221,9 @@ Rendered from the real `appMap` + `appCardW`/`mapRows` layout by `scripts/render
   centred and wrapped, `j`/`k` are visible items (they rendered as empty `j:` / `k:` lines); the installed-plugin updater and hook.
 - **0.28.10**: Concluído cards expire after 30 s; detail view redesigned (Solicitação / Andamento / Conclusão / Contexto).
 - **0.28.21**: cards render in boxes on narrow panels (>= 36 columns); short bottom panel gets a one-line header and uses the host's real pane height.
-- **0.28.23**: grouped view no longer draws the fixed "Atenção (N)" block, with or without worktrees; each agent shows once under its worktree divider or state divider (card pill stays).
 - **0.28.22**: pane body of 8 rows or fewer (80x24 gives 6): cards shrink to 4 rows (name, status, model) so one fits whole; no position notes there.
+- **0.28.24**: waterfall draws a `│` "agora" mark across the bars with an `agora` label under the axis, `◂ fim` on the agent that holds the end (2+ agents), and `aguarda 1ª ação…` instead of a bar for queued agents.
+- **0.28.25**: grouped view no longer draws the fixed "Atenção (N)" block, with or without worktrees; each agent shows once under its worktree divider or state divider (card pill stays).
 - **0.28.20**: grouped with no worktrees no longer repeats agents in an `Atenção (N)` block above the state dividers; each agent shows once.
 - **0.28.19**: review fixes for 0.28.18. Cards grid windows to the pane height and scrolls with j/k; app map mode draws the graphical grid again; `g` landing on map selects the map view; grouped `Todos os cards` targets `cards`; `/office view cards` also sets mode cards; `g xyz` and mode names are case-insensitive like `mode`; `v` footer label no longer promises a fixed sequence.
 - **0.28.18**: video parity. 8 tabs in one order on terminal and app (Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow; Workflow dimmed with no run). **Breaking:** terminal mode `map` is now the default and is the centred org chart with bus (what `cards` was); `cards` is a new plain grid of every agent card; a persisted or scripted `/office mode cards` or `OFFICE_MODE=cards` now shows the grid. Grouped with no worktrees: one divider per state (`Rodando ×N`, failures first). Attention pill reads `Atenção` (was `Aguarda você`). `/office mode <unknown>` keeps the mode and lists the 8.
@@ -305,6 +306,14 @@ measured in terminal cells, so cards keep their borders.
 Credits: the waterfall idea (spans on a time axis, staggered reveal, shimmer) was inspired by the public page of the
 "Trace waterfall" component at https://kobra.systems/components/trace-waterfall, a paid proprietary product. Nothing
 was copied; the effect is re-implemented from scratch with block characters.
+
+### Parity with the demo video
+
+Checked against `agent-office-demo.mp4` (14 chapters). Shipped on terminal and desktop: install, header, map, card
+anatomy, states, cards, grouped, cost, tools, detail, commands and layout. Still open
+(`openspec/changes/office-video-gaps/proposal.md`): waterfall `agora` line, critical-path marker ("segura o fim") and
+pending-row label; grouped/cost/tools draw as text cells (not graphical) in the desktop app; desktop rendering is not
+yet verified with real captures.
 
 ## Optional parts
 

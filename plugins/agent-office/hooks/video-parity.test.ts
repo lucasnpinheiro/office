@@ -55,3 +55,27 @@ test('U-306 attention pill reads Atenção', () => {
   const t = txt(draw(ag, 'map'))
   expect(t).toContain('Atenção'); expect(t).not.toContain('Aguarda você')
 })
+
+// office-video-gaps: U-401..U-405, B-401
+const wf = (ag: AgentLike[], o: object = {}) => draw(ag, 'waterfall', { width: 100, ...o })
+const rowsOf = (ls: { t: string }[][]) => ls.map(l => l.map(s => s.t).join(''))
+test('U-401 now column crosses the filler cells of the rows; U-402 label sits under it', () => {
+  const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 1000 }), mk('b', { startedAt: T + 1000, status: 'done', endedAt: T + 2000 })]
+  const r = rowsOf(wf(ag))
+  const tail = r.find(l => l.includes('agora'))!
+  expect(tail).toContain('agora')
+  const col = tail.indexOf('agora') + 4 // label ends under the mark
+  expect(r.filter(l => l.includes('▕')).every(l => [...l][col] === '│')).toBe(true)
+})
+test('U-403 the latest end carries ◂ fim; U-404 a lone agent does not', () => {
+  const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 1000 }), mk('b', { startedAt: T, status: 'done', endedAt: T + 4000 })]
+  const r = rowsOf(wf(ag)).filter(l => l.includes('▕'))
+  expect(r[0]).not.toContain('◂ fim'); expect(r[1]).toContain('◂ fim')
+  expect(rowsOf(wf([mk('a')])).join('\n')).not.toContain('fim')
+  expect(rowsOf(wf(ag, { caps: detectCaps({ OFFICE_ASCII: '1' }) })).join('\n')).toContain('< fim')
+})
+test('U-405 pending shows aguarda 1ª ação… and no bar', () => {
+  const ag = [mk('a'), mk('p', { active: false })]
+  const row = rowsOf(wf(ag)).find(l => l.includes('aguarda 1ª ação…'))!
+  expect(row).toBeDefined(); expect(row).not.toMatch(/[█░]/)
+})

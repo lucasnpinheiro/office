@@ -721,23 +721,38 @@ function gridLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
 
 function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
   const c = v.caps, tl = timeline(g, now), frame = v.frame ?? 0
-  const nameW = v.width >= 100 ? 24 : 14, cells = Math.max(10, v.width - nameW - 18)
+  // 6 spare columns for the " ◂ fim" mark when it can show (2+ agents)
+  const multi = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id)).length > 1
+  const nameW = v.width >= 100 ? 24 : 14, cells = Math.max(10, v.width - nameW - 18 - (multi ? 6 : 0))
   const out: Line[] = []
   const secs = Math.round(tl.tot / 1000)
   const axis = `${'0s'}${' '.repeat(Math.max(1, cells - 4 - String(secs).length))}${secs}s`
   out.push([seg(c, ' '.repeat(nameW + 4) + axis, DIM)])
-  let idx = 0
+  const rows: [Node, number][] = []
   const walk = (n: Node, d: number) => {
-    for (const k of n.children.filter(x => x.kind === 'agent' && keep.has(x.id))) {
-      const grow = growth(c, k, idx++, now)
-      const [ob, cb] = c.ascii ? ['|', '|'] : ['▕', '▏']
-      out.push(fit([seg(c, glyph(c, k.state, frame) + ' ', stateColor(k.state), { node: k.id }),
-        seg(c, padWidth(truncRunes('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
-        ...spanBar(k, tl.t0, tl.tot, now, cells, c, frame, grow), seg(c, cb + ' ' + fmtMMSS(durationOf(k, now)), DIM)], v.width))
-      walk(k, d + 1)
-    }
+    for (const k of n.children.filter(x => x.kind === 'agent' && keep.has(x.id))) { rows.push([k, d]); walk(k, d + 1) }
   }
   walk(g.root, 0)
+  // "now" column; the bar wins over it, only the filler cells take the mark
+  const col = Math.min(cells - 1, Math.max(0, Math.round(((now - tl.t0) / tl.tot) * cells)))
+  const nowMark = c.ascii ? '|' : '│'
+  const overlay = (bar: Line): Line => {
+    const cs = bar.flatMap(s => [...s.t].map(ch => ({ ...s, t: ch }))), s = cs[col]
+    if (s && (s.t === '░' || s.t === '.')) cs[col] = seg(c, nowMark, DIM)
+    return cs
+  }
+  // who holds the end: latest end (running = now), first on a tie; only meaningful with 2+ agents
+  const endOf = (k: Node) => k.end ?? now
+  const last = rows.length > 1 ? rows.reduce((m, r) => (endOf(r[0]) > endOf(m[0]) ? r : m))[0] : undefined
+  rows.forEach(([k, d], idx) => {
+    const [ob, cb] = c.ascii ? ['|', '|'] : ['▕', '▏']
+    const bar = k.state === 'pending' ? [seg(c, padWidth(truncRunes('aguarda 1ª ação…', cells), cells), DIM)] : overlay(spanBar(k, tl.t0, tl.tot, now, cells, c, frame, growth(c, k, idx, now)))
+    out.push(fit([seg(c, glyph(c, k.state, frame) + ' ', stateColor(k.state), { node: k.id }),
+      seg(c, padWidth(truncRunes('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
+      ...bar, seg(c, cb + ' ' + fmtMMSS(durationOf(k, now)), DIM),
+      ...(k === last ? [seg(c, c.ascii ? ' < fim' : ' ◂ fim', STATE_COLOR.attention)] : [])], v.width))
+  })
+  if (rows.length) out.push(fit([seg(c, ' '.repeat(nameW + 4 + Math.max(0, col - 4)) + 'agora', DIM)], v.width))
   return out
 }
 
