@@ -385,10 +385,10 @@ test('V-301 /office mode xyz keeps the mode and lists the 8 modes', async ($, on
   await start($)
   await $.command.run({ command: 'office', args: 'mode cards' } as any)
   const r: any = await $.command.run({ command: 'office', args: 'mode xyz' } as any)
+  expect(JSON.stringify(r)).toContain('Modo desconhecido: xyz')
   expect(JSON.stringify(r)).toContain('map|tree|grouped|cards|waterfall|cost|tools|workflow')
-  expect(JSON.stringify(await $.command.run({ command: 'office', args: 'status' } as any))).toBeDefined()
-  const ui = await mountOn($, 'desktop')
-  expect(await texts(ui)).toContain('Cards') // still in cards mode: the app grid
+  const ui = await mountOn($, 'terminal')
+  expect(await texts(ui)).not.toContain('barramento') // the map legend is absent: mode stayed cards
   await ui.unmount()
 })
 
@@ -398,4 +398,21 @@ test('D-301 app shows the 8 tabs of the terminal (VIEW_TABS)', async ($, on) => 
   await spawn($, 'tu1', 'Dev: alfa')
   const app = await texts(await mountOn($, 'desktop'))
   for (const k of ['Mapa', 'Árvore', 'Worktrees', 'Cards', 'Waterfall', 'Custo', 'Ferramentas', 'Workflow']) expect(app).toContain(k)
+})
+
+test('app default mode (map) draws the graphical grid; view cards sets mode cards; g xyz errors like mode xyz', async ($, on) => {
+  setup($, on)
+  await start($)
+  await spawn($, 'tu1', '🛠️ Mid-level · 🎼 Sonnet · 🟡 médio: Reading edit.php')
+  const app = await mountOn($, 'desktop')
+  expect(await texts(app)).not.toMatch(/[╭╮╰╯│]/)
+  await app.unmount()
+  const rv: any = await $.command.run({ command: 'office', args: 'view cards' } as any)
+  expect(JSON.stringify(rv)).toContain('compact')
+  expect(JSON.stringify(await $.command.run({ command: 'office', args: 'mode' } as any))).toContain('Modo')
+  const e1 = JSON.stringify(await $.command.run({ command: 'office', args: 'mode XYZ' } as any))
+  const e2 = JSON.stringify(await $.command.run({ command: 'office', args: 'g XYZ' } as any))
+  expect(e2).toBe(e1)
+  expect(e1).toContain('Modo desconhecido: XYZ')
+  expect(JSON.stringify(await $.command.run({ command: 'office', args: 'mode CARDS' } as any))).toContain('Modo: cards')
 })

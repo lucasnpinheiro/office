@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.28.19 (agent-office, review fixes)
+
+- Cards grid honours the pane height (whole card rows, j/k scroll) instead of overflowing.
+- App: mode `map` draws the graphical grid again (default no longer shows the text map); `g` landing on `map` selects the map view so the Mapa tab matches.
+- Grouped `Todos os cards` button targets `cards`, highlighted only in cards mode.
+- `/office view cards` also sets mode `cards`; `g <mode>` validates like `mode <mode>`, case-insensitive.
+- `v` footer label is just `visão` (cycle differs by surface). Cards grid reuses the card role/worktree helpers (subagente now shown). `VIEW_TABS` typed against `Mode` without a double cast.
+- Known, not changed: grouped `Atenção (N)` block repeats items listed under `Falhou`.
+
 ## 0.28.18 (agent-office, video parity)
 
 - Tabs: one list (`VIEW_TABS`) for terminal and app, in video order: Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow. Workflow is always listed (dimmed while no run exists).
