@@ -31,6 +31,7 @@ Funções puras, `claude plugin test .`, import de `claude-code/testing`. Limite
 | U-017 | Deviation | Total parcial com um desconhecido | AC-032 | unit | no | - | TODO |
 | U-018 | Error | Nenhum dado dá `—`, nunca `~$0,00` | AC-033 | unit | no | - | TODO |
 | U-019 | Success | Limites de largura: 35, 36, 99, 100 colunas; 519, 520, 779, 780, 1039, 1040 px | AC-042 | unit | no | - | TODO |
+| U-019b | Success | Corpo de 6 linhas: um card curto inteiro com borda (nome, estado, modelo); acima de 8 linhas, card completo | AC-042 | unit | no | narrow-panel.test.ts | DONE |
 | U-020 | Deviation | Limites de detalhe: 899 e 900 px | AC-043 | unit | no | - | TODO |
 | U-021 | Deviation | Quadro: reduzido dá 1000 ms; padrão, cerca de 166 ms | AC-046 | unit | no | - | TODO |
 | U-022 | Success | Redutor de confirmação: `confirm`, `sending`, `error` | AC-038, AC-039 | unit | no | - | TODO |

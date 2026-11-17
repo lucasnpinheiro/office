@@ -446,8 +446,11 @@ const BORDER: Record<State, string> = { running: STATE_COLOR.running, failed: ST
 // how far the cards view can scroll right now (module memory set by the last render; the reducer clamps with it)
 export const mapScrollStep = (cur: number, dir: 'scrollDown' | 'scrollUp'): number => detailScrollStep(Math.min(cur, scrollInfo.max), dir, scrollInfo.max + 1) // j/k: 3 lines, clamped (REQ-005)
 export const scrollInfo = { max: 0, units: [] as number[] } // units: first row of each card block the window can start at (one card per press)
+// host body of 8 rows or fewer (80x24 gives 6): cards shrink to 4 rows (name + pill, model + status, borders) so one fits whole
+export const SHORT_PANE = 8
+const shortPane = (v: { maxLines?: number }): boolean => v.maxLines !== undefined && v.maxLines <= SHORT_PANE
 const MIN_CARD_ROWS = CARD_H + 3 // a pane shorter than this still gets room for one full card and its notes
-export type CardTag = { role?: string; wt?: string; br?: string; up?: boolean; down?: boolean; wf?: string; w?: number } // wf: workflow run id
+export type CardTag = { role?: string; wt?: string; br?: string; up?: boolean; down?: boolean; wf?: string; w?: number; short?: boolean } // wf: workflow run id
 const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Atenção', pending: 'Na fila', inactive: 'Inativo' }
 // Step segments of the design card: one run of cells per tool step (width by duration, colour by result), the live one last.
 function stepBar(run: RunNode | undefined, n: Node, cells: number, c: Caps, frame: number): Line | undefined {
@@ -563,6 +566,18 @@ function card(n: Node, nm: Map<string, string>, c: Caps, now: number, frame: num
     if (cut > head.indexOf(' ')) head = head.slice(0, cut + 1)
     return [split([...wf, seg(c, head, WORKTREE_COLOR)], role, true), body(clip([seg(c, wtTxt.slice(head.length), WORKTREE_COLOR)], inner))]
   })()
+  if (tag.short) {
+    const shortMeta = `${n.state === 'done' ? 'concluído' : n.state === 'pending' ? 'na fila' : n.state === 'failed' ? (n.error ?? 'falha') : n.state === 'attention' ? (n.error ?? 'sem atividade') : 'executando'} · ${n.start === undefined || n.state === 'pending' ? '--:--' : fmtMMSS(durationOf(n, now))}`
+    const g1 = n.state === 'done' ? [] : [seg(c, glyph(c, n.state, frame) + ' ', col_, { node: id })]
+    const pl = c.ascii ? asciiText(PILL[n.state] ?? '') : PILL[n.state] ?? ''
+    const chipTxt = [ch.model, ch.effort].filter(Boolean).join(c.ascii ? ' - ' : ' · ')
+    return [
+      edgeLine(b.tl, b.tr, tag.up ? (c.ascii ? '+' : '┴') : undefined),
+      split([...g1, seg(c, full, undefined, { bold: true, node: id })], [seg(c, pl, col_, { bold: true })], true),
+      split([seg(c, chipTxt ? chipTxt : (c.ascii ? asciiText(ch.persona ?? '') : ch.persona ?? ''), DIM, { node: id })], [seg(c, shortMeta, col_ === STATE_COLOR.done ? DIM : col_)], true),
+      edgeLine(b.bl, b.br, tag.down ? (c.ascii ? '+' : '┬') : undefined),
+    ]
+  }
   return [
     edgeLine(b.tl, b.tr, tag.up ? (c.ascii ? '+' : '┴') : undefined),
     // the pill is on every card and never goes; the title shortens with … to make room. A done card has no ✓ prefix (the pill says Concluído)
@@ -602,7 +617,7 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   type M = { w: number; cw: number; h: number; rows: Node[][]; hidden: number; px: number }
   const memo = new Map<Node, M>()
   const hs = new Map<Node, number>()
-  const tagOf = (n: Node, depth: number, up: boolean, down: boolean, w?: number): CardTag => ({ role: roleOf(n, depth), wt: flowOf(n), br: n.kind === 'session' ? v.branch : undefined, wf: n.workflow, up, down, w })
+  const tagOf = (n: Node, depth: number, up: boolean, down: boolean, w?: number): CardTag => ({ role: roleOf(n, depth), wt: flowOf(n), br: n.kind === 'session' ? v.branch : undefined, wf: n.workflow, up, down, w, short: shortPane(v) })
   // card height by content: drawn once here, the same rows as draw() (role only changes agente/subagente, same width class)
   const hOf = (n: Node, depth: number, cw: number) => { let h = hs.get(n); if (h === undefined) hs.set(n, h = card(n, nm, c, now, frame, 0, tagOf(n, depth, false, false, cw), runs?.get(n.id)).length); return h }
   const count = (n: Node): number => agentKids(n).reduce((a, k) => a + 1 + count(k), 0)
@@ -695,7 +710,7 @@ function gridLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   const depthOf = (n: Node) => { let d = 0; for (let p = g.nodes.get(n.parentId); p && p !== g.root; p = g.nodes.get(p.parentId)) d++; return d + 1 }
   const out: Line[] = []
   for (let i = 0; i < ns.length; i += per) {
-    const cards = ns.slice(i, i + per).map((n, k) => card(n, nm, c, now, frame, i + k, { role: roleOf(n, depthOf(n)), wt: flowOf(n), wf: n.workflow, up: false, down: false, w: cw }, runs.get(n.id)))
+    const cards = ns.slice(i, i + per).map((n, k) => card(n, nm, c, now, frame, i + k, { role: roleOf(n, depthOf(n)), wt: flowOf(n), wf: n.workflow, up: false, down: false, w: cw, short: shortPane(v) }, runs.get(n.id)))
     const h = Math.max(...cards.map(x => x.length))
     starts.push(out.length)
     for (let r = 0; r < h; r++) out.push(cards.flatMap((x, k) => [...(k ? sp(CARD_GAP) : []), ...(x[r] ?? sp(cw))]))
@@ -774,7 +789,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
       // same window as the map: whole card rows only, j/k scroll through scrollInfo; a short pane no longer overflows
       const starts: number[] = []
       const rows = gridLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r])), starts)
-      const avail = v.maxLines === undefined ? Infinity : Math.max(MIN_CARD_ROWS, v.maxLines - out.length - foot.length)
+      const avail = v.maxLines === undefined ? Infinity : Math.max(shortPane(v) ? 5 : MIN_CARD_ROWS, v.maxLines - out.length - foot.length)
       if (rows.length <= avail) { scrollInfo.max = 0; scrollInfo.units = []; out.push(...rows) }
       else {
         const bounds = [...starts, rows.length]
@@ -794,7 +809,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
       // card rows (a row of cards and the bus above it, never cut)
       const runs = new Map(model.nodes.map(r => [r.id, r]))
       const place = (width: number) => { const starts: number[] = []; const rows = cardLines(g, nm, keep, now, { ...v, width }, runs, starts); return { rows, starts: [...new Set(starts)].sort((a, b) => a - b) } } // starts: one per card row
-      const avail = v.maxLines === undefined ? Infinity : Math.max(MIN_CARD_ROWS, v.maxLines - out.length - foot.length)
+      const avail = v.maxLines === undefined ? Infinity : Math.max(shortPane(v) ? 5 : MIN_CARD_ROWS, v.maxLines - out.length - foot.length)
       let lay = place(w)
       if (lay.rows.length <= avail) {
         // the footer sits on the pane's last row: blank rows fill what the cards leave
@@ -804,7 +819,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
       } else {
         // one column goes to the scrollbar: cards are laid out again one column narrower (heights do not change with width)
         lay = place(w - 1)
-        const flat = lay.rows, total = flat.length, room = avail - 2 // the two notes
+        const flat = lay.rows, total = flat.length, room = avail - (shortPane(v) ? 0 : 2) // the two notes (a short pane has no room for them: the scrollbar shows the position)
         const bounds = [0, ...lay.starts.slice(1).map(s => s - 1), total] // unit i = rows bounds[i] .. bounds[i + 1]: a card and its gap row above
         const n = bounds.length - 1
         let mi = 0
@@ -821,7 +836,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         const stop = Math.min(first, mi)
         const pos = `${stop + 1}/${mi + 1}` // position in scroll stops (one card each): the last stop reads k/k
         const note = (t: string): Line => centre([seg(v.caps, t, DIM)], w)
-        out.push(note(`${stop > 0 ? (v.caps.ascii ? '^ mais ' : '↑ mais ') : ''}${pos}`))
+        if (!shortPane(v)) out.push(note(`${stop > 0 ? (v.caps.ascii ? '^ mais ' : '↑ mais ') : ''}${pos}`))
         // scrollbar: track + thumb on the last column, thumb size and place proportional to the window
         const thumbH = Math.max(1, Math.min(room, Math.round(room * room / total)))
         const top = Math.round((room - thumbH) * (maxRow ? Math.min(off, maxRow) / maxRow : 0))
@@ -831,7 +846,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
           const used = lineWidth(l)
           out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM)])
         }
-        out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`))
+        if (!shortPane(v)) out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`))
       }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))
