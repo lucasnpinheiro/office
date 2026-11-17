@@ -18,6 +18,7 @@ import { detailView, detailScrollStep } from './view-detail'
 import { hasWorkflow } from './view-workflow'
 import { worktreeOfAgent } from './view-worktrees'
 import { applyAction, footerRows, startUi } from './actions'
+import { fmtUsd } from './view-cost'
 import type { Ui } from './actions'
 import type { Mode, Caps } from './compact'
 import type { Thumb } from './monitor'
@@ -638,7 +639,7 @@ export const register: Register = on => {
     const compactView: CView = {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
-      expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, scroll: await read($, scrollAt), branch: sgit?.branch,
+      expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, chrome: !isAppSurface((e as { surface?: string }).surface), scroll: await read($, scrollAt), branch: sgit?.branch,
       maxLines: paneBodyLines(e.props as { bodyRows?: number; scroll?: { bodyRows?: number } } | undefined, e.viewport),
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, limits: (await read($, sessionLimitsAt)) ?? undefined, ahead: aheadNow(),
@@ -828,9 +829,9 @@ export const register: Register = on => {
         <Box flexDirection="column" gap="xs">
           <Box flexDirection="row" flexWrap="wrap" gap="sm">
             <Text bold>Office</Text>
-            <Text dimColor>{`· ${proj}${sgit?.branch ? ` · ⎇ ${sgit.branch}` : ''}`}</Text>
+            <Text dimColor>{`· ${proj}${sgit?.branch ? ` · ⎇ ${sgit.branch}` : ''}${(sessionId || sidFallback) ? ` · #${String(sessionId || sidFallback).replace(/[^\w-]/g, '').slice(0, 6)}` : ''}${usd != null ? ` · ~${fmtUsd(usd)}` : ''}`}</Text>
           </Box>
-          <Text dimColor>{`${ags.length ? fmtMMSS(elapsedOf(g, now)) : '--:--'} · ${cnt('running')} rodando · ${cnt('done')} concluídos · ${cnt('failed')} falha`}</Text>
+          <Text dimColor>{`${ags.length ? fmtMMSS(elapsedOf(g, now)) : '--:--'} · ${cnt('running')} rodando · ${cnt('done')} ${cnt('done') === 1 ? 'concluído' : 'concluídos'} · ${cnt('failed')} ${cnt('failed') === 1 ? 'falha' : 'falhas'}`}</Text>
           {limLines.length > 0 && <Text dimColor>{limLines.join(' · ')}</Text>}
           <Box flexDirection="row" flexWrap="wrap" gap="xs">
             {ags.map(n => <Box key={`seg-${n.id}`} width={3} height={1} backgroundColor={TONE_OF[n.state]} />)}
@@ -896,14 +897,18 @@ export const register: Register = on => {
       if (side) {
         const left = renderCompact(all, now, { ...compactView, width: cols - 50 })
         return (
-          <Box flexDirection="row">
+          <Box flexDirection="column">
+            {onApp ? appChrome() : null}
+            <Box flexDirection="row">
             <Box flexDirection="column" width={cols - 49}>{field}{left.map(draw)}{keysRow}</Box>
             <Box flexDirection="column" width={48} borderStyle="round" paddingX={1}>{detailOf(selected, 46).lines.map(draw)}</Box>
+            </Box>
           </Box>
         )
       }
       return (
         <Box flexDirection="column">
+          {onApp ? appChrome() : null}
           {attach || gone ? backBtn : selected ? null : field}
           {compactFrame.map(draw)}
           {keysRow}
@@ -913,6 +918,7 @@ export const register: Register = on => {
     if (detail) {
       return (
         <Box flexDirection="column">
+          {onApp ? appChrome() : null}
           {detail.map(draw)}
           {keysRow}
         </Box>

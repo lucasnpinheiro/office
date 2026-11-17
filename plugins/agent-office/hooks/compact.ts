@@ -87,6 +87,7 @@ export type CView = {
   captureIo?: boolean // OFFICE_CAPTURE_IO=1: the Tools view may show masked input/output
   sessionUsd?: number // `$.session.usage().cost.usd`, only when the engine gave it
   limits?: unknown // raw plan limits from `$.session.usage()`; invalid/absent = no header segment
+  chrome?: boolean // false: the caller draws header and tabs (app surfaces: one chrome, register.tsx appChrome); default true
   containerPx?: number // app container width (px), only when the engine reports it (ADR 0002: containerWidth not-verified); absent = terminal rules
 }
 // Árvore: por padrão todos os cards aparecem abertos. Opt-in (tecla g, item em expanded): irmãos do mesmo estado acima de 8 viram um grupo `Rodando ×N` (AC-019).
@@ -786,7 +787,8 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
   // order of the design: header, alert banners, view tabs, then the view itself
-  const out: Line[] = [...header(g, agents, now, v), ...(agents.length && (v.mode === 'tree' || v.mode === 'map') ? pinnedLines(g, nm, keep, v) : []), tabsLine(agents, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
+  const chrome = v.chrome !== false
+  const out: Line[] = [...(chrome ? header(g, agents, now, v) : []), ...(agents.length && (v.mode === 'tree' || v.mode === 'map') ? pinnedLines(g, nm, keep, v) : []), ...(chrome ? [tabsLine(agents, v)] : []), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
   const foot = footer(g, v)
   if (agents.length === 0) {
     // empty session: the orchestrator card alone, centred, with the waiting line under it (never a bare line of text)
