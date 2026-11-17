@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.20 (agent-office, Atenção fix)
+
+- Grouped with no worktrees: the `Atenção (N)` block no longer repeats agents already under the state dividers (`Falhou ×N`, `Atenção ×N`); each agent appears once. With worktrees the pinned block is unchanged.
+
 ## 0.28.19 (agent-office, review fixes)
 
 - Cards grid honours the pane height (whole card rows, j/k scroll) instead of overflowing.
@@ -7,7 +11,6 @@
 - Grouped `Todos os cards` button targets `cards`, highlighted only in cards mode.
 - `/office view cards` also sets mode `cards`; `g <mode>` validates like `mode <mode>`, case-insensitive.
 - `v` footer label is just `visão` (cycle differs by surface). Cards grid reuses the card role/worktree helpers (subagente now shown). `VIEW_TABS` typed against `Mode` without a double cast.
-- Known, not changed: grouped `Atenção (N)` block repeats items listed under `Falhou`.
 
 ## 0.28.18 (agent-office, video parity)
 
