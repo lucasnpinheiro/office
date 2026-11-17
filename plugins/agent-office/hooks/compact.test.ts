@@ -331,3 +331,12 @@ test('header limits: absent = identical header; present = extra line', () => {
   expect(withL[2]).toBe('5h 4% · reinicia em 4h'); expect(withL.length).toBe(base.length + 1)
   expect(txt(cardsOut(ag, { limits, width: 60 })).split('\n')[2]).toBe('5h 4% · reinicia em 4h')
 })
+
+test('T-502 sem agentes: nenhum modo emite régua sem conteúdo; legenda e espera ficam', () => {
+  for (const mode of ['tree', 'grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow'] as const) {
+    const out = txt(renderCompact([], T, { width: 100, caps: detectCaps({}), mode, query: '', expanded: new Set(), maxCardRows: 4, chrome: false }))
+    expect(out, mode).toContain('Aguardando agentes')
+    expect(out, mode).toContain('Concluído')
+    expect(out, mode).not.toMatch(/^[─-]{10,}$/m)
+  }
+})
