@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.32 (agent-office, duplicate names #n)
+
+- Duplicate agent names get `#n` in every tab (Waterfall, Custo, Ferramentas, Workflow) through one `uniqueNames` rule, and name truncation keeps the suffix (`QA: tes… #3`, new `clipName`) (REQ-605).
+
 ## 0.28.31 (agent-office, one time format)
 
 - One time format on every screen: `mm:ss` under 1 h, `h:mm:ss` from 1 h (header, cards, Waterfall, Custo axes and rows). New `fmtDur`; `fmtMMSS`/`fmtHMS` are aliases. No more `11362s` or `183:11` (REQ-604).

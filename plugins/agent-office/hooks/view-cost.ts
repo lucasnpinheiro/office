@@ -3,7 +3,7 @@
 import type { RunModel, RunNode } from './run-model'
 import type { Caps } from './compact'
 import type { Line, Seg } from './monitor'
-import { fmtMMSS } from './monitor'
+import { fmtMMSS, clipName } from './monitor'
 
 const DIM = '#9ca3af'
 const seg = (t: string, fg?: string, extra: Partial<Seg> = {}): Seg => ({ t, ...(fg ? { fg } : {}), ...extra })
@@ -60,7 +60,7 @@ export function wideCostLines(model: RunModel, now: number, v: { width: number; 
     const off = n.startedAt === undefined ? 0 : Math.min(cells - 1, Math.round(((n.startedAt - t0) * cells) / span))
     const len = d === undefined ? 0 : Math.max(1, Math.min(cells - off, Math.round((d * cells) / span)))
     const label = `${conn}${n.name}`
-    const name = (label.length > nameW ? label.slice(0, nameW - 1) + '…' : label).padEnd(nameW)
+    const name = clipName(label, nameW).padEnd(nameW)
     const tokens = (n.usage.tokens === undefined ? '—' : fmtTokensK(n.usage.tokens)).padStart(8)
     const bar = len ? ' '.repeat(off) + fill.repeat(len) : ''
     out.push([
@@ -96,7 +96,7 @@ export function costLines(model: RunModel, now: number, v: { width: number; caps
   for (const n of nodes) {
     const d = dur(n, now)
     const filled = d === undefined ? 0 : Math.round((cells * d) / maxDur)
-    const name = (n.name.length > nameW ? n.name.slice(0, nameW - 1) + '…' : n.name).padEnd(nameW)
+    const name = clipName(n.name, nameW).padEnd(nameW)
     const tokens = (n.usage.tokens === undefined ? '—' : fmtTokens(n.usage.tokens)).padStart(9)
     out.push([
       seg(name + ' '),

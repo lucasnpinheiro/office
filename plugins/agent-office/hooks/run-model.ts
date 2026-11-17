@@ -69,6 +69,18 @@ const TIER_FALLBACK: Record<string, { model: string }> = { rapido: { model: 'hai
 
 // agents (spawn order) -> session root -> agents -> TodoWrite tasks. Nothing is invented:
 // state comes from status/endedAt/seenAt, tasks from the agent's own todos.
+// Unique display names: duplicates get " #n" (REQ-605: one rule for every tab).
+export function uniqueNames(g: Graph): Map<string, string> {
+  const seen = new Map<string, number>(), tot = new Map<string, number>()
+  for (const n of g.nodes.values()) tot.set(n.name, (tot.get(n.name) ?? 0) + 1)
+  const out = new Map<string, string>()
+  for (const n of g.nodes.values()) {
+    const k = (seen.get(n.name) ?? 0) + 1; seen.set(n.name, k)
+    out.set(n.id, (tot.get(n.name) ?? 1) > 1 ? `${n.name} #${k}` : n.name)
+  }
+  return out
+}
+
 export function buildGraph(agents: readonly AgentRecord[], now: number, sessionGit?: GitInfo, sessionTool?: ToolNote): Graph {
   const root: Node = {
     id: 'session', parentId: '', name: 'Orquestrador', persona: '🧭 Squad Leader', model: 'Opus', effort: 'baixo', kind: 'session',
@@ -274,12 +286,13 @@ export function buildRunModel(agents: readonly AgentRecord[], now: number, caps:
   const g = buildGraph(agents, now)
   const byId = new Map(agents.map(a => [a.id, a] as const))
   const nodes: RunNode[] = []
+  const uniq = uniqueNames(g)
   for (const n of g.nodes.values()) {
     if (n.kind !== 'agent') continue
     const tasks = n.children.filter(c => c.kind === 'task')
     const rec = byId.get(n.id)
     nodes.push({
-      id: n.id, parentId: n.parentId && n.parentId !== g.root.id ? n.parentId : undefined, name: n.name,
+      id: n.id, parentId: n.parentId && n.parentId !== g.root.id ? n.parentId : undefined, name: uniq.get(n.id) ?? n.name,
       persona: n.persona || undefined, model: n.model || undefined, effort: n.effort,
       state: RUN_STATE[n.state],
       worktree: n.git?.worktree ? { path: n.git.worktree, branch: n.git.branch } : undefined,

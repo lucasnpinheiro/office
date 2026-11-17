@@ -1,7 +1,7 @@
 // Office compact view: one-line tree, grouped/ungrouped modes, rounded cards, detail with dependencies,
 // attachment preview and terminal capability detection. Pure (no engine APIs): the caller passes `now`.
 // Terminal and app share this state model; only the drawing of the Lines differs.
-import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, maxDepthOf, fmtMMSS, fmtHMS, fmtDur,
+import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, maxDepthOf, fmtMMSS, fmtHMS, fmtDur, uniqueNames, clipName,
   truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError, hiddenIds } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
@@ -114,17 +114,8 @@ const spread = (l: Line, r: Line, w: number): Line => {
 
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)]! : 0 }
 
-// Unique display names: duplicates get " #n".
-export function names(g: Graph): Map<string, string> {
-  const seen = new Map<string, number>(), tot = new Map<string, number>()
-  for (const n of g.nodes.values()) tot.set(n.name, (tot.get(n.name) ?? 0) + 1)
-  const out = new Map<string, string>()
-  for (const n of g.nodes.values()) {
-    const k = (seen.get(n.name) ?? 0) + 1; seen.set(n.name, k)
-    out.set(n.id, (tot.get(n.name) ?? 1) > 1 ? `${n.name} #${k}` : n.name)
-  }
-  return out
-}
+// Unique display names: duplicates get " #n" (one rule, run-model.ts uniqueNames).
+export const names = (g: Graph): Map<string, string> => uniqueNames(g)
 
 // Real % or task counts, never a fake 0%.
 function metric(n: Node): string {
@@ -751,7 +742,7 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
     const [ob, cb] = c.ascii ? ['|', '|'] : ['▕', '▏']
     const bar = k.state === 'pending' ? [seg(c, padWidth(truncRunes('aguarda 1ª ação…', cells), cells), DIM)] : overlay(spanBar(k, tl.t0, tl.tot, now, cells, c, frame, growth(c, k, idx, now)))
     out.push(fit([seg(c, glyph(c, k.state, frame) + ' ', stateColor(k.state), { node: k.id }),
-      seg(c, padWidth(truncRunes('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
+      seg(c, padWidth(clipName('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
       ...bar, seg(c, cb + ' ' + fmtMMSS(durationOf(k, now)), DIM),
       ...(k === last ? [seg(c, c.ascii ? ' < fim' : ' ◂ fim', STATE_COLOR.attention)] : [])], v.width))
   })
