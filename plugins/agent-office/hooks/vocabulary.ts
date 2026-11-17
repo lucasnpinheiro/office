@@ -20,6 +20,9 @@ export const STATE_TABLE: Record<RunState, StateSpec> = {
   stopped: { label: 'Interrompido', glyph: '■', ascii: '[--]', dark: '#A9ADB5', light: '#5A5F68' },
 }
 
+// Fonte única das abas, na ordem do vídeo: o terminal (compact.ts tabsLine) e o app (register.tsx) leem daqui.
+export const VIEW_TABS = [['map', 'Mapa'], ['tree', 'Árvore'], ['grouped', 'Worktrees'], ['cards', 'Cards'], ['waterfall', 'Waterfall'], ['cost', 'Custo'], ['tools', 'Ferramentas'], ['workflow', 'Workflow']] as const
+
 export const TOKENS = {
   dark: { bg: '#141517', surface: '#1C1E21', line: '#303338', text: '#ECEEF1', muted: '#A9ADB5' },
   light: { bg: '#F6F7F8', surface: '#FFFFFF', line: '#DDE0E4', text: '#17191C', muted: '#5A5F68' },

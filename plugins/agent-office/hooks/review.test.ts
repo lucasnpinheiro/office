@@ -120,7 +120,7 @@ test('ASCII mode: every rendered char is ASCII (header, cards, footer, detail)',
 test('header keeps the "Office" title visible at 60 columns (T-013: below 60 is list only)', () => {
   const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
   const ag = Array.from({ length: 5 }, (_, i) => mk({ id: 'h' + i, agentId: 'gh' + i }))
-  const lines = renderCompact(ag, T0 + 5000, { width: 60, caps, mode: 'cards', query: '', expanded: new Set(), maxCardRows: 4, project: 'meuprojeto', sessionId: 'abcdef123' })
+  const lines = renderCompact(ag, T0 + 5000, { width: 60, caps, mode: 'map', query: '', expanded: new Set(), maxCardRows: 4, project: 'meuprojeto', sessionId: 'abcdef123' })
   expect(lines[0]!.map(s => s.t).join('')).toContain('Office')
 })
 

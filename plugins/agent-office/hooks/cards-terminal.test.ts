@@ -7,10 +7,10 @@ const T = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o })
 const txt = (ls: { t: string }[][]) => ls.map(l => l.map(s => s.t).join('')).join('\n')
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
-const base = { width: 120, caps, mode: 'cards' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
+const base = { width: 120, caps, mode: 'map' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
 
-test('session start opens the map; cards stay the default mode behind v', () => {
-  expect(startUi().view).toBe('map'); expect(startUi().mode).toBe('cards'); expect(initialUi().view).toBe('map')
+test('session start opens the map; map is the default mode', () => {
+  expect(startUi().view).toBe('map'); expect(startUi().mode).toBe('map'); expect(initialUi().view).toBe('map')
 })
 test('cards at 120 cols: parent card, then the 4 siblings in one row, dynamic width (T-001 U-004)', () => {
   const ag = ['a', 'b', 'c', 'd'].map(id => mk(id))

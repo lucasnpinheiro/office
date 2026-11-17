@@ -6,7 +6,7 @@ import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, 
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
 import { spinnerGlyph } from './motion'
-import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy } from './vocabulary'
+import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy, VIEW_TABS } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
 import { worktreePartition, groupDivider, restDivider, agentsLine } from './view-worktrees'
@@ -73,11 +73,12 @@ export const boxChars = (c: Caps): Box =>
       : { tl: '╭', tr: '╮', bl: '╰', br: '╯', v: '│', h: '─' }
 const DIM = '#9ca3af'
 
-export type Mode = 'tree' | 'grouped' | 'cards' | 'waterfall' | 'cost' | 'tools' | 'workflow'
-export const MODES: Mode[] = ['tree', 'grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow']
-export const DEFAULT_MODE: Mode = 'cards'
+// `map` = organograma com barramento (era `cards` até 0.28.17); `cards` = grade de cards por largura.
+export type Mode = 'map' | 'tree' | 'grouped' | 'cards' | 'waterfall' | 'cost' | 'tools' | 'workflow'
+export const MODES: Mode[] = ['map', 'tree', 'grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow']
+export const DEFAULT_MODE: Mode = 'map'
 // g cycle. `workflow` is only a stop while a workflow run exists (applyAction skips it otherwise: an always-empty screen is not shown).
-export const NEXT_MODE: Record<Mode, Mode> = { tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'cost', cost: 'tools', tools: 'workflow', workflow: 'tree' }
+export const NEXT_MODE: Record<Mode, Mode> = { map: 'tree', tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'cost', cost: 'tools', tools: 'workflow', workflow: 'map' }
 export type CView = {
   width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; scroll?: number; branch?: string
   filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities
@@ -226,11 +227,12 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   return [spread(left, right, w), fit(counts, w), ...(lim.length ? [fit([seg(c, lim.join(' · '), DIM)], w)] : []), ...(ns.length ? [bar] : [])]
 }
 
-// View tabs of the design (Mapa, Árvore, Worktrees, Custo, Ferramentas; Workflow only while a run exists): a click picks the mode.
+// View tabs of the video (VIEW_TABS, 8 always; Workflow dimmed while no run exists): a click picks the mode.
 function tabsLine(agents: AgentLike[], v: CView): Line {
   const c = v.caps
-  const tabs: [Mode, string][] = [['cards', 'Mapa'], ['tree', 'Árvore'], ['grouped', 'Worktrees'], ...(agents.some(a => a.workflow) ? [['workflow', 'Workflow'] as [Mode, string]] : []), ['cost', 'Custo'], ['tools', 'Ferramentas']]
-  const one = ([m, label]: [Mode, string]): Seg[] => [seg(c, ` ${label} `, undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
+  const tabs = VIEW_TABS as unknown as [Mode, string][]
+  const noWf = !agents.some(a => a.workflow) // workflow stays listed, dimmed while no run exists
+  const one = ([m, label]: [Mode, string]): Seg[] => [seg(c, ` ${label} `, noWf && m === 'workflow' && v.mode !== m ? DIM : undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
   // too narrow for every tab: the strip scrolls, dropping tabs from the left until the active one is visible (design: tabs scroll horizontally)
   const wOf = (t: [Mode, string]) => strWidth(t[1]) + 3
   const act = Math.max(0, tabs.findIndex(t => t[0] === v.mode))
@@ -244,7 +246,7 @@ function filterBar(g: Graph, v: CView): Line {
   const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const bad = ns.filter(n => n.state === 'failed' || n.state === 'attention').length
   const btn = (t: string, act: string, on: boolean): Seg[] => [seg(c, ` ${t} `, undefined, { act, btn: true, variant: on ? 'primary' : 'secondary', bold: on }), ...sp(1)]
-  return fit([...btn('Agrupado', 'mode:grouped', v.mode === 'grouped'), ...btn(`Todos os cards ${ns.length}`, 'mode:cards', v.mode !== 'grouped' && v.filter !== 'failed'),
+  return fit([...btn('Agrupado', 'mode:grouped', v.mode === 'grouped'), ...btn(`Todos os cards ${ns.length}`, 'mode:map', v.mode !== 'grouped' && v.filter !== 'failed'),
     ...btn(`Falhas ${bad}`, 'failed', v.filter === 'failed'), ...(v.query ? [seg(c, `busca: ${v.query}`, DIM)] : [])], v.width)
 }
 
@@ -255,8 +257,8 @@ function footer(g: Graph, v: CView): Line[] {
   const states: State[] = ['done', 'running', 'attention', 'pending', 'failed']
   const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${stateLabel(c, s)}`, stateColor(s))])
   const out: Line[] = []
-  out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], v.mode === 'cards' ? centre(fit(legend, v.width), v.width) : fit(legend, v.width))
-  if (v.mode === 'cards') out.push(centre(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · @ workflow · wt worktree · br branch' : '┊ ┄ ┬ ┴ barramento pai→filhos · ⟳ workflow · ⧉ worktree · ⎇ branch · papel à direita (orquestrador, agente, subagente)', DIM)], v.width), v.width))
+  out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], v.mode === 'map' ? centre(fit(legend, v.width), v.width) : fit(legend, v.width))
+  if (v.mode === 'map') out.push(centre(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · @ workflow · wt worktree · br branch' : '┊ ┄ ┬ ┴ barramento pai→filhos · ⟳ workflow · ⧉ worktree · ⎇ branch · papel à direita (orquestrador, agente, subagente)', DIM)], v.width), v.width))
   if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
   return out
 }
@@ -353,13 +355,20 @@ function treeLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
 // A group's agents whose parent lives in another group (or none) become that group's top level.
 function groupedLines(g: Graph, agents: AgentLike[], nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
   const part = worktreePartition(agents.filter(a => keep.has(a.id)))
-  if (!part.groups.length) return treeLines(g, nm, keep, now, v)
   const sub = (list: AgentLike[], tag: string): Line[] => {
     const ids = new Set(list.map(a => a.id))
     const mine = new Set<string>()
     for (const n of g.nodes.values()) if (keep.has(n.id) && (ids.has(n.id) || (n.kind === 'task' && ids.has(n.parentId)))) mine.add(n.id)
     const top = [...g.nodes.values()].filter(n => ids.has(n.id) && !ids.has(n.parentId))
     return treeLines(g, nm, mine, now, v, { ...g.root, id: `wt:${tag}`, children: top }) // the id keys the `Rodando ×N` groups: one set per worktree
+  }
+  if (!part.groups.length) {
+    // no worktrees: one divider per state (`Rodando ×3`), failures first (RANK order)
+    const states = (Object.keys(RANK) as State[]).sort((a, b) => RANK[a] - RANK[b])
+    return states.flatMap(st => {
+      const list = agents.filter(a => keep.has(a.id) && g.nodes.get(a.id)?.state === st)
+      return list.length ? [[seg(v.caps, `${PILL[st]} ×${list.length}`, stateColor(st), { bold: true })], ...sub(list, `state:${st}`)] : []
+    })
   }
   const out: Line[] = []
   for (const grp of part.groups) out.push(...groupDivider(grp, v.ahead?.[grp.key], { width: v.width, ascii: v.caps.ascii }), agentsLine(grp.agents, v.caps.ascii))
@@ -437,7 +446,7 @@ export const mapScrollStep = (cur: number, dir: 'scrollDown' | 'scrollUp'): numb
 export const scrollInfo = { max: 0, units: [] as number[] } // units: first row of each card block the window can start at (one card per press)
 const MIN_CARD_ROWS = CARD_H + 3 // a pane shorter than this still gets room for one full card and its notes
 export type CardTag = { role?: string; wt?: string; br?: string; up?: boolean; down?: boolean; wf?: string; w?: number } // wf: workflow run id
-const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
+const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Atenção', pending: 'Na fila', inactive: 'Inativo' }
 // Step segments of the design card: one run of cells per tool step (width by duration, colour by result), the live one last.
 function stepBar(run: RunNode | undefined, n: Node, cells: number, c: Caps, frame: number): Line | undefined {
   const st = run?.steps ?? []
@@ -675,6 +684,21 @@ function cardLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: nu
   return lines
 }
 
+// Cards mode: a plain grid of every agent card (no bus, no hierarchy), as many columns as the width allows.
+function gridLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView, runs: Map<string, RunNode>): Line[] {
+  const c = v.caps, frame = v.frame ?? 0
+  const ns = sortNodes([...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id)), v.sort)
+  const cw = Math.max(18, Math.min(CARD_W, v.width)), per = Math.max(1, Math.floor((v.width + CARD_GAP) / (cw + CARD_GAP)))
+  const out: Line[] = []
+  for (let i = 0; i < ns.length; i += per) {
+    const cards = ns.slice(i, i + per).map((n, k) => card(n, nm, c, now, frame, i + k, { role: 'agente', wt: n.git?.worktree ? n.git.branch ?? n.git.worktree : '', wf: n.workflow, up: false, down: false, w: cw }, runs.get(n.id)))
+    const h = Math.max(...cards.map(x => x.length))
+    for (let r = 0; r < h; r++) out.push(cards.flatMap((x, k) => [...(k ? sp(CARD_GAP) : []), ...(x[r] ?? sp(cw))]))
+    out.push([])
+  }
+  return out
+}
+
 function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, now: number, v: CView): Line[] {
   const c = v.caps, tl = timeline(g, now), frame = v.frame ?? 0
   const nameW = v.width >= 100 ? 24 : 14, cells = Math.max(10, v.width - nameW - 18)
@@ -712,7 +736,7 @@ export function treeHasCollapsed(agents: AgentLike[], now: number, v: Pick<CView
 export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line[] {
   const w = effectiveCols(v0.width) // 0, negativa ou NaN: 80 colunas, uma coluna (AC-044)
   // app com container < 520 px: cards viram linhas de estado, nome e tempo (AC-043)
-  const rows = v0.containerPx !== undefined && v0.mode === 'cards' && rowStyle(v0.containerPx) === 'row'
+  const rows = v0.containerPx !== undefined && (v0.mode === 'map' || v0.mode === 'cards') && rowStyle(v0.containerPx) === 'row'
   const v: CView = { ...v0, width: w, mode: rows ? 'tree' : v0.mode }
   const g = buildGraph(agents, now)
   if (layoutLevel(w) === 'line') {
@@ -727,13 +751,13 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
   // order of the design: header, alert banners, view tabs, then the view itself
-  const out: Line[] = [...header(g, agents, now, v), ...(agents.length && (v.mode === 'tree' || v.mode === 'cards') ? pinnedLines(g, nm, keep, v) : []), tabsLine(agents, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
+  const out: Line[] = [...header(g, agents, now, v), ...(agents.length && (v.mode === 'tree' || v.mode === 'map') ? pinnedLines(g, nm, keep, v) : []), tabsLine(agents, v), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
   const foot = footer(g, v)
   if (agents.length === 0) {
     // empty session: the orchestrator card alone, centred, with the waiting line under it (never a bare line of text)
-    if (v.mode === 'cards') { scrollInfo.max = 0; out.push(...cardLines(g, nm, keep, now, v), []) }
+    if (v.mode === 'map') { scrollInfo.max = 0; out.push(...cardLines(g, nm, keep, now, v), []) }
     const wait: Line = [seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)]
-    out.push(v.mode === 'cards' ? centre(wait, w) : wait)
+    out.push(v.mode === 'map' ? centre(wait, w) : wait)
   } else {
     const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
     if (v.mode === 'grouped' && bad.length) {
@@ -741,7 +765,8 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
       for (const n of bad) out.push(fit([seg(v.caps, '  ' + glyph(v.caps, n.state) + ' ', stateColor(n.state), { node: n.id }),
         seg(v.caps, nm.get(n.id) ?? n.name, undefined, { bold: true, node: n.id }), seg(v.caps, n.error ? '  ' + n.error : '', DIM)], w))
     }
-    if (v.mode === 'cards') {
+    if (v.mode === 'cards') out.push(...gridLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r]))))
+    else if (v.mode === 'map') {
       // every card keeps its full anatomy (design: no denser form); a pane too short shows a window that scrolls in whole
       // card rows (a row of cards and the bus above it, never cut)
       const runs = new Map(model.nodes.map(r => [r.id, r]))

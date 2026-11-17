@@ -8,6 +8,7 @@ import type { OfficeAgent, Status } from '../types'
 import { frameFor, nextDelay, parseSub, paneWidth, paneBodyLines, drawSig, ticker } from './office'
 import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS, strWidth } from './monitor'
 import { TONE as TONE_OF } from './app-cards'
+import { VIEW_TABS } from './vocabulary'
 import { mapScrollStep, renderCompact, titleRows, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
 import type { CView } from './compact'
 import { buildRunModel, limitsRawOf, usageLimits } from './run-model'
@@ -88,7 +89,7 @@ async function capsOf($: EngineInterface): Promise<Caps> {
 }
 
 const HELP =
-  'Uso: /office start | stop | (alterna). /office view [map|compact] (sem valor alterna); /office mode tree|grouped|cards|waterfall|cost|tools|workflow (tree = árvore com conectores; cost = custo e tokens; tools = ferramentas; workflow só mostra algo com execução de workflow; ou g); /office search <texto> (vazio limpa); /office sort time|state|name; /office filter failed|all; /office width <colunas>; /office open <id> (detalhe). Teclas (com o painel focado: ctrl+x tab ou clique): v cicla mapa > árvore > cards (um modo escolhido com g é mantido ao sair do mapa), g modo (cicla árvore, agrupado, cards, linha do tempo, custo, ferramentas e, só com workflow em curso, workflow; na árvore, g abre os grupos recolhidos antes de passar ao modo seguinte), o ordenar, f só falhas, s buscar, Enter detalhe, b voltar, p/n irmaos no detalhe, q fechar. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
+  'Uso: /office start | stop | (alterna). /office view [map|compact] (sem valor alterna); /office mode map|tree|grouped|cards|waterfall|cost|tools|workflow (map = organograma com barramento; cards = grade; tree = árvore com conectores; cost = custo e tokens; tools = ferramentas; workflow só mostra algo com execução de workflow; ou g); /office search <texto> (vazio limpa); /office sort time|state|name; /office filter failed|all; /office width <colunas>; /office open <id> (detalhe). Teclas (com o painel focado: ctrl+x tab ou clique): v cicla mapa > árvore > cards (um modo escolhido com g é mantido ao sair do mapa), g modo (cicla mapa, árvore, agrupado, cards, linha do tempo, custo, ferramentas e, só com workflow em curso, workflow; na árvore, g abre os grupos recolhidos antes de passar ao modo seguinte), o ordenar, f só falhas, s buscar, Enter detalhe, b voltar, p/n irmaos no detalhe, q fechar. /office collapse | expand recolhe/expande todos os ramos (ou use os botoes). /office status mostra o resumo; /office reset limpa o estado (monitor fechado). Alias: star.'
 
 // Fire-and-forget engine calls (status line, redraw timer, resize, focus) never surface as unhandled rejections.
 const bg = (p: unknown): void => { void Promise.resolve(p).catch(() => undefined) }
@@ -377,7 +378,7 @@ export const register: Register = on => {
       const cur = await curView($)
       const v = want === 'map' ? 'map' : want ? 'compact' : cur === 'map' ? 'compact' : 'map'
       await update($, viewAt, () => v)
-      if (want === 'map' && onTerminal()) await update($, modeAt, () => 'cards') // the terminal's map is the centred cards
+      if (want === 'map' && onTerminal()) await update($, modeAt, () => 'map') // the terminal's map is the centred org chart
       await update($, autoViewAt, () => false) // an explicit choice is never overridden by the surface default
       $.ui.invalidate('ui.render')
       bg(resizeIfNeeded($))
@@ -385,6 +386,7 @@ export const register: Register = on => {
     }
     if (w0 === 'mode' || w0 === 'g') {
       const cur = (await read($, modeAt)) as Mode
+      if (arg && w0 === 'mode' && !MODES.includes(arg as Mode)) return { text: `Modo desconhecido: ${arg}. Use ${MODES.join('|')}.` } // keeps the current mode
       const m = MODES.includes(arg as Mode) ? (arg as Mode) : applyAction({ ...(await readUi($)), mode: cur }, 'group', await groupCtx($, await readUi($))).state.mode
       await update($, modeAt, () => m); await update($, modeChosenAt, () => true); $.ui.invalidate('ui.render'); return { text: `Modo: ${m}.` }
     }
@@ -696,7 +698,7 @@ export const register: Register = on => {
         : <Text key={`ft-${j}`} dimColor={x.dim}>{x.t}</Text>)}</Box>
     ))}</>)
     // one app card (design Chips5): glyph + title, chips, git, status, progress bar, % and time; border and bar carry the state tone
-    const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Aguarda você', pending: 'Na fila', inactive: 'Inativo' }
+    const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Atenção', pending: 'Na fila', inactive: 'Inativo' }
     // motion on the app surfaces: spinner glyph, a sweeping indeterminate bar and a pulse along the dashed buses (off with reduced motion)
     const fr = caps.reducedMotion ? 0 : frameFor(all, now)
     const glyphOf = (c: AppCard) => (c.state === 'running' && !caps.reducedMotion ? spinnerGlyph(fr, false) : c.glyph)
@@ -811,7 +813,7 @@ export const register: Register = on => {
     }
     // app pane chrome (design Proto5): header, one segment per agent, failure banners, tab row
     const onApp = isAppSurface((e as { surface?: string }).surface)
-    const TABS: [string, string, string][] = [['map', 'Mapa', 'tab:map'], ['tree', 'Árvore', 'tab:tree'], ['grouped', 'Worktrees', 'tab:grouped'], ['workflow', 'Workflow', 'tab:workflow'], ['cost', 'Custo', 'tab:cost'], ['tools', 'Ferramentas', 'tab:tools']]
+    const TABS = VIEW_TABS.map(([k, label]) => [k, label, `tab:${k}`] as const) // mesma fonte das abas do terminal
     const curTab = view === 'map' ? 'map' : (await read($, modeAt)) as string
     const limLines = usageLimits((await read($, sessionLimitsAt)) ?? undefined, now)
     const appChrome = () => {

@@ -62,7 +62,7 @@ test('search filters by name', () => {
 })
 test('ungrouped: rounded cards, all 30 drawn even when the pane is short (dense), never a +N hint', () => {
   const ag = Array.from({ length: 30 }, (_, i) => mk('ag' + i))
-  const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 100, maxCardRows: 2 }))
+  const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'map', width: 100, maxCardRows: 2 }))
   expect(out).toContain('╭'); expect(out).not.toMatch(/↓ \+\d+ cards/); expect((out.match(/Dev:/g) ?? []).length).toBe(30)
 })
 test('status line and quota error', () => {
@@ -94,33 +94,33 @@ test('preview: colored diff, text, image fallback', () => {
 const many = (n: number, parent?: string) => Array.from({ length: n }, (_, i) => mk('s' + i, parent ? { parentAgentId: parent } : {}))
 const cardCount = (out: string) => out.split('\n').map(l => (l.match(/╭[─┴]{16,32}╮/g) ?? []).length).filter(k => k > 0)
 test('cards: U-001 up to 6 siblings per row, 7th opens row 2, width dynamic (18..34)', () => {
-  const o120 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 }))
+  const o120 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'map', width: 120, maxCardRows: 99 }))
   expect(cardCount(o120)).toEqual([1, 6, 1]) // the parent card (main session), then rows of 6
-  const o200 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 200, maxCardRows: 99 }))
+  const o200 = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'map', width: 200, maxCardRows: 99 }))
   expect(cardCount(o200)).toEqual([1, 6, 1])
 })
 test('cards: T-001 REQ-004 wrapped rows each get their own bus under the parent, no trunk on the left', () => {
-  const lines = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n')
+  const lines = txt(renderCompact(many(7), T + 1000, { ...v, mode: 'map', width: 120, maxCardRows: 99 })).split('\n')
   expect(lines.filter(l => /^ *╭┄/.test(l) || /^ *╭[┄┬]*┴/.test(l) || /┄/.test(l)).length).toBeGreaterThanOrEqual(2) // one bus per row of children
   expect(lines.some(l => /^ *┊ ╭/.test(l))).toBe(false); expect(lines.some(l => /├/.test(l))).toBe(false)
-  const one = txt(renderCompact([mk('p', { agentId: 'P' })], T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n')
+  const one = txt(renderCompact([mk('p', { agentId: 'P' })], T + 1000, { ...v, mode: 'map', width: 120, maxCardRows: 99 })).split('\n')
   expect(one.some(l => /^ +┊$/.test(l))).toBe(true) // single child (session -> P): a straight dotted drop
 })
 test('cards: branch siblings take one row each after leaves, subtree below', () => {
   const ag = [mk('p', { agentId: 'P' }), mk('leaf1', { parentAgentId: 'P' }), mk('br', { parentAgentId: 'P', agentId: 'B' }), mk('gk', { parentAgentId: 'B' })]
-  const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99 })).split('\n').filter(l => l.includes('│')).join('\n')
+  const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'map', width: 120, maxCardRows: 99 })).split('\n').filter(l => l.includes('│')).join('\n')
   expect(out.indexOf('leaf1')).toBeLessThan(out.indexOf('Dev: br')); expect(out.indexOf('Dev: br')).toBeLessThan(out.indexOf('Dev: gk'))
 })
 test('cards ASCII: ":" vertical, "." horizontal, "+" joints', () => {
   const ag = [mk('p', { agentId: 'P' }), ...many(4, 'P')]
-  const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, caps: detectCaps({ OFFICE_ASCII: '1' }) }))
+  const out = txt(renderCompact(ag, T + 1000, { ...v, mode: 'map', width: 120, maxCardRows: 99, caps: detectCaps({ OFFICE_ASCII: '1' }) }))
   expect(out).not.toMatch(/[┊├╰┄┬┴╭]/); expect(out).toMatch(/^ *\+\.+/m); expect(out).toMatch(/^ *: /m)
 })
 test('cards: the worktree and the role share one row of the card (unicode and ASCII), no full-width divider', () => {
   const ag = [mk('m'), mk('w', { git: { branch: 'feat/x', worktree: 'wt' } })]
-  const u = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards' }))
+  const u = txt(renderCompact(ag, T + 1000, { ...v, mode: 'map' }))
   expect(u).toMatch(/│⧉ feat\/x +agente│/); expect(u).not.toContain('worktree: feat')
-  const a = txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', caps: detectCaps({ OFFICE_ASCII: '1' }) }))
+  const a = txt(renderCompact(ag, T + 1000, { ...v, mode: 'map', caps: detectCaps({ OFFICE_ASCII: '1' }) }))
   expect(a).toMatch(/\|wt feat\/x +agente\|/)
 })
 test('cards: waterfall row has span on session timeline, partial blocks; ASCII uses = and #', () => {
@@ -139,14 +139,14 @@ test('shimmer moves with frame; reduced motion is static', () => {
 })
 test('staggered bar growth right after start, full later', () => {
   const ag = [mk('x', { startedAt: T, status: 'done', endedAt: T + 1000 })]
-  const g = (now: number) => txt(renderCompact(ag, now, { ...v, mode: 'cards' }))
-  const green = (now: number) => renderCompact(ag, now, { ...v, mode: 'cards' }).flat().filter(s => /━/.test(s.t) && s.fg === quantize(STATE_COLOR.done, v.caps.color)).length
+  const g = (now: number) => txt(renderCompact(ag, now, { ...v, mode: 'map' }))
+  const green = (now: number) => renderCompact(ag, now, { ...v, mode: 'map' }).flat().filter(s => /━/.test(s.t) && s.fg === quantize(STATE_COLOR.done, v.caps.color)).length
   expect(green(T + 100)).toBeLessThan(green(T + 5000))
 })
 
 // ---- Rodada 4 (design: variante sem agrupar) ----
-const cardsOut = (ag: AgentLike[], o: Record<string, unknown> = {}) => renderCompact(ag, T + 9000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, ...o })
-test('cards is the default mode', () => { expect(DEFAULT_MODE).toBe('cards') })
+const cardsOut = (ag: AgentLike[], o: Record<string, unknown> = {}) => renderCompact(ag, T + 9000, { ...v, mode: 'map', width: 120, maxCardRows: 99, ...o })
+test('cards is the default mode', () => { expect(DEFAULT_MODE).toBe('map') })
 test('header (design): Office · project · #sid with tokens or cost on the right, then time and coloured counts, no ambiguous arrows', () => {
   const ag = [mk('a', { status: 'done', endedAt: T + 100 }), mk('b'), mk('c', { status: 'error', endedAt: T + 100 })]
   const ls = cardsOut(ag, { project: 'megabor', sessionId: 'c716af99', branch: 'main' })
@@ -165,8 +165,8 @@ test('agent bar: one full-width segment per agent in its state colour; view tabs
   expect(bar.filter(x => x.t.includes('━')).map(x => x.fg)).toEqual(['#6FD08C', '#7FA9FF'])
   expect(bar.reduce((k, x) => k + [...x.t].length, 0)).toBe(120)
   const tabs = ls.find(l => l.some(x => x.act === 'mode:tree'))!
-  expect(tabs.map(x => x.t).join('')).toMatch(/Mapa +Árvore +Worktrees +Custo +Ferramentas/)
-  expect(tabs.find(x => x.act === 'mode:cards')!.variant).toBe('primary')
+  expect(tabs.map(x => x.t).join('')).toMatch(/Mapa +Árvore +Worktrees +Cards +Waterfall +Custo +Ferramentas +Workflow/)
+  expect(tabs.find(x => x.act === 'mode:map')!.variant).toBe('primary')
 })
 test('no slanted parallelogram glyphs anywhere (render badly in terminals)', () => {
   expect(txt(cardsOut([mk('a'), mk('b', { status: 'done', endedAt: T + 100 })]))).not.toMatch(/[▰▱]/)
@@ -201,7 +201,7 @@ test('ASCII header/footer use plain ascii only', () => {
 
 test('maxLines: a short pane shows a window of full cards with scroll notes; the footer is still drawn', () => {
   const ag = Array.from({ length: 12 }, (_, i) => mk('m' + i))
-  const ls = renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 80, maxCardRows: 99, maxLines: 20 })
+  const ls = renderCompact(ag, T + 1000, { ...v, mode: 'map', width: 80, maxCardRows: 99, maxLines: 20 })
   expect(ls.length).toBeLessThanOrEqual(20 + 4 + 3)
   expect(txt(ls)).toContain('1/')
   expect(txt(ls)).toMatch(/✓ Concluído\s+⠹ Rodando/)
@@ -251,7 +251,7 @@ test('detail has hotkeys for back and sibling navigation', () => {
 test('cards never dropped: scrolling a short pane reaches every sibling', () => {
   const ag = Array.from({ length: 6 }, (_, i) => mk('h' + i))
   const seen = new Set<string>()
-  const draw = (scroll?: number) => txt(renderCompact(ag, T + 1000, { ...v, mode: 'cards', width: 120, maxCardRows: 99, maxLines: 12, scroll }))
+  const draw = (scroll?: number) => txt(renderCompact(ag, T + 1000, { ...v, mode: 'map', width: 120, maxCardRows: 99, maxLines: 12, scroll }))
   draw()
   for (const scroll of scrollInfo.units) for (const m of draw(scroll).matchAll(/Dev:/g)) seen.add(m[0]) // one card per scroll stop
   expect(seen.size).toBeGreaterThan(0) // T-004: narrow titles cut to Dev: …

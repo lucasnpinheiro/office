@@ -92,7 +92,7 @@ test('parity: one RunModel, Terminal pills and App cards carry the same agents, 
   const now = T + 5000
   const model = buildRunModel(agents, now, CAPABILITIES)
   const cards = appCards(agents, now, { model })
-  const term = renderCompact(agents, now, { width: 200, caps: detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' }), mode: 'cards', query: '', expanded: new Set<string>(), maxCardRows: 99, model })
+  const term = renderCompact(agents, now, { width: 200, caps: detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' }), mode: 'map', query: '', expanded: new Set<string>(), maxCardRows: 99, model })
     .map(l => l.map(s => s.t).join('')).join('\n')
   expect(cards.map(c => c.id).sort()).toEqual(model.nodes.map(n => n.id).sort())
   for (const r of model.nodes) {

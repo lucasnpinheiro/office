@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.28.18 (agent-office, video parity)
+
+- Tabs: one list (`VIEW_TABS`) for terminal and app, in video order: Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow. Workflow is always listed (dimmed while no run exists).
+- **Breaking change:** the terminal default mode is now `map` (centred org chart with bus, what `cards` was). `cards` is a new plain grid of all agent cards. `g` cycles 8 modes; `/office mode map|cards` accepted; `OFFICE_MODE=cards` or a persisted `cards` now shows the grid.
+- Grouped with no worktrees: dividers per state (`Rodando ×N`, `Concluído ×N`, `Falhou ×N`, `Na fila ×N`); with worktrees unchanged.
+- Attention pill label `Atenção` (was `Aguarda você`).
+- `/office mode <unknown>` keeps the current mode and answers with the 8 valid modes.
+
 ## 0.28.17 (agent-office, header plan limits)
 
 - Header: `5h N% · reinicia em Xh Ym` and `Semana N% · reinicia em Xd Yh` (plus `Semana <modelo>`) on an extra line in the terminal and app headers, only when `$.session.usage()` exposes plan limits (`rate_limits.five_hour` / `seven_day[_model]`, shape unverified). Missing, NaN or out-of-range data hides the segment. Elapsed keeps counting from the 1st agent.

@@ -7,7 +7,7 @@ import type { AgentLike } from './office'
 const T = 1_000_000
 const mk = (id: string, o: object = {}): AgentLike => ({ id, agentId: `g-${id}`, description: id, status: 'working', startedAt: T, seenAt: T, ...o } as AgentLike)
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
-const base = { width: 150, caps, mode: 'cards' as const, query: '', expanded: new Set<string>(), maxCardRows: 99, maxLines: 55 }
+const base = { width: 150, caps, mode: 'map' as const, query: '', expanded: new Set<string>(), maxCardRows: 99, maxLines: 55 }
 const lines = (ag: AgentLike[], o: object = {}, now = T + 5000) => renderCompact(ag, now, { ...base, ...o } as any).map(l => l.map(s => s.t).join(''))
 const NAMES = [
   'Calc trigonometria', 'Calc logaritmos', 'Calc estatística', 'Calc complexos/matriz', 'Calc fatorial/combinatória',

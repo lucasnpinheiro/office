@@ -70,13 +70,13 @@ test('T-008 sem workflow: a visão diz que não há e g não passa por ela', asy
   await $.command.run({ command: 'office', args: 'mode workflow' } as any)
   let ui = await mount($)
   expect(await texts(ui)).toContain('Nenhum workflow nesta sessão')
-  // ciclo g sem workflow: cards -> waterfall -> cost -> tools -> tree (workflow pulado)
+  // ciclo g sem workflow: cards -> waterfall -> cost -> tools -> map (workflow pulado)
   await $.command.run({ command: 'office', args: 'mode tools' } as any)
   await ui.unmount(); ui = await mount($)
   ui = await press($, ui, 'h-g')
   const out = await texts(ui)
   expect(out).not.toContain('Nenhum workflow nesta sessão')
-  expect(out).toContain('Níveis de profundidade') // árvore
+  expect(out).toContain('barramento') // volta ao mapa
   await ui.unmount()
 })
 
@@ -370,6 +370,7 @@ test('app surface: cards viram Box/Text gráficos com chips, sem caixa de texto;
   setup($, on)
   await start($)
   await spawn($, 'tu1', '🛠️ Mid-level · 🎼 Sonnet · 🟡 médio: Reading edit.php')
+  await $.command.run({ command: 'office', args: 'mode cards' } as any) // grade de cards do app
   const app = await mountOn($, 'desktop')
   const a = await texts(app)
   expect(a).toContain('Reading'); expect(a).toContain('edit.php'); expect(a).toContain('🛠️ Mid-level'); expect(a).toContain('🎼 Sonnet'); expect(a).toContain('🟡 médio')
@@ -377,4 +378,24 @@ test('app surface: cards viram Box/Text gráficos com chips, sem caixa de texto;
   await app.unmount()
   const term = await texts(await mountOn($, 'terminal'))
   expect(term).toMatch(/[╭╮╰╯]/)
+})
+
+test('V-301 /office mode xyz keeps the mode and lists the 8 modes', async ($, on) => {
+  setup($, on)
+  await start($)
+  await $.command.run({ command: 'office', args: 'mode cards' } as any)
+  const r: any = await $.command.run({ command: 'office', args: 'mode xyz' } as any)
+  expect(JSON.stringify(r)).toContain('map|tree|grouped|cards|waterfall|cost|tools|workflow')
+  expect(JSON.stringify(await $.command.run({ command: 'office', args: 'status' } as any))).toBeDefined()
+  const ui = await mountOn($, 'desktop')
+  expect(await texts(ui)).toContain('Cards') // still in cards mode: the app grid
+  await ui.unmount()
+})
+
+test('D-301 app shows the 8 tabs of the terminal (VIEW_TABS)', async ($, on) => {
+  setup($, on)
+  await start($, 'map')
+  await spawn($, 'tu1', 'Dev: alfa')
+  const app = await texts(await mountOn($, 'desktop'))
+  for (const k of ['Mapa', 'Árvore', 'Worktrees', 'Cards', 'Waterfall', 'Custo', 'Ferramentas', 'Workflow']) expect(app).toContain(k)
 })

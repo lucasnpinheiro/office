@@ -8,7 +8,7 @@ import type { AgentLike } from './office'
 const T = 1_000_000
 const mk = (id: string, o: object = {}): AgentLike => ({ id, agentId: `g-${id}`, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o } as AgentLike)
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
-const base = { width: 120, caps, mode: 'cards' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
+const base = { width: 120, caps, mode: 'map' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
 const lines = (ag: AgentLike[], o: object = {}, now = T + 5000) => renderCompact(ag, now, { ...base, ...o }).map(l => l.map(s => s.t).join(''))
 const kids = (n: number) => Array.from({ length: n }, (_, i) => mk(`c${i}`))
 
@@ -53,10 +53,10 @@ test('B2 failed cards are never auto-removed', () => {
 test('B2 a done parent with a live child stays; once the subtree is done it leaves 30 s after the last child ended', () => {
   const parent = mk('p', { status: 'done', endedAt: T + 1000 })
   const live = mk('k', { parentAgentId: 'g-p' })
-  expect(lines([parent, live], { mode: 'cards' }, T + 100_000).join('\n')).toContain('Dev: p')
+  expect(lines([parent, live], { mode: 'map' }, T + 100_000).join('\n')).toContain('Dev: p')
   const kDone = mk('k', { parentAgentId: 'g-p', status: 'done', endedAt: T + 50_000 })
-  expect(lines([parent, kDone], { mode: 'cards' }, T + 70_000).join('\n')).toContain('Dev: p') // child ended 20 s ago
-  expect(lines([parent, kDone], { mode: 'cards' }, T + 81_000).join('\n')).not.toContain('Dev: p') // 31 s
+  expect(lines([parent, kDone], { mode: 'map' }, T + 70_000).join('\n')).toContain('Dev: p') // child ended 20 s ago
+  expect(lines([parent, kDone], { mode: 'map' }, T + 81_000).join('\n')).not.toContain('Dev: p') // 31 s
 })
 
 test('B5 orchestrator card is Concluído when every agent is done, and its time matches the header elapsed', () => {

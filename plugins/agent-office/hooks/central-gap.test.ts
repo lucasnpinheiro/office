@@ -8,7 +8,7 @@ import type { AgentLike } from './office'
 const T = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, agentId: `g-${id}`, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o } as AgentLike)
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
-const rows = (ag: AgentLike[], width = 200) => renderCompact(ag, T + 5000, { width, caps, mode: 'cards', query: '', expanded: new Set<string>(), maxCardRows: 9999 }).map(l => l.map(s => s.t).join(''))
+const rows = (ag: AgentLike[], width = 200) => renderCompact(ag, T + 5000, { width, caps, mode: 'map', query: '', expanded: new Set<string>(), maxCardRows: 9999 }).map(l => l.map(s => s.t).join(''))
 const kids = (p: string, n: number) => Array.from({ length: n }, (_, i) => mk(`k${i}`, { parentAgentId: `g-${p}` }))
 const col = (l: string, x: number) => [...l].reduce((a, ch) => (a.w < x ? { w: a.w + strWidth(ch), c: ch } : a), { w: 0, c: ' ' }).c
 const cells = (l: string) => { const o: string[] = []; for (const ch of l) { o.push(ch); for (let i = 1; i < strWidth(ch); i++) o.push('') } return o }
