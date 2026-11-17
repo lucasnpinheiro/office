@@ -207,7 +207,7 @@ Full history: [CHANGELOG.md](../../CHANGELOG.md).
   | Variable | Effect |
   |---|---|
   | `OFFICE_VIEW` | app surfaces only (desktop, vscode, mobile): `map` (default) or `compact`. The terminal has one view, the centred cards |
-  | `OFFICE_MODE` | initial mode (`cards` default) |
+  | `OFFICE_MODE` | initial mode (`map` default) |
   | `OFFICE_WIDTH` | pane width in columns |
   | `OFFICE_ASCII=1` | ASCII glyphs only |
   | `NO_COLOR` | no color (empty counts as unset) |

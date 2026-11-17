@@ -86,9 +86,10 @@ bash scripts/check-sanitized.sh
 
 ### Views and modes
 
-- **Map** (default at session start): mind map of the session, its agents and their TodoWrite tasks.
-- **Compact** (`v` from the map): one of four modes, cycled with `g` or set with `/office mode`:
-  `cards` (default), `tree`, `grouped` (siblings collapsed by state; with worktrees, each worktree is a divider with its agents nested under it), `waterfall` (spans on a shared time axis), `cost` (tokens and time per agent; `~$` stays `—` per agent, the session USD shows only when the engine gives it), `tools` (calls per tool) and `workflow` (agents grouped by workflow run id; phases are not available from the engine; `g` stops there only while a run exists).
+- **Map** (view, default at session start): mind map of the session, its agents and their TodoWrite tasks.
+- **Compact** (`v` from the map, label `visão`): 8 tabs in one order on terminal and app, cycled with `g` or set with `/office mode` (case-insensitive; an unknown mode keeps the current one and lists the 8):
+  `map` (default; centred org chart with a `┄` bus), `tree`, `grouped` (Worktrees tab: with worktrees, each is a divider with its agents nested; without, one divider per state: `Rodando ×N`, `Concluído ×N`, `Falhou ×N`, `Na fila ×N`, failures first), `cards` (plain scrollable grid of every agent card, roles `agente`/`subagente`; `j`/`k` scroll), `waterfall` (spans on a shared time axis), `cost` (tokens and time per agent; `~$` stays `—` per agent, the session USD shows only when the engine gives it), `tools` (calls per tool) and `workflow` (agents grouped by workflow run id; phases are not available from the engine; always shown as a tab, dimmed without a workflow run).
+- The attention pill reads `Atenção` (rate limit). Known: the grouped `Atenção (N)` block still repeats items shown under `Falhou`.
 - **Detail**: Enter (or a click) on a card; `b` goes back. On a pane 150+ columns wide (110+ in the desktop app) it
   opens as a side panel next to the cards.
 
@@ -279,8 +280,8 @@ at about 45% of the terminal), `/office collapse | expand`, `/office status`, `/
 
 | Variable | Effect |
 | --- | --- |
-| `OFFICE_VIEW` | app surfaces only (desktop, vscode, mobile): `map` (default) or `compact`. The terminal has one view, the centred cards |
-| `OFFICE_MODE` | `cards` (default), `tree`, `grouped`, `waterfall`, `cost`, `tools`, `workflow` |
+| `OFFICE_VIEW` | app surfaces only (desktop, vscode, mobile): `map` (default) or `compact`. The terminal has one view, the centred map (org chart) |
+| `OFFICE_MODE` | `map` (default), `cards`, `tree`, `grouped`, `waterfall`, `cost`, `tools`, `workflow` |
 | `OFFICE_WIDTH` | requested pane width in columns |
 | `OFFICE_ASCII=1` | ASCII glyphs (also automatic for `TERM=linux\|dumb`, non-UTF-8 locales, legacy Windows conhost) |
 | `NO_COLOR` | monochrome (otherwise truecolor, 256 or 16 colors, detected) |
