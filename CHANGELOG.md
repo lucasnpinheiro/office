@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.23 (agent-office, grouped without Atenção block)
+
+- Grouped mode drops the fixed "Atenção (N)" block also when worktrees exist: failed/attention agents already sit under their worktree divider; the "Atenção" pill on cards stays. App surface (register.tsx) has no equivalent block.
+
 ## 0.28.22 (agent-office, short card)
 
 - Pane body of 8 rows or fewer (`scroll.bodyRows`; 80x24 gives 6): a card is 4 rows (name + pill, model + status/time, borders) so one fits whole; the map's `n/total` notes are dropped there. Taller panes keep the full card.

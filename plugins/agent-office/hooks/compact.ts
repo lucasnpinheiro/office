@@ -779,12 +779,6 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     const wait: Line = [seg(v.caps, 'Aguardando agentes… use o Claude normalmente', DIM)]
     out.push(v.mode === 'map' ? centre(wait, w) : wait)
   } else {
-    const bad = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'failed' || n.state === 'attention'))
-    if (v.mode === 'grouped' && bad.length && worktreePartition(agents.filter(a => keep.has(a.id))).groups.length) { // no worktrees: state dividers already list them, once
-      out.push([seg(v.caps, `Atenção (${bad.length})`, STATE_COLOR.attention, { bold: true })])
-      for (const n of bad) out.push(fit([seg(v.caps, '  ' + glyph(v.caps, n.state) + ' ', stateColor(n.state), { node: n.id }),
-        seg(v.caps, nm.get(n.id) ?? n.name, undefined, { bold: true, node: n.id }), seg(v.caps, n.error ? '  ' + n.error : '', DIM)], w))
-    }
     if (v.mode === 'cards') {
       // same window as the map: whole card rows only, j/k scroll through scrollInfo; a short pane no longer overflows
       const starts: number[] = []
