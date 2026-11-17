@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.36 (agent-office, README CLI standard)
+
+- README documents the CLI visual standard (REQ-607).
+
 ## 0.28.35 (agent-office, every tab fits the pane)
 
 - Every tab fits the terminal height: list tabs (Árvore, Waterfall, Custo, Ferramentas, Workflow) are a window with `↑ N mais` / `↓ N mais`, the pane reserves the hotkey rows so the footer is always visible, j/k scroll every list tab and the offset resets on tab change (REQ-603).

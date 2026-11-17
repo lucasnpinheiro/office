@@ -114,6 +114,19 @@ Tokens read `31k tok`; cost is hidden while unknown; the tool name appears once 
 (never wrapped mid-word or mid-path). `← voltar (b)` is clickable. The final report in CONCLUSÃO comes from the agent record's
 `report` field when present (the engine does not store the handback text today, so a finished agent shows `concluído`).
 
+### CLI visual standard (terminal compact frame, REQ-601..606)
+
+One standard across Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow and the detail view:
+
+- **One footer**: full labels (`g: modo · o: ordenar · f: só falhas · s: buscar · v: visão · q: fechar`), the same keys in every tab; rows wrap by width with a 2-column margin and never cut a label.
+- **One active-tab marker**: the active tab reads `[Waterfall]` in the text, so the host focus cursor is never mistaken for it. One solid header rule.
+- **Every tab fits the terminal height**: the list tabs are a window with `↑ N mais` / `↓ N mais`, `j`/`k` scroll them, and the footer is always visible.
+- **One time format**: `mm:ss` under 1 h, `h:mm:ss` from 1 h, everywhere (header, cards, Waterfall and Custo axes and rows).
+- **Duplicate names** get `#n` in every tab and the cut keeps the suffix (`QA: teste de regress… #3`).
+- **Every row** is cut with `…` at the pane width, never a bare clip.
+
+Screenshots in this README are real captures only; none was generated for this section.
+
 ### Footer and keys
 
 Three centred rows: the status legend, the glyph legend, then the keys, grouped as filtros (`g o f s`) | visão (`v`) | sair
