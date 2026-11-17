@@ -137,9 +137,8 @@ rows otherwise). Subagents do not count toward the rule.
 
 #### Cards (flat grid)
 
-Mode `cards` on the app surfaces lays every card in rows by pane width (the same `floor((width - 2 + 2) / 36)` rule), rows stacked
-top to bottom, so cards fill the pane horizontally and vertically instead of running off in one row. On the terminal the cards
-view is the centred tree described above.
+Mode `cards` (terminal and app) lays every card in rows by pane width (the same `floor((width - 2 + 2) / 36)` rule), rows stacked
+top to bottom, so cards fill the pane horizontally and vertically instead of running off in one row. On the terminal mode `map` (default) is the centred tree described above.
 
 #### Detail (Enter on a card)
 
@@ -220,6 +219,7 @@ Rendered from the real `appMap` + `appCardW`/`mapRows` layout by `scripts/render
 - **0.28.9**: map wrap rule (`mapRows`: solid vs dashed bus, rows by width) and root rule covered by tests; footer regrouped,
   centred and wrapped, `j`/`k` are visible items (they rendered as empty `j:` / `k:` lines); the installed-plugin updater and hook.
 - **0.28.10**: Concluído cards expire after 30 s; detail view redesigned (Solicitação / Andamento / Conclusão / Contexto).
+- **0.28.18**: video parity. 8 tabs in one order on terminal and app (Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow; Workflow dimmed with no run). **Breaking:** terminal mode `map` is now the default and is the centred org chart with bus (what `cards` was); `cards` is a new plain grid of every agent card; a persisted or scripted `/office mode cards` or `OFFICE_MODE=cards` now shows the grid. Grouped with no worktrees: one divider per state (`Rodando ×N`, failures first). Attention pill reads `Atenção` (was `Aguarda você`). `/office mode <unknown>` keeps the mode and lists the 8.
 - **0.28.17**: header shows plan limits (`5h N% · reinicia em Xh Ym`, `Semana N% · reinicia em Xd Yh`, per-model weekly when present) on an extra dim line, only when `$.session.usage()` exposes them; absent or invalid data hides the segment (never zero). Elapsed stays since the 1st agent. Field names are unverified against the engine.
 - **0.28.16**: terminal map parent line runs through a central gap in row 1 to later rows; price table on current Opus/Sonnet/Haiku 5.5 rates.
 - **0.28.15**: estimated per-agent cost (`~$`, tokens x model price table); long card titles wrap to a second line beside the fixed pill.
@@ -269,7 +269,7 @@ Not possible for a mod: `/` or Esc as keys, opening files externally, kitty/sixe
 ### Commands
 
 `/office` (toggle), `/office start | stop`, `/office view [map|compact]` (no value toggles),
-`/office mode tree|grouped|cards|waterfall|cost|tools|workflow`, `/office sort time|state|name`, `/office filter failed|all`,
+`/office mode map|tree|grouped|cards|waterfall|cost|tools|workflow`, `/office sort time|state|name`, `/office filter failed|all`,
 `/office search <text>` (empty clears), `/office open <id>`, `/office width <cols>` (a request: a docked pane is capped
 at about 45% of the terminal), `/office collapse | expand`, `/office status`, `/office reset` (monitor closed),
 `/office help`. Subcommands are case-insensitive.

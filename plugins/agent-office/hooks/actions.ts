@@ -33,8 +33,8 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
   if (a === 'view') {
     // from the map, a mode the user chose stays; otherwise the tree is the first stop of the cycle (06-gaps, decision 3)
     if (s.view === 'map') return { state: { ...s, view: 'compact', mode: s.modeChosen ? s.mode : 'tree' } }
-    if (s.mode === 'tree') return { state: { ...s, view: 'compact', mode: 'cards' } }
-    // the terminal has one view (the centred cards): v only alternates cards and tree there
+    if (s.mode === 'tree') return { state: { ...s, view: 'compact', mode: ctx.terminal ? 'map' : 'cards' } } // app: mapa > árvore > cards (grade) > mapa; terminal: map <> árvore
+    // the terminal has one view (the org chart, mode map): v only alternates map and tree there
     return ctx.terminal ? { state: { ...s, view: 'compact', mode: 'tree' } } : { state: { ...s, view: 'map' } }
   }
   if (a === 'search') return { state: { ...s, searching: !s.searching } }
@@ -89,7 +89,7 @@ export type FooterSeg = { t: string; act?: string; hotkey?: string; dim?: boolea
 const GROUP_SEP = '  |  '
 const groupOf = (act: string): number => (act === 'group' || act === 'sort' || act === 'failed' || act === 'search' ? 1 : act === 'view' ? 2 : act === 'back' || act === 'close' ? 3 : 0)
 export function footerRows(s: Ui, side: boolean, cols: number): FooterSeg[][] {
-  const scroll = !s.searching && s.mode === 'cards' && s.view === 'compact' && !s.selected // j/k scroll the card list: shown, not hidden buttons
+  const scroll = !s.searching && s.mode === 'map' && s.view === 'compact' && !s.selected // j/k scroll the map: shown, not hidden buttons
   const nav: FooterSeg[] = [
     ...(scroll ? [{ t: 'j: desce', act: 'scrollDown', hotkey: 'j' }, { t: 'k: sobe', act: 'scrollUp', hotkey: 'k' }] : []),
     ...footerTail(s).replace(/^ · /, '').split(' · ').map(t => ({ t, dim: true })),

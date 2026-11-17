@@ -4,14 +4,14 @@ import { applyAction, initialUi, hotkeysFor, startUi, footerText, footerTail, fo
 const s0 = { ...initialUi(), view: 'map' as const } // map-view fixtures; the default view is the map (startUi)
 const c0 = { ...s0, view: 'compact' as const }
 
-test('defaults: map view, cards as the mode behind v, not searching', async () => {
-  expect(initialUi().mode).toBe('cards')
+test('defaults: map view, map as the mode behind v, not searching', async () => {
+  expect(initialUi().mode).toBe('map')
   expect(initialUi().view).toBe('map')
   expect(s0.searching).toBe(false)
 })
 
 test('g cycles mode, f toggles failed, o cycles sort', async () => {
-  expect(applyAction(s0, 'group').state.mode).toBe('waterfall')
+  expect(applyAction(s0, 'group').state.mode).toBe('tree')
   const f = applyAction(s0, 'failed').state
   expect(f.filter).toBe('failed')
   expect(applyAction(f, 'failed').state.filter).toBe('all')
@@ -23,7 +23,7 @@ test('v cycles map, árvore, cards and back to map', async () => {
   const t = applyAction(s0, 'view').state
   expect(t).toMatchObject({ view: 'compact', mode: 'tree' })
   const c = applyAction(t, 'view').state
-  expect(c).toMatchObject({ view: 'compact', mode: 'cards' })
+  expect(c).toMatchObject({ view: 'compact', mode: 'cards' }) // app: the cards grid
   expect(applyAction(c, 'view').state.view).toBe('map')
 })
 
@@ -56,11 +56,11 @@ test('open selects an agent and clears attach; q asks close', async () => {
   expect(applyAction(s0, 'close').close).toBe(true)
 })
 
-test('grp toggles expanded group; mode:cards resets filter', async () => {
+test('grp toggles expanded group; mode:map resets filter', async () => {
   const e = applyAction(s0, 'grp:k').state
   expect(e.expanded).toEqual(['k'])
   expect(applyAction(e, 'grp:k').state.expanded).toEqual([])
-  expect(applyAction({ ...s0, filter: 'failed', mode: 'tree' }, 'mode:cards').state).toMatchObject({ mode: 'cards', filter: 'all' })
+  expect(applyAction({ ...s0, filter: 'failed', mode: 'tree' }, 'mode:map').state).toMatchObject({ mode: 'map', filter: 'all' })
 })
 
 test('hotkeys are unique per view and off while searching', async () => {
@@ -83,7 +83,7 @@ test('hotkeys are unique per view and off while searching', async () => {
 test('session start always opens the map view, clearing persisted filters and search', async () => {
   const st = startUi()
   expect(st.view).toBe('map')
-  expect(st.mode).toBe('cards')
+  expect(st.mode).toBe('map')
   expect(st.searching).toBe(false)
   expect(st.query).toBe('')
   expect(st.filter).toBe('all')
@@ -118,18 +118,18 @@ test('g alcança Custo e Ferramentas; Workflow só entra no ciclo com uma execu�
     for (let i = 0; i < 8; i++) { s = applyAction(s, 'group', { collapsed: false, ...ctx }).state as typeof s; seen.push(s.mode) }
     return seen
   }
-  expect(cycle({}).slice(0, 6)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'tree'])
-  expect(cycle({ workflow: false }).slice(0, 6)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'tree'])
-  expect(cycle({ workflow: true }).slice(0, 7)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow', 'tree'])
+  expect(cycle({}).slice(0, 6)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'map'])
+  expect(cycle({ workflow: false }).slice(0, 6)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'map'])
+  expect(cycle({ workflow: true }).slice(0, 7)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow', 'map'])
   // v continua mapa > árvore > cards > mapa, mesmo depois de g ter passado por Custo
-  const viaCost = applyAction(applyAction(applyAction(s0, 'group').state, 'group').state, 'view').state // cards > waterfall > cost, v do mapa
-  expect(viaCost).toMatchObject({ view: 'compact', mode: 'cost' })
+  const viaCost = applyAction(applyAction(applyAction(applyAction(applyAction(s0, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state // map > tree > grouped > cards > waterfall > cost
+  expect(applyAction(viaCost, 'view').state).toMatchObject({ view: 'compact', mode: 'cost' })
 })
 
 test('v do mapa mantém o modo que o usuário escolheu; sem escolha entra na árvore', async () => {
   const chosen = applyAction(applyAction(s0, 'mode:grouped').state, 'view').state
   expect(chosen).toMatchObject({ view: 'compact', mode: 'grouped' })
-  const viaG = applyAction(s0, 'group').state // g escolhe waterfall
+  const viaG = applyAction(applyAction(applyAction(applyAction(s0, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state // g escolhe waterfall
   expect(applyAction(viaG, 'view').state).toMatchObject({ view: 'compact', mode: 'waterfall' })
   expect(applyAction(s0, 'view').state).toMatchObject({ view: 'compact', mode: 'tree' })
   expect(startUi().modeChosen).toBe(false)
@@ -158,14 +158,14 @@ test('tab:map and tab:<mode> switch the app pane tabs', async () => {
 })
 
 test('terminal (one view only): v alternates cards and árvore, never the map', () => {
-  const cards = { ...initialUi(), view: 'compact' as const, mode: 'cards' as const }
+  const cards = { ...initialUi(), view: 'compact' as const, mode: 'map' as const }
   const t = applyAction(cards, 'view', { terminal: true }).state
   expect(t).toMatchObject({ view: 'compact', mode: 'tree' })
-  expect(applyAction(t, 'view', { terminal: true }).state).toMatchObject({ view: 'compact', mode: 'cards' })
+  expect(applyAction(t, 'view', { terminal: true }).state).toMatchObject({ view: 'compact', mode: 'map' })
 })
 
 test('footer: no orphan "x:" rows, every row fits the width, j/k are visible items (not empty hidden buttons)', () => {
-  const ui = { ...initialUi(), view: 'compact' as const, mode: 'cards' as const }
+  const ui = { ...initialUi(), view: 'compact' as const, mode: 'map' as const }
   for (const cols of [60, 80, 160]) {
     const rows = footerRows(ui, false, cols)
     const texts = rows.map(r => r.map(x => x.t).join(''))
@@ -185,7 +185,7 @@ test('footer: no orphan "x:" rows, every row fits the width, j/k are visible ite
 
 // T-005 U-021/U-022 (REQ-009): legenda por item inteiro, rótulos "j: desce" / "k: sobe" na lista e no detalhe
 test('T-005 U-021 legenda 60 colunas: itens inteiros, nenhuma palavra cortada, sem j:/k: órfão', () => {
-  for (const ui of [{ ...initialUi(), view: 'compact' as const, mode: 'cards' as const }, { ...initialUi(), view: 'compact' as const, mode: 'cards' as const, selected: 'a1' }]) {
+  for (const ui of [{ ...initialUi(), view: 'compact' as const, mode: 'map' as const }, { ...initialUi(), view: 'compact' as const, mode: 'map' as const, selected: 'a1' }]) {
     const texts = footerRows(ui, false, 60).map(r => r.map(x => x.t).join(''))
     for (const t of texts) expect(t.trim()).not.toMatch(/(^|\s)[a-z]:$/i)
     const all = texts.join('\n')
@@ -195,7 +195,7 @@ test('T-005 U-021 legenda 60 colunas: itens inteiros, nenhuma palavra cortada, s
 })
 
 test('detail footer: b voltar, p/n irmão, j/k rolar, q fechar, in that order, no orphan rows', () => {
-  const ui = { ...initialUi(), view: 'compact' as const, mode: 'cards' as const, selected: 'a1' }
+  const ui = { ...initialUi(), view: 'compact' as const, mode: 'map' as const, selected: 'a1' }
   for (const cols of [60, 80, 160]) {
     const texts = footerRows(ui, false, cols).map(r => r.map(x => x.t).join(''))
     for (const t of texts) { expect(t.trim()).not.toMatch(/^[a-z]:$/i); expect([...t].length).toBeLessThanOrEqual(cols) }

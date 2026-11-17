@@ -9,7 +9,7 @@ import { hotkeysFor, initialUi } from './actions'
 const T = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, agentId: `g-${id}`, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o } as AgentLike)
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
-const base = { width: 120, caps, mode: 'cards' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
+const base = { width: 120, caps, mode: 'map' as const, query: '', expanded: new Set<string>(), maxCardRows: 99 }
 const rows = (ag: AgentLike[], o: object = {}) => renderCompact(ag, T + 5000, { ...base, ...o }).map(l => l.map(s => s.t).join(''))
 const lead = (l: string) => strWidth(l.slice(0, l.search(/\S/)))
 const tree = [mk('a'), mk('b'), mk('c'), mk('s', { parentAgentId: 'g-b' })]

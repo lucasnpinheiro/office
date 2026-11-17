@@ -9,7 +9,7 @@ import { appMap } from './app-cards'
 const T = 1_000_000
 const mk = (id: string, o: Partial<AgentLike> = {}): AgentLike => ({ id, agentId: `g-${id}`, description: `Dev: ${id}`, status: 'working', startedAt: T, seenAt: T, ...o } as AgentLike)
 const caps = detectCaps({ COLORTERM: 'truecolor', LANG: 'en_US.UTF-8' })
-const rows = (ag: AgentLike[], width = 200) => renderCompact(ag, T + 5000, { width, caps, mode: 'cards', query: '', expanded: new Set<string>(), maxCardRows: 999 }).map(l => l.map(s => s.t).join(''))
+const rows = (ag: AgentLike[], width = 200) => renderCompact(ag, T + 5000, { width, caps, mode: 'map', query: '', expanded: new Set<string>(), maxCardRows: 999 }).map(l => l.map(s => s.t).join(''))
 const tops = (l: string) => [...l].flatMap((ch, i, a) => (ch === '╭' && /[─┴]/.test(a[i + 1] ?? '') ? [strWidth(a.slice(0, i).join(''))] : []))
 const tree = [mk('a'), mk('b'), mk('c'), mk('d'), mk('t1', { parentAgentId: 'g-a' }), mk('t2', { parentAgentId: 'g-a' }), mk('n1', { parentAgentId: 'g-b' })]
 
@@ -52,7 +52,7 @@ test('app: every parent partitions its children; the session is the root (Claude
 
 // 0.28.7: the 4 remaining gaps vs the reference image
 const ascii = detectCaps({ OFFICE_ASCII: '1', LANG: 'en_US.UTF-8' })
-const at = (ag: AgentLike[], o: object = {}) => renderCompact(ag, T + 5000, { width: 200, caps, mode: 'cards', query: '', expanded: new Set<string>(), maxCardRows: 999, ...o }).map(l => l.map(s => s.t).join(''))
+const at = (ag: AgentLike[], o: object = {}) => renderCompact(ag, T + 5000, { width: 200, caps, mode: 'map', query: '', expanded: new Set<string>(), maxCardRows: 999, ...o }).map(l => l.map(s => s.t).join(''))
 
 test('gap 1: a long branch wraps onto a second row (role on the first), then …', () => {
   const t = at([mk('a', { git: { branch: 'spec/checkout-api-muito-longa-de-verdade-mesmo-sim-e-ainda-mais-longa', worktree: '/w/x' } })])
