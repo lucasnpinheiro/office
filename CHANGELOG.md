@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.22 (agent-office, short card)
+
+- Pane body of 8 rows or fewer (`scroll.bodyRows`; 80x24 gives 6): a card is 4 rows (name + pill, model + status/time, borders) so one fits whole; the map's `n/total` notes are dropped there. Taller panes keep the full card.
+
 ## 0.28.21 (agent-office, narrow panel cards)
 
 - Terminal compact threshold 60 -> 36 columns: the 53-column side panel (120x40) now draws bordered cards instead of one line per agent; below 36 stays list only.

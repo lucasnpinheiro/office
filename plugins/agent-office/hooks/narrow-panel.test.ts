@@ -3,7 +3,6 @@ import { renderCompact, detectCaps } from './compact'
 import type { CView } from './compact'
 import { paneBodyLines } from './office'
 import type { AgentLike } from './office'
-import { paneBodyLines } from './office'
 
 // Real sizes seen in a live Claude Code session (PTY): 120x40 gives the side panel 53 columns; 80x24 gives a short bottom panel.
 const T = 1_000_000
@@ -44,4 +43,25 @@ test('paneBodyLines: the rows the host really shows (scroll.bodyRows) win over t
   expect(paneBodyLines({ scroll: { bodyRows: 6 } }, { rows: 24 })).toBe(6)
   expect(paneBodyLines({ bodyRows: 9, scroll: { bodyRows: 6 } }, { rows: 24 })).toBe(9)
   expect(paneBodyLines(undefined, { rows: 24 })).toBe(24)
+})
+
+// 80x24 real frame: the host gives the inline pane 6 body rows. A full 8-row card never fit; a short pane gets a 4-row card.
+const withModel = (id: string): AgentLike => ({ ...mk(id), model: 'haiku' })
+const shortFrame = (mode: 'cards' | 'map', maxLines: number) =>
+  renderCompact(['A1', 'A2'].map(withModel), NOW, view({ width: 78, mode, maxLines })).map(l => l.map(s => s.t).join('')).slice(0, maxLines)
+for (const mode of ['cards', 'map'] as const) {
+  test(`short pane (6 body rows), ${mode}: one whole bordered card with name, status and model fits`, () => {
+    const f = shortFrame(mode, 6)
+    const top = f.findIndex(l => l.includes('╭')), bot = f.findIndex((l, i) => i > top && l.includes('╰'))
+    expect(f.join('\n')).toContain('╰')
+    expect(top).toBeGreaterThanOrEqual(0)
+    expect(bot).toBeGreaterThan(top) // the bottom border is inside the 6 rows
+    const box = f.slice(top, bot + 1).join('\n')
+    expect(box).toMatch(/A1|Claude Code/); expect(box).toMatch(/Concluído/); expect(box).toMatch(/Haiku|Opus/) // map starts on the root card
+  })
+}
+test('a pane taller than 8 rows keeps the full card (more than the 4-row short card)', () => {
+  const f = renderCompact([withModel('A1')], NOW, view({ width: 78, mode: 'cards', maxLines: 30 })).map(l => l.map(s => s.t).join(''))
+  const top = f.findIndex(l => l.includes('╭')), bot = f.findIndex((l, i) => i > top && l.includes('╰'))
+  expect(bot - top + 1).toBeGreaterThanOrEqual(6)
 })
