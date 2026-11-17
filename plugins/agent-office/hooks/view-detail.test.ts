@@ -41,8 +41,8 @@ test('AC-027 detalhe: breadcrumb, linha de estado, resultado e linha do tempo na
 test('AC-027 linha do tempo: mm:ss, ferramenta, argumento e duração', () => {
   const a = mk('a1', { steps: [{ id: 's1', tool: 'Read', label: 'tests/checkout', startedAt: T0, durationMs: 2000 }, { id: 's2', tool: 'Bash', label: 'npm test', startedAt: T0 + 2000, durationMs: 5000 }] })
   const out = text(detailScreen([a], 'a1', T0 + 7000).lines)
-  expect(out).toMatch(/00:00 ✓ Read  tests\/checkout +2s/)
-  expect(out).toMatch(/00:02 ✓ Bash  npm test +5s/)
+  expect(out).toMatch(/00:00 ✓ ▸ Read tests\/checkout +2s/)
+  expect(out).toMatch(/00:02 ✓ ▸ Bash npm test +5s/)
 })
 
 // AC-027: mini-barra com total conhecido preenche proporcionalmente; sem total fica vazia

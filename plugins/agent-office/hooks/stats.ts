@@ -69,10 +69,22 @@ export function toolLabel(tool: string, input: Record<string, unknown> = {}): st
     const [, server, ...rest] = tool.split('__')
     return `${(server ?? 'mcp').replace(/^claude-in-/, '')}:${rest.join('__') || 'call'}`
   }
-  if (tool === 'Bash') return programOf(String(input.command ?? '')) ?? 'Bash'
+  // REQ-504: the description the model wrote beats the bare program; a flag ("-d") is never a target
+  if (tool === 'Bash') {
+    const d = typeof input.description === 'string' ? input.description.trim() : ''
+    const p = programOf(String(input.command ?? ''))
+    return d ? maskText(d).slice(0, 40) : p && !p.startsWith('-') ? p : 'Bash'
+  }
+  if (tool === 'Skill' && typeof input.skill === 'string' && input.skill) return `Skill ${input.skill}`
   const hint = tool === 'WebFetch' ? hostOf(input.url)
     : ['Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit'].includes(tool) ? base(input.file_path ?? input.notebook_path) : ''
   return hint ? `${tool} ${hint}` : tool
+}
+
+// Detail line of one tool call: "▸ <Tool> <target>"; the label never repeats the tool name.
+export function toolLine(tool: string, input: Record<string, unknown> = {}): string {
+  const l = toolLabel(tool, input)
+  return `▸ ${l === tool || l.startsWith(`${tool} `) || tool.startsWith('mcp__') ? l : `${tool} ${l}`}`
 }
 
 // Current tool + last 3 distinct actions of an agent (consecutive repeats collapse).

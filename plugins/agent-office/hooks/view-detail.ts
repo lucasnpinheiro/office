@@ -143,7 +143,7 @@ export function detailView(agents: AgentLike[], id: string, now: number, o: { ca
   for (const st of steps) {
     const tool = maskText(st.tool), label = maskText(st.label).replace(new RegExp(`^${escRe(tool)}\\s+`), '')
     const dur = st.durationMs !== undefined ? `${Math.round(st.durationMs / 1000)}s` : ''
-    const left = [s(`  ${fmt(Math.max(0, st.startedAt - a.startedAt))} `, { fg: DIM }), s(st.ok === false ? '✗' : '✓', { fg: st.ok === false ? stateColor('failed') : stateColor('done') }), s(` ${tool.padEnd(5)} ${label}`)]
+    const left = [s(`  ${fmt(Math.max(0, st.startedAt - a.startedAt))} `, { fg: DIM }), s(st.ok === false ? '✗' : '✓', { fg: st.ok === false ? stateColor('failed') : stateColor('done') }), s(` ▸ ${tool}${label && label !== tool ? ` ${label}` : ''}`)]
     out.push(padTo(left, W, [s(dur, { fg: DIM })]))
     if (o.captureIo && st.io) {
       out.push([s(`    entrada: ${maskText(st.io.input)}`, { fg: DIM })])

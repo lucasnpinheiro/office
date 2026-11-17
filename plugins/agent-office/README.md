@@ -175,6 +175,7 @@ Rendered from the real `appMap` + `appCardW`/`mapRows` layout by `scripts/render
 - **0.28.25**: grouped view no longer draws the fixed "Atenção (N)" block, with or without worktrees; each agent shows once under its worktree divider or state divider (card pill stays).
 - **0.28.20**: grouped with no worktrees no longer repeats agents in an `Atenção (N)` block above the state dividers; each agent shows once.
 - **0.28.19**: review fixes for 0.28.18. Cards grid windows to the pane height and scrolls with j/k; app map mode draws the graphical grid again; `g` landing on map selects the map view; grouped `Todos os cards` targets `cards`; `/office view cards` also sets mode cards; `g xyz` and mode names are case-insensitive like `mode`; `v` footer label no longer promises a fixed sequence.
+- **0.28.29**: detail tool lines read `▸ Tool target` (Skill name, Bash description, no duplicated label or bare flag).
 - **0.28.28**: the footer hotkeys no longer vary by tab: g, o, f, s, v, q everywhere.
 - **0.28.27**: no agents = waiting line plus legend in every mode, no empty horizontal rule.
 - **0.28.26**: app surfaces (desktop/vscode/mobile) draw one header and tab row (`appChrome`) in every mode; counters use plural (`0 falhas`), the header carries `#sha` and the session cost when known.

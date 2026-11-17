@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.29 (agent-office, tool line)
+
+- Detail ANDAMENTO lines read `▸ <Tool> <target>`: no repeated name (`Skill Skill`), Skill shows the skill name, Bash shows its description (program only when absent, never a bare flag like `-d`). New `stats.toolLine` (REQ-504).
+
 ## 0.28.28 (agent-office, same footer in every tab)
 
 - Footer hotkeys (`g modo · o ordenar · f só falhas · s buscar · v visão · q fechar`) are the same in every tab, Mapa, Custo, Ferramentas and Workflow included; one source, `footerRows`/`hotkeysFor` (REQ-503).
