@@ -254,7 +254,7 @@ function footer(g: Graph, v: CView): Line[] {
   // REQ-502: no agents = the waiting line and the legend, never a rule between them
   if ([...g.nodes.values()].some(n => n.kind === 'agent')) out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')])
   out.push(v.mode === 'map' ? centre(fit(legend, v.width), v.width) : fit(legend, v.width))
-  if (v.mode === 'map') out.push(centre(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · @ workflow · wt worktree · br branch' : '┊ ┄ ┬ ┴ barramento pai→filhos · ⟳ workflow · ⧉ worktree · ⎇ branch · papel à direita (orquestrador, agente, subagente)', DIM)], v.width), v.width))
+  if (v.mode === 'map') out.push(centre(clipOf(c)([seg(c, c.ascii ? ': . + barramento pai-filhos · @ workflow · wt worktree · br branch' : '┊ ┄ ┬ ┴ barramento pai→filhos · ⟳ workflow · ⧉ worktree · ⎇ branch · papel à direita (orquestrador, agente, subagente)', DIM)], v.width), v.width))
   if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
   return out
 }
@@ -862,7 +862,8 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     else out.push(...treeLines(g, nm, keep, now, v))
   }
   out.push(...foot)
-  return out.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
+  const cut = clipOf(v.caps) // REQ-606: every row is cut with …, never a bare clip
+  return out.map(l => (v.caps.ascii ? asciiLine(cut(l, w)) : cut(l, w)))
 }
 
 // ---------- detail ----------

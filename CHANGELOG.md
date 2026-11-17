@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.33 (agent-office, rows cut with ellipsis)
+
+- Every row of `renderCompact` is cut with `…` at the pane width (long Worktrees agent line, Mapa legend); no bare clip (REQ-606).
+
 ## 0.28.32 (agent-office, duplicate names #n)
 
 - Duplicate agent names get `#n` in every tab (Waterfall, Custo, Ferramentas, Workflow) through one `uniqueNames` rule, and name truncation keeps the suffix (`QA: tes… #3`, new `clipName`) (REQ-605).
