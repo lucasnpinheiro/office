@@ -212,7 +212,7 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const worst = (xs: Node[]): string => stateColor((xs.find(n => n.state === 'failed') ?? xs.find(n => n.state === 'attention') ?? xs.find(n => n.state === 'running') ?? xs.find(n => n.state === 'pending') ?? xs[0]!).state)
   const bar: Line = ns.length ? Array.from({ length: slots }, (_, i) => {
     const grp = ns.slice(Math.floor((i * ns.length) / slots), Math.floor(((i + 1) * ns.length) / slots))
-    return [...(i ? sp(1) : []), seg(c, H.repeat(per + (i < extra ? 1 : 0)), worst(grp))]
+    return [seg(c, H.repeat(per + (i < extra ? 1 : 0) + (i ? 1 : 0)), worst(grp))] // REQ-602: slices touch, one solid rule
   }).flat() : []
   // sem agente não há progresso a mostrar: a barra de segmentos só existe quando há agentes (AC-020)
   const lim = usageLimits(v.limits, now)
@@ -226,9 +226,9 @@ function tabsLine(agents: AgentLike[], v: CView): Line {
   const c = v.caps
   const tabs: readonly (readonly [Mode, string])[] = VIEW_TABS
   const noWf = !agents.some(a => a.workflow) // workflow stays listed, dimmed while no run exists
-  const one = ([m, label]: [Mode, string]): Seg[] => [seg(c, ` ${label} `, noWf && m === 'workflow' && v.mode !== m ? DIM : undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
+  const one = ([m, label]: [Mode, string]): Seg[] => [seg(c, v.mode === m ? ` [${label}] ` : ` ${label} `, noWf && m === 'workflow' && v.mode !== m ? DIM : undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
   // too narrow for every tab: the strip scrolls, dropping tabs from the left until the active one is visible (design: tabs scroll horizontally)
-  const wOf = (t: [Mode, string]) => strWidth(t[1]) + 3
+  const wOf = (t: [Mode, string]) => strWidth(t[1]) + 5
   const act = Math.max(0, tabs.findIndex(t => t[0] === v.mode))
   let from = 0
   while (from < act && tabs.slice(from, act + 1).reduce((a, t) => a + wOf(t), from ? 2 : 0) > v.width) from++
@@ -239,7 +239,7 @@ function filterBar(g: Graph, v: CView): Line {
   const c = v.caps
   const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const bad = ns.filter(n => n.state === 'failed' || n.state === 'attention').length
-  const btn = (t: string, act: string, on: boolean): Seg[] => [seg(c, ` ${t} `, undefined, { act, btn: true, variant: on ? 'primary' : 'secondary', bold: on }), ...sp(1)]
+  const btn = (t: string, act: string, on: boolean): Seg[] => [seg(c, on ? ` [${t}] ` : ` ${t} `, undefined, { act, btn: true, variant: on ? 'primary' : 'secondary', bold: on }), ...sp(1)]
   return fit([...btn('Agrupado', 'mode:grouped', v.mode === 'grouped'), ...btn(`Todos os cards ${ns.length}`, 'mode:cards', v.mode === 'cards' && v.filter !== 'failed'),
     ...btn(`Falhas ${bad}`, 'failed', v.filter === 'failed'), ...(v.query ? [seg(c, `busca: ${v.query}`, DIM)] : [])], v.width)
 }
