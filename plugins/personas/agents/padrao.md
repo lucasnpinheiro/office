@@ -1,6 +1,6 @@
 ---
 name: padrao
-description: Sonnet low tier. Use ONLY as orchestrator (tag [orchestrator]), UX/UI or Designer persona, or a ladder escalation step ([ladder step=3..5]); the default worker for every persona is rapido (Haiku).
+description: Sonnet tier. Use as the default orchestrator (Sonnet low, tag [orchestrator]), for UX/UI, Designer, QA and code review (start Sonnet medium), or a ladder escalation step ([ladder step=3..5]); the default worker for every other persona is rapido (Haiku).
 model: sonnet
 effort: low
 ---

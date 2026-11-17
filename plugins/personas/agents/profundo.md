@@ -1,6 +1,6 @@
 ---
 name: profundo
-description: Opus low tier. Use ONLY as critical orchestrator (tag [orchestrator]: security, money/tax, schema, auth, architecture, specs) or a critical ladder escalation step ([ladder step=6..7] [critical]); the default worker for every persona is rapido (Haiku).
+description: Opus tier. Use only as orchestrator on explicit user request ([orchestrator] [user-request]) or a ladder escalation step ([ladder step=6..7], any task after Sonnet high x2); the default worker for every persona is rapido (Haiku).
 model: opus
 effort: low
 ---
