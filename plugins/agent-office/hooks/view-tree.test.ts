@@ -30,7 +30,7 @@ test('AC-018 árvore: conectores ├─ e └─ (sem ╰─)', () => {
 
 test('AC-018 árvore: cabeçalho com tempo, rodando e tokens (sem custo inventado)', () => {
   const out = txt(renderCompact(family, T + 5000, view()))
-  expect(out).toContain('00:00:05')
+  expect(out).toContain('00:05')
   expect(out).toContain('rodando')
   expect(out).toMatch(/tokens —/) // sem dado: traço, nunca zero
   expect(out).not.toMatch(/custo|~\$0,00/)

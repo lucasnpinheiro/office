@@ -1,7 +1,7 @@
 // Office compact view: one-line tree, grouped/ungrouped modes, rounded cards, detail with dependencies,
 // attachment preview and terminal capability detection. Pure (no engine APIs): the caller passes `now`.
 // Terminal and app share this state model; only the drawing of the Lines differs.
-import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, maxDepthOf, fmtMMSS, fmtHMS,
+import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, maxDepthOf, fmtMMSS, fmtHMS, fmtDur,
   truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError, hiddenIds } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
@@ -728,8 +728,8 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
   const multi = [...g.nodes.values()].filter(n => n.kind === 'agent' && keep.has(n.id)).length > 1
   const nameW = v.width >= 100 ? 24 : 14, cells = Math.max(10, v.width - nameW - 18 - (multi ? 6 : 0))
   const out: Line[] = []
-  const secs = Math.round(tl.tot / 1000)
-  const axis = `${'0s'}${' '.repeat(Math.max(1, cells - 4 - String(secs).length))}${secs}s`
+  const endTxt = fmtDur(tl.tot)
+  const axis = `00:00${' '.repeat(Math.max(1, cells - 5 - endTxt.length))}${endTxt}`
   out.push([seg(c, ' '.repeat(nameW + 4) + axis, DIM)])
   const rows: [Node, number][] = []
   const walk = (n: Node, d: number) => {

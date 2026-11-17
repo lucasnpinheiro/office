@@ -137,7 +137,7 @@ test('cards: the worktree and the role share one row of the card (unicode and AS
 test('cards: waterfall row has span on session timeline, partial blocks; ASCII uses = and #', () => {
   const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 4000 }), mk('b', { startedAt: T + 4000 })]
   const w = txt(renderCompact(ag, T + 8000, { ...v, mode: 'waterfall', frame: 3 }))
-  expect(w).toContain('0s'); expect(w).toMatch(/[▏▎▍▌▋▊▉█]/)
+  expect(w).toContain('00:00'); expect(w).toMatch(/[▏▎▍▌▋▊▉█]/)
   const a = txt(renderCompact(ag, T + 8000, { ...v, mode: 'waterfall', frame: 3, caps: detectCaps({ OFFICE_ASCII: '1' }) }))
   expect(a).toMatch(/=+/); expect(a).not.toMatch(/[▏▎▍▌▋▊▉█░]/)
 })
@@ -163,7 +163,7 @@ test('header (design): Office · project · #sid with tokens or cost on the righ
   const ls = cardsOut(ag, { project: 'megabor', sessionId: 'c716af99', branch: 'main' })
   const t0 = txt(ls).split('\n')
   expect(t0[0]).toMatch(/^Office · megabor · ⎇ main · #c716af +tokens —$/)
-  expect(t0[1]).toMatch(/^00:00:09 · 1 rodando · 1 concluído · 1 falha · ETA/)
+  expect(t0[1]).toMatch(/^00:09 · 1 rodando · 1 concluído · 1 falha · ETA/)
   expect(txt(cardsOut(ag, { sessionUsd: 1.84 })).split('\n')[0]).toMatch(/~\$1,84$/)
   expect(txt(ls)).not.toContain('⇄'); expect(statusText([mk('a')], T + 1)).not.toContain('⇄')
   const counts = ls[1]!.filter(s => /rodando|concluído|falha/.test(s.t)).map(s => s.fg)

@@ -44,7 +44,7 @@ test('real pane, 12 agents, 110 cols: header box, Geral bar, parent card, bus, s
   expect(out).toContain('Office · meuapp · #abcdef')
   expect(out).toContain('Árvore') // view tabs
   expect(out).toContain('Claude Code'); expect(out).toMatch(/orquestrador/i) // main session = parent card (role row kept in every form)
-  expect(out).toMatch(/^\d\d:\d\d:\d\d · \d+ rodando · /m) // counts line of the design header
+  expect(out).toMatch(/^\d\d:\d\d · \d+ rodando · /m) // counts line of the design header
   expect(rows.some(r => /^ *╭┄+/.test(r))).toBe(true) // bus from the parent card, no trunk
   expect(Math.max(...boxTops(rows))).toBe(5) // T-001: floor((110+2)/20) = 5 columns of 18..
   expect(rows.filter(r => /^[ ┊]*╭[─┴]{16,32}╮/.test(r)).length).toBeGreaterThan(1) // parent + at least one sibling row in the window

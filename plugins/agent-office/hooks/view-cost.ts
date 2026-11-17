@@ -48,7 +48,7 @@ export function wideCostLines(model: RunModel, now: number, v: { width: number; 
   const out: Line[] = [[seg(`Custo ${usd} · ${totalTok} tokens · mais caro: ${top ? top.name : '—'}`, undefined, { bold: true })]]
   if (!nodes.length) return [...out, [seg('Sem agentes com custo', DIM)]]
   const end = fmtSec(span)
-  out.push([seg('Agente'.padEnd(nameW) + '0s'.padEnd(cells - end.length) + end + '    tokens   custo   tempo', DIM)])
+  out.push([seg('Agente'.padEnd(nameW) + '00:00'.padEnd(cells - end.length) + end + '    tokens   custo   tempo', DIM)])
   const kids = new Map<string, RunNode[]>()
   for (const n of nodes) if (n.parentId !== undefined) kids.set(n.parentId, [...(kids.get(n.parentId) ?? []), n])
   const ids = new Set(nodes.map(n => n.id))
@@ -77,7 +77,7 @@ export function wideCostLines(model: RunModel, now: number, v: { width: number; 
 }
 
 /** Segundos inteiros para a régua de tempo: 4000 -> "4s". */
-const fmtSec = (ms: number): string => `${Math.round(ms / 1000)}s`
+const fmtSec = (ms: number): string => fmtMMSS(ms)
 
 export function costLines(model: RunModel, now: number, v: { width: number; caps: Caps; sessionUsd?: number }): Line[] {
   if (v.width >= 100) return wideCostLines(model, now, v)
