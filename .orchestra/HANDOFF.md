@@ -19,3 +19,9 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - Merged into main: #105 053dd4e, #106 32b060a, #107 3f48ab5, #108 5084f0a, #109 eb7e319 (0.28.26..0.28.29). Suite 536-539 pass / 0 fail; local validator exit 0 on each.
 - Worktrees office-wt-t501..t504 removed; merged local branches deleted. Open PRs: none besides the handoff PR. Blocked on user: none.
 - UNVERIFIED: visual check of the new chrome/footer/tool line in the real Office panel and desktop app (tests only).
+
+## 2026-11-17 office-cli-visual-standard: merged
+- Merged into main: #111 088ab33 (spec), #112 063e43b, #113 7b5ef98, #114 06a6fbc, #115 b6fd2cf, #116 df317d4, #117 3784554 (0.28.30..0.28.35). Suite 539-548 pass / 0 fail; local validator exit 0 on each.
+- Plugin agent-office 0.28.35 at user scope (only scope found); restart needed to load it.
+- Open: #118 (T-607 readme, no merge marker; worktree office-wt-t607 kept). Blocked on user: approve #118 merge and this handoff PR.
+- UNVERIFIED: visual check of footer/tabs/window/time/names/ellipsis in the real Office panel (tests only).
