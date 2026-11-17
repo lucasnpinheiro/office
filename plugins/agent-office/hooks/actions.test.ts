@@ -200,3 +200,15 @@ test('detail footer: b voltar, p/n irmão, j/k rolar, q fechar, in that order, n
     expect(pos.every(p => p >= 0)).toBe(true); expect([...pos].sort((x, y) => x - y)).toEqual(pos)
   }
 })
+
+test('T-601 footer rows keep a 2-column margin (the host pane is narrower than cols: items must never shrink)', () => {
+  const tabs = ['map', 'tree', 'grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow'] as const
+  const sig = (mode: typeof tabs[number], cols: number) => footerRows({ ...c0, mode }, false, cols).flat().filter(x => x.hotkey && x.hotkey !== 'j' && x.hotkey !== 'k').map(x => x.t).join('|')
+  for (const cols of [40, 60, 80, 95, 120]) {
+    for (const mode of tabs) {
+      for (const row of footerRows({ ...c0, mode }, false, cols)) expect([...row.map(x => x.t).join('')].length).toBeLessThanOrEqual(Math.max(10, cols - 2))
+      expect(sig(mode, cols)).toBe(sig('tree', cols)) // same keys and full labels in every tab
+    }
+  }
+  expect(sig('tree', 95)).toContain('g: modo'); expect(sig('tree', 95)).toContain('o: ordenar'); expect(sig('tree', 95)).toContain('q: fechar')
+})

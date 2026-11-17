@@ -89,7 +89,8 @@ export function footerTail(s: Ui): string {
 export type FooterSeg = { t: string; act?: string; hotkey?: string; dim?: boolean }
 const GROUP_SEP = '  |  '
 const groupOf = (act: string): number => (act === 'group' || act === 'sort' || act === 'failed' || act === 'search' ? 1 : act === 'view' ? 2 : act === 'back' || act === 'close' ? 3 : 0)
-export function footerRows(s: Ui, side: boolean, cols: number): FooterSeg[][] {
+export function footerRows(s: Ui, side: boolean, cols0: number): FooterSeg[][] {
+  const cols = Math.max(10, cols0 - 2) // REQ-601: the host pane is narrower than the reported cols; a full row would make the flex layout shrink every label
   const scroll = !s.searching && s.mode === 'map' && s.view === 'compact' && !s.selected // j/k scroll the map: shown, not hidden buttons
   const nav: FooterSeg[] = [
     ...(scroll ? [{ t: 'j: desce', act: 'scrollDown', hotkey: 'j' }, { t: 'k: sobe', act: 'scrollUp', hotkey: 'k' }] : []),

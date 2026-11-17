@@ -697,8 +697,8 @@ export const register: Register = on => {
     // footer: grouped, wrapped by width and centred like the legend (footerRows, actions.ts); j/k are visible items, not empty hidden buttons
     const keysRow = (<>{footerRows(ui, side, cols).map((row, i) => (
       <Box key={`foot-${i}`} flexDirection="row" justifyContent="center">{row.map((x, j) => x.act && x.hotkey
-        ? <Button plain hotkey={ui.searching ? undefined : x.hotkey} key={`h-${x.hotkey}`} label={x.t.slice(3)} onPress={() => void act(x.act!)}>{x.t.slice(3)}</Button>
-        : <Text key={`ft-${j}`} dimColor={x.dim}>{x.t}</Text>)}</Box>
+        ? <Box key={`hb-${x.hotkey}`} flexShrink={0}><Button plain hotkey={ui.searching ? undefined : x.hotkey} key={`h-${x.hotkey}`} label={x.t.slice(3)} onPress={() => void act(x.act!)}>{x.t.slice(3)}</Button></Box>
+        : <Box key={`ft-${j}`} flexShrink={0}><Text dimColor={x.dim}>{x.t}</Text></Box>)}</Box>
     ))}</>)
     // one app card (design Chips5): glyph + title, chips, git, status, progress bar, % and time; border and bar carry the state tone
     const PILL: Record<string, string> = { running: 'Rodando', done: 'Concluído', failed: 'Falhou', attention: 'Atenção', pending: 'Na fila', inactive: 'Inativo' }
