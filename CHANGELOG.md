@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.30 (agent-office, one CLI footer)
+
+- Footer rows keep a 2-column margin and never shrink their items: labels are full (`g: modo`, `o: ordenar`, `q: fechar`) in every tab (REQ-601).
+
 ## 0.28.29 (agent-office, tool line)
 
 - Detail ANDAMENTO lines read `▸ <Tool> <target>`: no repeated name (`Skill Skill`), Skill shows the skill name, Bash shows its description (program only when absent, never a bare flag like `-d`). New `stats.toolLine` (REQ-504).
