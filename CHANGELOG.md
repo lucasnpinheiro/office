@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.31 (agent-office, one time format)
+
+- One time format on every screen: `mm:ss` under 1 h, `h:mm:ss` from 1 h (header, cards, Waterfall, Custo axes and rows). New `fmtDur`; `fmtMMSS`/`fmtHMS` are aliases. No more `11362s` or `183:11` (REQ-604).
+
 ## 0.28.30 (agent-office, one CLI footer)
 
 - Footer rows keep a 2-column margin and never shrink their items: labels are full (`g: modo`, `o: ordenar`, `q: fechar`) in every tab (REQ-601).

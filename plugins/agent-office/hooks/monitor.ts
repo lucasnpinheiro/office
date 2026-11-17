@@ -94,15 +94,13 @@ export function truncLine(l: Line, w: number): Line {
   return out
 }
 
-export function fmtHMS(ms: number): string {
-  const s = Math.floor(ms / 1000)
-  const p = (x: number) => String(x).padStart(2, '0')
-  return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`
+// REQ-604: the one time format of every screen: mm:ss under 1h, h:mm:ss from 1h.
+export function fmtDur(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000)), p = (x: number) => String(x).padStart(2, '0')
+  return s >= 3600 ? `${Math.floor(s / 3600)}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}` : `${p(Math.floor(s / 60))}:${p(s % 60)}`
 }
-export function fmtMMSS(ms: number): string {
-  const s = Math.floor(ms / 1000)
-  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-}
+export const fmtHMS = fmtDur
+export const fmtMMSS = fmtDur
 
 export function progressBar(frac: number, cells = 10): string {
   const f = Math.min(cells, Math.max(0, Math.round(frac * cells)))
