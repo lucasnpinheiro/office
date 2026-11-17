@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.25 (agent-office, grouped without Atenção block)
+
+- Grouped mode drops the fixed "Atenção (N)" block also when worktrees exist: failed/attention agents already sit under their worktree divider; the "Atenção" pill on cards stays. App surface (register.tsx) has no equivalent block.
+
 ## 0.28.24 (agent-office, waterfall video gaps)
 
 - Waterfall: `│` now column over the bars (bar wins) with an `agora` label under the axis; `◂ fim` (ASCII `< fim`) on the agent that holds the end, only with 2+ agents; queued agents show `aguarda 1ª ação…` instead of a bar.

@@ -62,6 +62,11 @@ test('grouped without worktrees: failed agent appears once (no Atenção block r
   expect(out).toContain('Falhou ×1'); expect(out).not.toContain('Atenção (')
   expect(out.split('Dev: d').length - 1).toBe(1)
 })
+test('grouped with worktrees: failed agent appears once under its worktree (no Atenção block)', () => {
+  const ag = [mk('a'), mk('d', { status: 'error', endedAt: T + 1, git: { branch: 'feat-x', worktree: 'feat-x' } })]
+  const out = txt(renderCompact(ag, T + 9000, { ...v, mode: 'grouped' }))
+  expect(out).not.toContain('Atenção ('); expect(out.split('Dev: d').length - 1).toBe(1)
+})
 test('search filters by name', () => {
   const out = txt(renderCompact([mk('alpha'), mk('beta')], T + 1000, { ...v, query: 'alp' }))
   expect(out).not.toContain('beta')
