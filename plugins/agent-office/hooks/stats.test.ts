@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { applyTool, bashExternal, classifyTool, countsText, dependencies, endedAtFrom, isLaunchAck, launchedAgentId, worktreeOf, programOf, toolLabel, noteTool, shotFrom, pruneShots } from './stats'
+import { applyTool, bashExternal, classifyTool, countsText, dependencies, endedAtFrom, isLaunchAck, launchedAgentId, worktreeOf, programOf, toolLabel, toolLine, noteTool, shotFrom, pruneShots } from './stats'
 import type { AgentLike } from './office'
 
 const T0 = 1_000_000
@@ -136,4 +136,12 @@ test('pruneShots: keeps bytes only for working agents', () => {
   const m = new Map([['a', 'x'], ['b', 'y'], ['gone', 'z']])
   pruneShots(m, [mk({ id: 'a' }), mk({ id: 'b', status: 'done', endedAt: 1 })])
   expect([...m.keys()]).toEqual(['a'])
+})
+
+test('T-504 toolLine: ▸ Ferramenta alvo, sem repetir o nome nem flag solta', () => {
+  expect(toolLine('Skill', { skill: 'x' })).toBe('▸ Skill x')
+  expect(toolLine('Bash', { command: 'git status', description: 'Show status' })).toBe('▸ Bash Show status')
+  expect(toolLine('Bash', { command: 'git -d' })).toBe('▸ Bash git')
+  expect(toolLine('Bash', { command: '-d' })).toBe('▸ Bash')
+  expect(toolLine('Read', { file_path: '/a/Foo.php' })).toBe('▸ Read Foo.php')
 })

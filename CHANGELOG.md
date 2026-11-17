@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.29 (agent-office, tool line)
+
+- Detail ANDAMENTO lines read `▸ <Tool> <target>`: no repeated name (`Skill Skill`), Skill shows the skill name, Bash shows its description (program only when absent, never a bare flag like `-d`). New `stats.toolLine` (REQ-504).
+
 ## 0.28.25 (agent-office, grouped without Atenção block)
 
 - Grouped mode drops the fixed "Atenção (N)" block also when worktrees exist: failed/attention agents already sit under their worktree divider; the "Atenção" pill on cards stays. App surface (register.tsx) has no equivalent block.
