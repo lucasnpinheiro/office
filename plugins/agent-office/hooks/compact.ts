@@ -260,7 +260,9 @@ function footer(g: Graph, v: CView): Line[] {
   const states: State[] = ['done', 'running', 'attention', 'pending', 'failed']
   const legend: Line = states.flatMap((s, i) => [...sp(i ? 2 : 0), seg(c, `${glyph(c, s)} ${stateLabel(c, s)}`, stateColor(s))])
   const out: Line[] = []
-  out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')], v.mode === 'map' ? centre(fit(legend, v.width), v.width) : fit(legend, v.width))
+  // REQ-502: no agents = the waiting line and the legend, never a rule between them
+  if ([...g.nodes.values()].some(n => n.kind === 'agent')) out.push([seg(c, (c.ascii ? '-' : '─').repeat(v.width), '#374151')])
+  out.push(v.mode === 'map' ? centre(fit(legend, v.width), v.width) : fit(legend, v.width))
   if (v.mode === 'map') out.push(centre(fit([seg(c, c.ascii ? ': . + barramento pai-filhos · @ workflow · wt worktree · br branch' : '┊ ┄ ┬ ┴ barramento pai→filhos · ⟳ workflow · ⧉ worktree · ⎇ branch · papel à direita (orquestrador, agente, subagente)', DIM)], v.width), v.width))
   if (v.mode === 'tree') out.push(fit([seg(c, `Níveis de profundidade: ${maxDepthOf(g)}/${MAX_DEPTH}`, DIM)], v.width))
   return out

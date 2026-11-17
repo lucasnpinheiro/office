@@ -5,12 +5,12 @@ updated: 2026-11-17
 ---
 # office-desktop-visual-standard (agent-office, base main e41382e)
 
-Pedido 2026-11-17: vídeo ~/Movies/agent-office-demo.mp4 + 12 prints do desktop (Office Agent Monitor). Prior-Art Gate: office-video-gaps (mesmo vídeo, mesmo dia) já cobre o delta do vídeo (REQ-401..404, pendentes); este bundle NÃO repete o vídeo, só o desvio visual do desktop. Executar junto com T-401..T-404.
+Pedido 2026-11-17: vídeo ~/Movies/agent-office-demo.mp4 + 12 prints do desktop (Office Agent Monitor). Prior-Art Gate: office-video-gaps (mesmo vídeo, mesmo dia) já cobre o delta do vídeo (REQ-401..403 já entregues na #102; só REQ-404 captura real pendente); este bundle NÃO repete o vídeo, só o desvio visual do desktop. Executar junto com T-404 (captura).
 
 ## Delta real (vídeo x CLI x desktop)
 | Item | Vídeo | CLI | Desktop | Falta |
 |---|---|---|---|---|
-| Waterfall "agora" / "segura o fim" / "aguarda 1ª ação" | 0:40-1:20 cap. waterfall | ausente | ausente | office-video-gaps REQ-401..403 |
+| Waterfall "agora" / "segura o fim" / "aguarda 1ª ação" | 0:40-1:20 cap. waterfall | ok (#102, 0.28.24) | ok | nada |
 | Captura real desktop no README | - | - | SVG | REQ-404 |
 | Um só visual em todas as abas | header colorido + custo + pílulas (cap. 03) | ok (compact.ts) | 2 visuais: Mapa/Cards = appChrome (register.tsx:821, texto puro, sem custo, "0 falha"); demais abas = compactFrame ANSI (register.tsx:660) | REQ-501 |
 | Réguas horizontais vazias / área vazia | não | - | Waterfall/Workflow/Custo sem agentes: 2 réguas sem conteúdo | REQ-502 |
