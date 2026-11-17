@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.26 (agent-office, one app chrome)
+
+- App surfaces (desktop, vscode, mobile): every mode and state (empty, running, detail) draws the same header from `appChrome` (`Office · repo · ⎇ branch · #sha`, `~$cost` when known, `0 falhas` plural, tabs). `renderCompact` takes `chrome: false` so the ANSI header and tab row are not drawn twice. Terminal unchanged. REQ-501.
+
 ## 0.28.25 (agent-office, grouped without Atenção block)
 
 - Grouped mode drops the fixed "Atenção (N)" block also when worktrees exist: failed/attention agents already sit under their worktree divider; the "Atenção" pill on cards stays. App surface (register.tsx) has no equivalent block.

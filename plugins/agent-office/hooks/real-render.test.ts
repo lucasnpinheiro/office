@@ -202,3 +202,19 @@ test('desktop map: role on every card', async ($, on) => {
   const t = (await ui.findAll({ type: 'Text' })).map((x: any) => String(x.text))
   expect(t).toContain('orquestrador'); expect(t.filter((x: string) => x === 'agente').length).toBe(8)
 })
+
+test('T-501 desktop: one header, plural counters and tabs in every mode, empty and with agents', async ($, on) => {
+  setup($, on)
+  await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
+  await $.command.run({ command: 'office', args: 'view compact' } as any)
+  const texts = async () => { const u = await mountApp($, 140); const r = (await u.findAll({ type: 'Text' })).map((x: any) => String(x.text)); await u.unmount(); return r }
+  for (const m of ['tree', 'cards', 'waterfall', 'cost', 'tools', 'workflow', 'grouped']) {
+    await $.command.run({ command: 'office', args: `mode ${m}` } as any)
+    const t = await texts()
+    expect(t.filter(x => x === 'Office').length, m).toBe(1) // single header source
+    expect(t.some(x => /0 falhas/.test(x)), m).toBe(true)
+    expect(t.some(x => x.includes('#abcdef')), m).toBe(true)
+    expect(t.some(x => x.includes('Office · meuapp')), m).toBe(false) // no ANSI header line
+    expect(t, m).toContain('Mapa')
+  }
+})
