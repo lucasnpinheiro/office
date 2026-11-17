@@ -15,4 +15,4 @@ contract: test-flow/1
 | U-303 | Success | DEFAULT_MODE map desenha barramento; cards desenha grade | REQ-302 | compact.ts | no | - | TODO |
 | U-304 | Success | NEXT_MODE cicla 8 modos e volta ao map | REQ-302 | compact.ts | no | - | TODO |
 | U-305 | Success | grouped sem worktree: divisores Rodando ×3, Concluído ×1, Falhou ×1, Na fila ×1 | REQ-303 | compact.ts | no | - | TODO |
-| U-306 | Success | pílula de atenção usa rótulo do ASK-1 | REQ-304 | compact.ts | no | - | TODO |
+| U-306 | Success | pílula de atenção mostra "Atenção" | REQ-304 | compact.ts | no | - | TODO |

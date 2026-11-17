@@ -18,7 +18,7 @@ executor: "🛠️ Mid-level · 🎼 Sonnet · 🟢 baixo"
 Executor: 🛠️ Mid-level · 🎼 Sonnet · 🟢 baixo
 
 ## Objetivo
-compact.ts:440 PILL.attention conforme ASK-1; vocabulary.ts se houver.
+compact.ts:440 PILL.attention = "Atenção" (era "Aguarda você"); vocabulary.ts se houver.
 
 ## Aceite
 - [ ] RED antes de GREEN; testes: U-306
