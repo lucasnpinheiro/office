@@ -3,7 +3,6 @@ import { renderCompact, detectCaps } from './compact'
 import type { CView } from './compact'
 import { paneBodyLines } from './office'
 import type { AgentLike } from './office'
-import { paneBodyLines } from './office'
 
 // Real sizes seen in a live Claude Code session (PTY): 120x40 gives the side panel 53 columns; 80x24 gives a short bottom panel.
 const T = 1_000_000
