@@ -173,3 +173,42 @@ for (const [name, input, secret] of more) {
 test('SEC: sem exagero em comandos comuns', () => {
   for (const t of ['git push -u origin main', 'ls -path foo', 'npm run build --silent', 'curl -u onlyuser https://x.test', 'mysql -u root db', 'see https://example.com:8080/a/b@2x.png']) expect(maskText(t)).toBe(t)
 })
+
+// 0.28.44: secrets glued to letters, "_" or digits before the known prefix are masked (no lookbehind on prefixes)
+const GHB = 'A1b2C3d4E5f6g7h8I9j0K1l2M3n4O5p6Q7'
+const SKB = 'A1b2C3d4E5f6g7h8I9j0K1l2M3n4'
+const PATB = '11ABCDEFG0abcdefghijkl_mnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUV'
+const glued: [string, string][] = [
+  ['deploy_ghp_', 'deploy_ghp_' + GHB],
+  ['tokenghp_', 'tokenghp_' + GHB],
+  ['deploysk- (glued to letters)', 'deploysk-' + SKB],
+  ['CI_sk- (glued to "_")', 'CI_sk-proj-Ab12Cd34Ef56Gh78Ij90Kl12Mn34'],
+  ['xGITHUB_PAT_ (case-insensitive)', 'xGITHUB_PAT_' + PATB],
+  ['github_pat_ glued', 'x9github_pat_' + PATB],
+  ['xoxb- glued', 'myxoxb-123456789012-1234567890123-AbCdEfGhIjKlMnOpQrStUvWx'],
+  ['AKIA glued', 'myAKIAIOSFODNN7EXAMPLE'],
+  ['AIza glued', 'myAIzaSyA-1234567890abcdefghijk'],
+  ['npm_ glued', 'mynpm_abcdefghij0123456789ABCDEFGHIJ'],
+  ['eyJ JWT glued', 'myeyJzdWIiOiIxMjM0NTY3ODkwIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r'],
+  ['sk_live_ glued', 'shsk_live_AbCdEfGh12345678'],
+  ['Bearer glued', 'xBearer abcDEF123ghiJKL456mnoPQR'],
+  ['authorization glued', 'xauthorization: Basic dXNlcjpwYXNz'],
+  ['api key glued', 'myapi key: abc999zzz'],
+  ['mysql -p glued', 'xmysql -phunter2 db'],
+]
+for (const [name, input] of glued) {
+  test(`0.28.44 RED: mascara glued ${name}`, () => {
+    const out = maskText(input)
+    expect(out).toContain(MASK)
+    for (const s of [GHB, SKB, PATB, 'hbGciOi', '123456789012', 'IOSFODNN7EXAMPLE', 'SyA-1234567890', 'abcdefghij0123456789', 'Ab12Cd34', 'AbCdEfGh12345678', 'abcDEF123ghiJKL', 'dXNlcjpwYXNz', 'abc999zzz', 'hunter2', 'eyJzdWIi', 'AbCdEfGhIjKl'])
+      if (input.includes(s)) expect(out).not.toContain(s)
+  })
+}
+
+// false positives: common words and ids stay clear (real tokens have long bodies, see the rule table in the PR)
+const clear = ['risk-assessment', 'task-runner', 'disk-usage', 'ask-me-later', 'desk-check', 'mask-views', 'skeleton',
+  'bask_in_light', 'ghost_protocol', 'npm_install_all', 'AKIAN', 'eyJ short', 'eyJx.y', 'sk-learn.py', 'sk_learn',
+  'gho_', 'Dev: revisar migração', 'T-401 agora']
+for (const t of clear) test(`0.28.44 FP: "${t}" passa intacto`, () => {
+  expect(maskText(t)).toBe(t)
+})

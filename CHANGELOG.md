@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.28.44 (agent-office, secrets glued to letters are masked)
+
+- Fix: `hooks/mask.ts` masks known-prefix secrets wherever the prefix sits (glued to letters, `_` or digits). The lookbehind `(?<![A-Za-z0-9_])` is gone from the prefix rule, so `deploy_ghp_...`, `tokenghp_...`, `deploysk-...`, `CI_sk-...` and `xGITHUB_PAT_...` no longer leak. Key words, `Bearer`, `Authorization`, `api key` and `mysql -p` lost their lookbehind too (the key or flag is the anchor, a glued prefix is not a delimiter).
+- Per-pattern body floors (real token length, or a length no common word reaches):
+  - `sk-` 20+ body chars `[A-Za-z0-9_-]` (`risk-assessment`, `disk-usage`, `sk-learn` stay clear)
+  - `sk_live_` / `rk_test_` 16+
+  - `gh[pousr]_` 30+ (the spec example body is 34); a token wrapped onto the next line keeps 8+ on the first chunk
+  - `github_pat_` 40+, case-insensitive (`xGITHUB_PAT_`)
+  - `xox[a-z]-` 10+
+  - `AKIA` exactly 16 `[0-9A-Z]` (`AKIAN` stays clear)
+  - `AIza` 16+
+  - `npm_` 30+ (`npm_install_all` stays clear)
+  - `eyJ` 10+ then two dots (`eyJ short` stays clear)
+  - `Bearer` has no word boundary before it; the token after it is masked
+- False-positive list (must pass intact, `hooks/mask.test.ts`): `risk-assessment`, `task-runner`, `disk-usage`, `ask-me-later`, `desk-check`, `mask-views`, `skeleton`, `bask_in_light`, `ghost_protocol`, `npm_install_all`, `AKIAN`, `eyJ short`, `eyJx.y`, `sk-learn.py`, `sk_learn`, `gho_`, `Dev: revisar migração`, `T-401 agora`.
+- Known limit: a secret below its body floor is not masked by its prefix rule; the key-word rules (`token=`, `password:`) still cover those.
+- Tests: `hooks/mask.test.ts` (16 glued cases, RED first, then GREEN); `hooks/mask-views.test.ts` glued token at the 80-col boundary for waterfall, tree and cards; `hooks/register-mask.test.ts` (new) renders the real Pane (terminal 80/120, desktop 80) with a glued secret in an agent name and checks the list and the detail header (`d.name`); `hooks/monitor.test.ts` checks the legacy `renderMonitor` frame (header, body, thumb name). The branch chip (`c.name.slice(0, 14)`) is UNVERIFIED headless: it needs a git worktree fixture; it reads the same masked name.
+- Test fixture: `hooks/video-parity.test.ts` S-401 uses a 36-char `ghp_` body (the old 20-char body is below the new floor).
+- `npm test`: 728 pass, 0 fail.
+
 ## 0.28.43 (agent-office, names masked in every view)
 
 - Fix: agent names and task labels are masked in every view (tree, grouped, cards, map, waterfall, cost, tools, workflow, detail, app cards and app map). The choke point is `hooks/run-model.ts` `buildGraph`: the display name is `maskText(label)` there, so every view that reads `Node.name` or `RunNode.name` inherits it. The fallback in `hooks/compact.ts` workflow list is masked too. Ids keep dismiss, keys and hidden sets; sort and search run on the masked display name.

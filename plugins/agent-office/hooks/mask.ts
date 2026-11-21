@@ -33,20 +33,26 @@ const flags = 'gi'
 const RULES: [RegExp, string][] = [
   // private key blocks, also when the END line is missing (cut-off text)
   [/-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----|$)/g, MASK],
-  [/\bBearer\s+[^\s"',;}\\]+/gi, `Bearer ${MASK}`],
+  [/Bearer\s+[^\s"',;}\\]+/gi, `Bearer ${MASK}`], // no \b: a glued "xBearer tok" still masks the token
   // Authorization header or JSON key: the rest of the value
-  [new RegExp(`(?<![\\w-])(${QUOTE}authorization${QUOTE}\\s*[:=]\\s*)(?:\\\\"[^"\\\\]*\\\\"|"(?:[^"\\\\]|\\\\.)*"|'[^']*'|[^\\r\\n"',;}]+)`, flags), `$1${MASK}`],
+  [new RegExp(`(${QUOTE}authorization${QUOTE}\\s*[:=]\\s*)(?:\\\\"[^"\\\\]*\\\\"|"(?:[^"\\\\]|\\\\.)*"|'[^']*'|[^\\r\\n"',;}]+)`, flags), `$1${MASK}`],
   // key words with ":" (value = rest of the line) or "=" (one word); quoted, array and object values whole
   [new RegExp(`(?<![\\w.-])(${QUOTE}${KEYRUN}${QUOTE}\\s*:\\s*)(?:${QUOTED}|${LINE_VALUE})`, flags), `$1${MASK}`],
   [new RegExp(`(?<![\\w.-])(${QUOTE}${KEYRUN}${QUOTE}\\s*=\\s*)(?:${QUOTED}|${BARE_VALUE})`, flags), `$1${MASK}`],
   // "api key: x", "access key = x"
-  [new RegExp(`(?<![\\w.-])((?:api|access|private|secret|auth) key[ \\t]*[:=][ \\t]*)(?:${QUOTED}|${LINE_VALUE})`, flags), `$1${MASK}`],
+  [new RegExp(`((?:api|access|private|secret|auth) key[ \\t]*[:=][ \\t]*)(?:${QUOTED}|${LINE_VALUE})`, flags), `$1${MASK}`],
   // CLI: --password x / --token x (separate word), mysql -phunter2, curl -u user:pass
   [/(?<![\w-])(--[\w-]*(?:password|passwd|token|secret|senha|credential|api-?key)[\w-]*[ \t]+)(?!-)(?:"[^"]*"|'[^']*'|\S+)/gi, `$1${MASK}`],
-  [/(\b(?:mysql|mariadb|mysqldump|mysqladmin)\w*(?:[ \t]+(?!-p)\S+)*[ \t]+)-p(?=\S)\S+/g, `$1-p${MASK}`],
+  [/((?:mysql|mariadb|mysqldump|mysqladmin)\w*(?:[ \t]+(?!-p)\S+)*[ \t]+)-p(?=\S)\S+/g, `$1-p${MASK}`],
   [/(?<![\w-])((?:-u|--user|--proxy-user)(?:[ \t]+|=)["']?)[^\s"':]*:[^\s"']*/g, `$1${MASK}`],
-  // known prefixes; a long token wrapped onto the next line (optionally after a backslash) is one token
-  [/(?<![A-Za-z0-9_])(?:sk-[A-Za-z0-9_-]{8,}|[sr]k_(?:live|test)_[A-Za-z0-9]{8,}|gh[pousr]_[A-Za-z0-9]{8,}|github_pat_\w{8,}|xox[A-Za-z]-[\w-]{8,}|AKIA[0-9A-Z]{8,}|AIza[\w-]{16,}|npm_[A-Za-z0-9]{16,}|eyJ[\w-]{8,}\.[\w-]+\.[\w-]*)(?:\\?\r?\n[ \t]*[A-Za-z0-9_-]{4,})*/g, MASK],
+  // known prefixes, matched wherever they sit (glued to letters, "_" or digits): "deploy_ghp_...", "tokenghp_...",
+  // "deploysk-..." all leak otherwise. Body floors are the real token length or one no common word reaches
+  // (sk- 20: "risk-assessment" body is 10): sk- 20, sk_/rk_ live|test 16, gh[pousr]_ 30 (spec example body is 34),
+  // xox 10, AKIA exactly 16 ("AKIAN" stays clear), AIza 16, npm_ 30, eyJ 10 + 2 dots. A long token wrapped onto the
+  // next line (optionally after a backslash) is one token.
+  [/(?:sk-[A-Za-z0-9_-]{20,}|[sr]k_(?:live|test)_[A-Za-z0-9]{16,}|gh[pousr]_(?:[A-Za-z0-9]{30,}|[A-Za-z0-9]{8,}(?=\\?\r?\n[ \t]*[A-Za-z0-9_-]{4,}))|xox[A-Za-z]-[\w-]{10,}|AKIA[0-9A-Z]{16}|AIza[\w-]{16,}|npm_[A-Za-z0-9]{30,}|eyJ[\w-]{10,}\.[\w-]+\.[\w-]*)(?:\\?\r?\n[ \t]*[A-Za-z0-9_-]{4,})*/g, MASK],
+  // GitHub fine-grained PAT: case-insensitive ("xGITHUB_PAT_..."), body floor 40 (real bodies are ~70)
+  [/github_pat_\w{40,}/gi, MASK],
   // Slack incoming webhooks carry the secret in the path
   [/(hooks\.slack\.com\/services\/)[A-Za-z0-9/_-]+/g, `$1${MASK}`],
   // ?key=... / &key=... in URLs
