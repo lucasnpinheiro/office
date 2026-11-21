@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.28.39 (agent-office, wheel scroll, y copy, g to Árvore)
+
+- Mouse wheel: the host raises `ui.scroll` on the pane body (wheel or scroll keys); the pane maps it to the same scroll as `j`/`k` in every tab and the detail view, 3 lines per tick (at most 5 ticks per event), disabled while searching. Click scroll on the notes and track stays. Natural direction is the host's; no Button/Box wheel prop, only `ui.scroll`. UNVERIFIED: real-trackpad check and wheel-up in the live panel.
+- `g` on the Mapa tab opens the Árvore tab (tree mode and the drawn screen).
+- `y: copiar` in the detail footer (also Mapa or the list with a selected agent) copies the plain-text detail masked through `$.ui.copy`; `copiado` shows for 2 s only when the host confirms. Capability `copy` stays `not-verified` (ADR 0002).
+- Keyboard table lists `y` with its KEY_MAP label; shortcut rows quote the pt-BR labels.
+- UNVERIFIED: live panel for dismiss, `e`, click scroll, real clipboard delivery of `y`, wheel natural direction.
+
 ## 0.28.38 (agent-office, dismiss and click scroll in every view, key audit)
 
 - Dismissal and removal (`e`, `[x]`, `[x] remover`) apply in every view (Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow, app map and cards). A dismissed attention agent also vanishes; attention is never auto-removed.
@@ -7,6 +15,7 @@
 - Click scroll (`↑ mais` / `↓ mais` notes and scrollbar track, 3 lines per click; Cards by whole card) works in all 8 tabs. README updated.
 - README: keyboard shortcuts audit from `KEY_MAP` (key x view tests, PR #126).
 - UNVERIFIED: live panel for dismiss, `e` hotkey, click scroll in all tabs, real key delivery and `ctrl+x tab`.
+
 ## 0.28.37 (agent-office, dismiss alerts and click scroll)
 
 - Failed cards and the orange "Precisa de você" banner are dismissed with `[x]` (banner) or `[x] remover` (failed detail), or hotkey `e` (`e: dispensar`, shown only while an alert exists). Failures also leave 2 min after the failure (`FAIL_HIDE_MS`); a failed retry restarts it. Dismissals persist (last 200). The `falha` counter ignores hidden failures.

@@ -253,7 +253,7 @@ cap) and the layout is recomputed on every resize.
   cards re-wrap one column narrower to make room, and a stale scroll offset is clamped after a resize.
 - Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
 - Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
-- Keys: `j` scroll down, `k` scroll up (one card row per press, shown in the footer), plus the hotkeys below.
+- Keys: `j` scroll down, `k` scroll up (one card row per press, shown in the footer), plus the hotkeys below. The mouse wheel (`ui.scroll`, raised by the host on the pane body) scrolls like `j`/`k`: 3 lines per tick, at most 5 ticks per event, disabled while searching; the host sets the direction.
 
 ### Hotkeys
 
@@ -265,8 +265,8 @@ search, empty clears it).
 | View | Keys |
 | --- | --- |
 | Map | `v` to compact, `b` back (detail open), `q` close |
-| Compact (cards / tree / grouped / waterfall / cost / tools / workflow) | `j` / `k` scroll, `g` mode, `o` sort, `f` only failures, `s` search, `v` to map, `q` close |
-| Detail (narrow pane) | `b` back, `p` / `n` previous / next sibling, `q` close |
+| Compact (cards / tree / grouped / waterfall / cost / tools / workflow) | `j` / `k` scroll, `g` `modo` (on Mapa: opens Árvore), `o` `ordenar`, `f` `só falhas`, `s` `buscar`, `v` to map, `q` `fechar` |
+| Detail (narrow pane) | `y` `copiar` (copy the masked detail), `b` `voltar`, `p` / `n` previous / next sibling, `q` `fechar` |
 | Detail as side panel | the compact keys plus `b` back |
 | Attachment preview | `b` close preview, `q` close |
 | Search field open | none (typing goes to the field) |
