@@ -49,8 +49,9 @@ const RULES: [RegExp, string][] = [
   // CLI: --password x / --token x (separate word), mysql -phunter2, curl -u user:pass
   [/(?<![\w-])(--[\w-]*(?:password|passwd|token|secret|senha|credential|api-?key)[\w-]*[ \t]+)(?!-)(?:"[^"]*"|'[^']*'|\S+)/gi, `$1${MASK}`],
   // 0.28.45: options scan capped at 64 tokens so each "mysql" start is O(window); unbounded was quadratic (2.7 s at 100 KB).
-  // shortcut: -p more than 64 tokens after "mysql" is not masked, raise the cap if real command lines ever need more
-  [/((?:mysql|mariadb|mysqldump|mysqladmin)\w*(?:[ \t]+(?!-p)\S+){0,64}[ \t]+)-p(?=\S)\S+/g, `$1-p${MASK}`],
+  // A quoted string (-e "SELECT ...") counts as one token; the name suffix is capped at 16 chars.
+  // shortcut: more than 64 plain unquoted tokens between "mysql" and -p are not masked, raise the cap if real command lines need more
+  [/((?:mysql|mariadb|mysqldump|mysqladmin)\w{0,16}(?:[ \t]+(?!-p)(?:"[^"\n]{0,2000}"|'[^'\n]{0,2000}'|\S+)){0,64}[ \t]+)-p(?=\S)\S+/g, `$1-p${MASK}`],
   [/(?<![\w-])((?:-u|--user|--proxy-user)(?:[ \t]+|=)["']?)[^\s"':]*:[^\s"']*/g, `$1${MASK}`],
   // known prefixes, matched wherever they sit (glued to letters, "_" or digits): "deploy_ghp_...", "tokenghp_...",
   // "deploysk-..." all leak otherwise. Body floors are the real token length or one no common word reaches

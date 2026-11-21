@@ -3,9 +3,10 @@
 ## 0.28.45 (agent-office, linear mysql -p mask rule)
 
 - Fix: the `mysql -p` rule in `hooks/mask.ts` was quadratic. Each `mysql` start scanned the rest of the line for `-p`. At 100 KB, `'mysql a b c '.repeat(8500)` took ~2.7 s on 0.28.44 and `'mysql -h x -P 3306 '.repeat(6000)` ~1.6 s. The options scan is now `{0,64}` tokens, so each start is bounded.
-- Bound (stated limit): a `-p` more than 64 whitespace-separated tokens after `mysql` is not masked. Real command lines have a handful of options. The 0.28.44 rule masked it.
-- Differential vs 0.28.44 over ~60k mysql command lines (0-30 options, all `-p`/`--password` forms, wrappers): 0 changed outputs. The only change is the token cap above.
-- Perf after: 100 KB inputs run in 2-15 ms (the perf test cap is 200 ms).
+- Bound (stated limit): a quoted string (`-e "SELECT ..."`, single or double quotes) counts as one token, so long quoted SQL is still masked. The remaining limit is more than 64 plain unquoted tokens between `mysql` and `-p`: those are not masked. The 0.28.44 rule masked them.
+- The name suffix after `mysql` (`\w`) is capped at 16 chars, so `mysqlmysql...` runs stay linear (`'mysql'.repeat(20000)` was 1.3 s, now ~4-7 ms).
+- Differential vs 0.28.44 over ~60k mysql command lines: 0 changed outputs. Reviewer harness (278,880 cases): 0 regressions. Losses only for plain unquoted tokens past 64.
+- Perf after: 100 KB inputs run in 2-60 ms (worst `'mysql "'.repeat(16000)`, 3.6 s on 0.28.44). The perf test cap is 200 ms.
 
 ## 0.28.44 (agent-office, secrets glued to letters are masked)
 

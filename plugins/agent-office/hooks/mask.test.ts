@@ -285,6 +285,28 @@ for (const [name, s] of [
   if (ms >= PERF_MS) throw new Error(`${name} took ${Math.round(ms)} ms`)
 })
 
+// 0.28.45 review: glued "mysql" runs and quoted -e SQL must stay linear and masked
+for (const [name, s] of [
+  ['mysql x20000', 'mysql'.repeat(20000)],
+  ['mysql " x16000', 'mysql "'.repeat(16000)],
+] as [string, string][]) test(`0.28.45 perf: mysql -p rule ${name} masks in < ${PERF_MS} ms`, () => {
+  const ms = timeMask(s)
+  if (ms >= PERF_MS) throw new Error(`${name} took ${Math.round(ms)} ms`)
+})
+for (const n of [10, 64, 80, 120]) {
+  const words = Array.from({ length: n }, (_, i) => `w${i}`).join(' ')
+  for (const [label, cmd] of [
+    ['double-quoted -e', `mysql -e "SELECT ${words}" -pZx9Qw7Lp2Rt5 db`],
+    ['single-quoted -e', `mysql -e 'SELECT ${words}' -pZx9Qw7Lp2Rt5 db`],
+    ['-u root + quoted -e', `mysql -u root -e "SELECT ${words}" -pZx9Qw7Lp2Rt5`],
+    ["quoted -p'x'", `mysql -e "SELECT ${words}" -p'Zx9Qw7Lp2Rt5' db`],
+  ] as [string, string][]) test(`0.28.45: ${label} with ${n} words still masks the password`, () => {
+    const out = maskText(cmd)
+    expect(out).not.toContain('Zx9Qw7Lp2Rt5')
+    expect(out).toContain(`-p${MASK}`)
+  })
+}
+
 // deterministic pseudo-random base64url run (no periodic windows that could hide a leak)
 const runOf = (n: number, seed: number): string => {
   const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
