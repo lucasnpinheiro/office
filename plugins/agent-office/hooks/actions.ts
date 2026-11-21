@@ -3,6 +3,7 @@ import { DEFAULT_MODE, NEXT_MODE, TREE_FOLD } from './compact'
 import type { Mode } from './compact'
 import { keyOf, labelOf } from './vocabulary'
 
+export const DISMISSED_CAP = 200 // persisted dismiss keys kept (oldest dropped)
 export type Ui = {
   view: 'compact' | 'map'; mode: Mode; filter: 'all' | 'failed'; sort: 'time' | 'state' | 'name'
   searching: boolean; selected: string; attach: string; query: string; expanded: string[]
@@ -53,7 +54,7 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
   if (a.startsWith('dismiss:')) {
     const k = a.slice(8), id = k.split(':').slice(0, -2).join(':')
     const dismissed = s.dismissed ?? []
-    return { state: { ...s, dismissed: dismissed.includes(k) ? dismissed : [...dismissed, k], selected: s.selected === id ? '' : s.selected, attach: s.selected === id ? '' : s.attach } }
+    return { state: { ...s, dismissed: dismissed.includes(k) ? dismissed : [...dismissed, k].slice(-DISMISSED_CAP), selected: s.selected === id ? '' : s.selected, attach: s.selected === id ? '' : s.attach } }
   }
   if (a.startsWith('grp:')) {
     const k = a.slice(4)

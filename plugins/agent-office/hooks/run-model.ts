@@ -4,7 +4,8 @@ import { estimateCostUsd } from './price'
 import { parseDescription, modelLabel, EFFORT_DISPLAY } from './persona'
 import type { AgentRecord } from './office'
 import type { GitInfo } from './git'
-import { HIDE_AFTER_MS } from './office'
+import { HIDE_AFTER_MS, FAIL_HIDE_MS } from './office'
+export { FAIL_HIDE_MS }
 import type { Capabilities } from './capabilities'
 
 export const MAX_DEPTH = 50
@@ -209,7 +210,7 @@ export function etaOf(g: Graph): number | undefined {
   return mean * Math.ceil(remaining / maxOverlap(xs))
 }
 
-// Concluído agents leave the map HIDE_AFTER_MS after they end (tasks go with them), unless a child agent is still visible; failed ones stay.
+// Concluído agents leave the map HIDE_AFTER_MS after they end (tasks go with them), unless a child agent is still visible; failed ones leave after FAIL_HIDE_MS.
 // Dismissed alerts are keyed id:state:end, so a node that fails again (new end time) comes back.
 export const dismissKey = (n: { id: string; state: string; end?: number }) => `${n.id}:${n.state}:${n.end ?? ''}`
 export function hiddenIds(g: Graph, now: number, dismissed: Set<string> = new Set()): Set<string> {
@@ -217,8 +218,10 @@ export function hiddenIds(g: Graph, now: number, dismissed: Set<string> = new Se
   const visit = (n: Node): boolean => { // true = stays visible
     const kids = n.children.filter(k => k.kind === 'agent').map(visit)
     if (n.kind !== 'agent') return true
-    if (n.state === 'failed' && dismissed.has(dismissKey(n))) { hidden.add(n.id); return kids.some(Boolean) }
-    const expired = n.state === 'done' && // Falhou and Precisa de você are never auto-removed
+    // failed: gone at once when dismissed, else FAIL_HIDE_MS after its end (a retry that fails again has a new end, so it restarts)
+    // an attention alert dismissed only leaves the banner on purpose: its card stays in the tree
+    if (n.state === 'failed' && (dismissed.has(dismissKey(n)) || (n.end !== undefined && now - n.end >= FAIL_HIDE_MS))) { hidden.add(n.id); return kids.some(Boolean) }
+    const expired = n.state === 'done' && // Precisa de você is never auto-removed; failed ones leave by the rule above
        n.end !== undefined && now - n.end > HIDE_AFTER_MS
     const vis = !expired || kids.some(Boolean)
     if (!vis) hidden.add(n.id)

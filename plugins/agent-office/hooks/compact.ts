@@ -192,7 +192,8 @@ function header(g: Graph, agents: AgentLike[], now: number, v: CView): Line[] {
   const eta = etaOf(g)
   const ns = [...g.nodes.values()].filter(n => n.kind === 'agent')
   const n_ = (f: (n: Node) => boolean) => ns.filter(f).length
-  const act = n_(isOpenNode), ok = n_(n => n.state === 'done'), bad = n_(n => n.state === 'failed')
+  const hid = hiddenIds(g, now, v.dismissed)
+  const act = n_(isOpenNode), ok = n_(n => n.state === 'done'), bad = n_(n => n.state === 'failed' && !hid.has(n.id)) // dismissed or timed-out failures do not count
   // tokens come from the RunModel (per agent + main session, `partial` when something is unknown); the session USD only when the engine gave it
   const tot = (v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)).totals
   const tokTxt = tot.tokens === undefined ? '—' : fmtTokens(tot.tokens) + (tot.partial ? ' parcial' : '')

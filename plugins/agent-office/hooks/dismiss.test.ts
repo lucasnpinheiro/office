@@ -63,3 +63,27 @@ test('footer shows e: dispensar only while an alert exists', () => {
   expect(hotkeysFor(initialUi(), false).some(h => h.act === 'dismissAlert')).toBe(false)
   expect(footerText(initialUi(), false, true)).toContain('e: dispensar')
 })
+
+// Failed cards leave by themselves FAIL_HIDE_MS after the failure (node.end), or at once when dismissed.
+import { FAIL_HIDE_MS } from './run-model'
+test('a failed card hides itself FAIL_HIDE_MS (2 min) after its end', () => {
+  expect(FAIL_HIDE_MS).toBe(120_000)
+  const g = buildGraph([failed(T + 1000)], T)
+  expect(hiddenIds(g, T + 1000 + 119_999).has('a1')).toBe(false)
+  expect(hiddenIds(g, T + 1000 + 120_000).has('a1')).toBe(true)
+})
+test('manual dismiss before 2 min hides the card at once', () => {
+  const ag = failed(T + 1000), g = buildGraph([ag], T)
+  expect(hiddenIds(g, T + 2000, new Set([keyOf(ag)])).has('a1')).toBe(true)
+})
+test('a retry that fails again restarts the 2 min from the new end', () => {
+  const ag = failed(T + 200_000), g = buildGraph([ag], T)
+  expect(hiddenIds(g, T + 200_000 + 119_999).has('a1')).toBe(false)
+  expect(hiddenIds(g, T + 200_000 + 120_000).has('a1')).toBe(true)
+})
+test('persisted dismissed list keeps only the last 200 keys', () => {
+  let s = initialUi()
+  for (let i = 0; i < 205; i++) s = applyAction(s, `dismiss:a${i}:failed:1`).state
+  expect(s.dismissed!.length).toBe(200)
+  expect(s.dismissed![199]).toBe('a204:failed:1')
+})
