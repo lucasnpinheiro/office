@@ -7,6 +7,9 @@
 - The name suffix after `mysql` (`\w`) is capped at 16 chars, so `mysqlmysql...` runs stay linear (`'mysql'.repeat(20000)` was 1.3 s, now ~4-7 ms).
 - Differential vs 0.28.44 over ~60k mysql command lines: 0 changed outputs. Reviewer harness (278,880 cases): 0 regressions. Losses only for plain unquoted tokens past 64.
 - Perf after: 100 KB inputs run in 2-60 ms (worst `'mysql "'.repeat(16000)`, 3.6 s on 0.28.44). The perf test cap is 200 ms.
+- Fix (review): the quoted and plain alternatives overlapped, so `mysql "a" "a" ` backtracked 2^n (100 KB hung). Now a token is either a plain run `[^\s"']+` or a run of units (one plain char, a quoted string, or an unclosed quote), and every quote has exactly one parse. An unclosed quote is one unit that stops at the next quote, so `mysql -e "unterminated ... -pSECRET` is still masked (main masks it).
+- Bound (review): a token has at most 32 units, so one run of quoted pieces cannot be rescanned from every `mysql` start.
+- Honest limits: a quoted string over 2000 chars is split on its spaces; an unclosed quote counts as a plain word, so the words after it count toward the 64-token cap (`mysql -e "SELECT <63+ words> -pSECRET` is not masked; 40 words are); `\w{0,16}` name suffix. Tests: `0.28.45 perf` growth check (20 KB vs 40 KB, fails if the cost more than triples) runs before the 100 KB check, so a hang fails instead of freezing `npm test`.
 
 ## 0.28.44 (agent-office, secrets glued to letters are masked)
 

@@ -51,7 +51,11 @@ const RULES: [RegExp, string][] = [
   // 0.28.45: options scan capped at 64 tokens so each "mysql" start is O(window); unbounded was quadratic (2.7 s at 100 KB).
   // A quoted string (-e "SELECT ...") counts as one token; the name suffix is capped at 16 chars.
   // shortcut: more than 64 plain unquoted tokens between "mysql" and -p are not masked, raise the cap if real command lines need more
-  [/((?:mysql|mariadb|mysqldump|mysqladmin)\w{0,16}(?:[ \t]+(?!-p)(?:"[^"\n]{0,2000}"|'[^'\n]{0,2000}'|\S+)){0,64}[ \t]+)-p(?=\S)\S+/g, `$1-p${MASK}`],
+  // Unambiguous: a token is a plain run ([^\s"']+) or a run of units (one plain char, a quoted string, or an unclosed
+  // quote) that holds a quote. Each quote has one parse, so backtracking is linear.
+  // shortcut: a token has at most 32 units, a quoted string over 2000 chars is split on its spaces, an unclosed quote
+  // is one word so the words after it count toward the 64-token cap; -p after those limits is not masked, raise them if needed.
+  [/((?:mysql|mariadb|mysqldump|mysqladmin)\w{0,16}(?:[ \t]+(?!-p)(?:(?=[^\s"']*["'])(?:[^\s"']|"[^"\n]{0,2000}"|'[^'\n]{0,2000}'|"(?![^"\n]{0,2000}")|'(?![^'\n]{0,2000}')){1,32}|[^\s"']+)){0,64}[ \t]+)-p(?=\S)\S+/g, `$1-p${MASK}`],
   [/(?<![\w-])((?:-u|--user|--proxy-user)(?:[ \t]+|=)["']?)[^\s"':]*:[^\s"']*/g, `$1${MASK}`],
   // known prefixes, matched wherever they sit (glued to letters, "_" or digits): "deploy_ghp_...", "tokenghp_...",
   // "deploysk-..." all leak otherwise. Body floors are the real token length or one no common word reaches

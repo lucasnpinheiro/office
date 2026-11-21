@@ -4,6 +4,7 @@
 - Found: mysql -p rule quadratic in `hooks/mask.ts` (main: 2662 ms on `'mysql a b c '.repeat(8500)`, 1627 ms on `'mysql -h x -P 3306 '.repeat(6000)`). RED perf tests added to `mask.test.ts`.
 - Fixed: options scan bounded to `{0,64}` tokens; quoted strings count as one token; `\w` suffix capped at 16. After: 2-60 ms on the same inputs. Stated limit: more than 64 plain unquoted tokens between `mysql` and `-p` are not masked.
 - Differential 0.28.44 vs 0.28.45: 0 changed outputs over ~60k command lines. Reviewer differential: 0 regressions over 278880 cases.
+- Review fix (818d417 FAIL, exponential): quoted and plain alternatives overlapped (2^n). Now one parse per quote: plain run `[^\s"']+` or units (plain char, quoted string, unclosed quote to next quote), units capped at 32 per token. Hard-timeout 3 s harness, 100 KB, main vs 818d417 vs new: `dq`/`sq`/`mix`/`q65`/`q2000blk` prev and main hang (>3 s), new 20-24 ms; `quoteglue` 62-66 prev, 98 new. Lone-quote coverage: unclosed `"`/`'` followed by `-p` masked at 10 and 40 words; main-masked losses are plain tokens past 64 only (differential).
 - Open PR: fix/mask-mysql-redos (no merge; orchestrator/user merges per gates). Live agents: none. Blocked on user: merge.
 
 ## 2026-11-21 office-video-gaps: phases 7-9 executed (branch spec/office-video-gaps-exec)

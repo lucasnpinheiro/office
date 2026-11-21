@@ -260,6 +260,7 @@ const timeMask = (s: string): number => {
   return performance.now() - t0
 }
 const PERF_MS = 200 // generous: flakes avoided, the quadratic input took 8 s
+const GLUE_MS = 500 // mysql quote-glue shape: linear, measured ~95 ms per 100 KB on node, 2-3x under the test runner
 for (const [name, s] of [
   ['eyJ x33000', 'eyJ'.repeat(33000)],
   ['(eyJ+aaaaaaa) x10000', ('eyJ' + 'a'.repeat(7)).repeat(10000)],
@@ -289,9 +290,9 @@ for (const [name, s] of [
 for (const [name, s] of [
   ['mysql x20000', 'mysql'.repeat(20000)],
   ['mysql " x16000', 'mysql "'.repeat(16000)],
-] as [string, string][]) test(`0.28.45 perf: mysql -p rule ${name} masks in < ${PERF_MS} ms`, () => {
-  const ms = timeMask(s)
-  if (ms >= PERF_MS) throw new Error(`${name} took ${Math.round(ms)} ms`)
+] as [string, string][]) test(`0.28.45 perf: mysql -p rule ${name} masks in < ${GLUE_MS} ms`, () => {
+  const ms = timeMask(s) // linear (see the growth test below); this shape is ~2x the other mysql shapes per char
+  if (ms >= GLUE_MS) throw new Error(`${name} took ${Math.round(ms)} ms`)
 })
 for (const n of [10, 64, 80, 120]) {
   const words = Array.from({ length: n }, (_, i) => `w${i}`).join(' ')
@@ -350,4 +351,72 @@ for (const [name, tok] of [...WRAP_TOKENS, ['AKIA', 'AKIAABCDEFGHJKLMNPQR']] as 
       if (out.includes(w)) throw new Error(`leak ${name} cut=${cut} window=${w} out=${JSON.stringify(out)}`)
     }
   }
+})
+
+// 0.28.45 review (blocking): the mysql -p rule had two ways to match a quoted token and backtracked 2^n. Super-linear
+// input is detected WITHOUT a 100 KB hang: time 20 KB and 40 KB first, fail if the 2x input costs more than 3x (+ a
+// 20 ms floor for noise); only a linear rule then runs the 100 KB check.
+const growthFail = (name: string, unit: string): string | null => {
+  const mk = (size: number) => unit.repeat(Math.ceil(size / unit.length))
+  // best of two runs: one GC pause or a loaded worker must not fail a linear rule
+  const best = (x: string): number => Math.min(timeMask(x), timeMask(x))
+  const a = best(mk(20_000))
+  const b = best(mk(40_000))
+  return b > 3 * a + 20 ? `${name}: 20 KB ${Math.round(a)} ms, 40 KB ${Math.round(b)} ms (super-linear)` : null
+}
+const MYSQL_SHAPES: [string, string][] = [
+  ['"a" "a" x', 'mysql "a" "a" '],
+  ["'a' 'a' x", "mysql 'a' 'a' "],
+  ['mixed quotes', `mysql "a" 'a' "a" `],
+  ['unclosed double -e', 'mysql -e "a b c '],
+  ['unclosed single -e', "mysql -e 'a b c "],
+  ['1999-char quoted', 'mysql "' + 'a'.repeat(1999) + '" '],
+  ['2000-char quoted x65 + -x', 'mysql ' + ('"' + 'a'.repeat(2000) + '" ').repeat(65) + '-x '],
+  ['glued mysql', 'mysql'.repeat(20000)],
+  ['mysql " glue', 'mysql "'.repeat(16000)],
+  ['escaped quotes', 'mysql \\"a\\" \\"b\\" '],
+  ['--execute="..."', 'mysql --execute="SELECT a b" '],
+  ['-u root -p with quoted -e', 'mysql -u root -e "a b" -p x '],
+]
+for (const [name, unit] of MYSQL_SHAPES) test(`0.28.45 perf: mysql shape ${name} is linear`, () => {
+  const fail = growthFail(name, unit)
+  if (fail) throw new Error(fail)
+  const s = unit.repeat(Math.ceil(100_000 / unit.length))
+  const limit = name.includes('glue') ? GLUE_MS : PERF_MS
+  const ms = Math.min(timeMask(s), timeMask(s))
+  if (ms >= limit) throw new Error(`${name} 100 KB took ${Math.round(ms)} ms`)
+})
+// every other rule class: same growth check on a 100 KB-sized shape
+for (const [name, unit] of [
+  ['password=', 'password='],
+  ['Bearer', 'Bearer '],
+  ['authorization:', 'authorization: '],
+  ['--password', '--password '],
+  ['api key:', 'api key: '],
+  ['-u user:', '-u user:'],
+  ['?key=', '?key='],
+  ['://u:', '://u:'],
+  ['slack webhook', 'hooks.slack.com/services/'],
+] as [string, string][]) test(`0.28.45 perf: ${name} repeated is linear`, () => {
+  const fail = growthFail(name, unit)
+  if (fail) throw new Error(fail)
+})
+// lone-quote alternative: an unclosed quote keeps -p masked for short commands (words after it count as plain tokens, cap 64)
+for (const n of [10, 40]) {
+  const words = Array.from({ length: n }, (_, i) => `w${i}`).join(' ')
+  for (const [label, cmd] of [
+    ['unclosed " then -p', `mysql -e "SELECT ${words} -pZx9Qw7Lp2Rt5 db`],
+    ["unclosed ' then -p", `mysql -e 'SELECT ${words} -pZx9Qw7Lp2Rt5 db`],
+  ] as [string, string][]) test(`0.28.45: ${label} with ${n} words still masks the password`, () => {
+    const out = maskText(cmd)
+    expect(out).not.toContain('Zx9Qw7Lp2Rt5')
+  })
+}
+test('0.28.45: unclosed quote with a later quote on the line still masks -p', () => {
+  expect(maskText(`mysql -e "unterminated 'x' -pZx9Qw7Lp2Rt5 db`)).not.toContain('Zx9Qw7Lp2Rt5')
+  expect(maskText(`mysql -e 'a b "c' -pZx9Qw7Lp2Rt5 db`)).not.toContain('Zx9Qw7Lp2Rt5')
+})
+test('0.28.45: -p after an escaped-quote token and a --execute= token is masked', () => {
+  expect(maskText('mysql --execute="SELECT a b" -pZx9Qw7Lp2Rt5 db')).not.toContain('Zx9Qw7Lp2Rt5')
+  expect(maskText('mysql -e \\"SELECT a\\" -pZx9Qw7Lp2Rt5 db')).not.toContain('Zx9Qw7Lp2Rt5')
 })
