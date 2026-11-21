@@ -55,18 +55,18 @@ const cardOf = (n: Node, nm: Map<string, string>, now: number, r?: RunNode): App
 
 const runsOf = (agents: readonly AgentRecord[], now: number, m?: RunModel) => new Map((m ?? buildRunModel(agents, now, CAPABILITIES)).nodes.map(r => [r.id, r]))
 
-export function appCards(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; model?: RunModel }): AppCard[] {
+export function appCards(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; model?: RunModel; dismissed?: Set<string> }): AppCard[] {
   const g = buildGraph(agents, now)
-  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = runsOf(agents, now, o.model) // Concluído leaves 30 s after it ends
+  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now, o.dismissed), o.filter), by = runsOf(agents, now, o.model) // Concluído leaves 30 s after it ends
   return [...g.nodes.values()].filter((n: Node) => n.kind === 'agent' && keep.has(n.id)).map(n => cardOf(n, nm, now, by.get(n.id)))
 }
 
 // Org chart for the app surfaces: the session card on top, each agent under its parent. Same Graph as the terminal map.
 export const MAP_MAX_DEPTH = 10 // visible sublevels under the root (root = 0); the model and the detail still reach everything
 export type AppMapNode = { card: AppCard; children: AppMapNode[]; hidden?: number } // hidden: descendants not drawn at the depth cap ("+N ocultos")
-export function appMap(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; git?: GitInfo; model?: RunModel }): AppMapNode {
+export function appMap(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; git?: GitInfo; model?: RunModel; dismissed?: Set<string> }): AppMapNode {
   const g = buildGraph(agents, now, o.git)
-  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now), o.filter), by = runsOf(agents, now, o.model)
+  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now, o.dismissed), o.filter), by = runsOf(agents, now, o.model)
   const kidsOf = (n: Node) => n.children.filter(k => k.kind === 'agent' && keep.has(k.id))
   const count = (n: Node): number => kidsOf(n).reduce((a, k) => a + 1 + count(k), 0)
   const walk = (n: Node, depth = 0): AppMapNode => ({

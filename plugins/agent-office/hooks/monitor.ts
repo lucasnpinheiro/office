@@ -5,13 +5,13 @@ import { gitLabel } from './git'
 import type { GitInfo } from './git'
 import type { AgentRecord as AgentLike } from './office'
 import { HIDE_AFTER_MS } from './office'
-import { buildGraph, uniqueNames, hiddenIds, hasRunningDescendant, MAX_DEPTH, isQuotaError, ATTENTION_AFTER_MS, isOpenNode, progressOf, overallProgress, durationOf, elapsedOf, etaOf, maxDepthOf } from './run-model'
+import { buildGraph, uniqueNames, hiddenIds, dismissKey, hasRunningDescendant, MAX_DEPTH, isQuotaError, ATTENTION_AFTER_MS, isOpenNode, progressOf, overallProgress, durationOf, elapsedOf, etaOf, maxDepthOf } from './run-model'
 import type { Node, Graph, State, Kind, ToolNote } from './run-model'
 import { STATE_COLORS, nodeView, stateColor } from './vocabulary'
 import type { Vocab } from './vocabulary'
 
 // Provisório (T-002): as telas ainda importam daqui; T-013 remove o que ficar sem chamador.
-export { buildGraph, uniqueNames, hiddenIds, MAX_DEPTH, isQuotaError, ATTENTION_AFTER_MS, isOpenNode, progressOf, overallProgress, durationOf, elapsedOf, etaOf, maxDepthOf }
+export { buildGraph, uniqueNames, hiddenIds, dismissKey, MAX_DEPTH, isQuotaError, ATTENTION_AFTER_MS, isOpenNode, progressOf, overallProgress, durationOf, elapsedOf, etaOf, maxDepthOf }
 export type { Node, Graph, State, Kind, ToolNote }
 
 // ---------- text helpers ----------

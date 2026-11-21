@@ -25,7 +25,7 @@ test('cards: a failure is a boxed banner above the tabs and the cards, with [Ver
   const ag = [mk('a'), mk('b'), mk('f', { status: 'error', error: 'boom' })]
   const out = renderCompact(ag, T + 5000, base)
   const lines = txt(out).split('\n')
-  const alert = lines.findIndex(l => /^│✗ Dev: f falhou  boom +.*\[Ver\]│$/.test(l))
+  const alert = lines.findIndex(l => /^│✗ Dev: f falhou  boom +.*\[Ver\].*\[x\]│$/.test(l))
   const tabs = lines.findIndex(l => l.includes('Árvore') && l.includes('Mapa'))
   const firstBox = lines.findIndex(l => /^ *╭─{16,32}╮/.test(l) && !l.startsWith('╭'))
   expect(alert).toBeGreaterThan(-1); expect(alert).toBeLessThan(tabs); expect(tabs).toBeLessThan(firstBox)

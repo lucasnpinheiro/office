@@ -210,11 +210,14 @@ export function etaOf(g: Graph): number | undefined {
 }
 
 // Concluído agents leave the map HIDE_AFTER_MS after they end (tasks go with them), unless a child agent is still visible; failed ones stay.
-export function hiddenIds(g: Graph, now: number): Set<string> {
+// Dismissed alerts are keyed id:state, so a node that changes state again comes back.
+export const dismissKey = (n: { id: string; state: string }) => `${n.id}:${n.state}`
+export function hiddenIds(g: Graph, now: number, dismissed: Set<string> = new Set()): Set<string> {
   const hidden = new Set<string>()
   const visit = (n: Node): boolean => { // true = stays visible
     const kids = n.children.filter(k => k.kind === 'agent').map(visit)
     if (n.kind !== 'agent') return true
+    if (n.state === 'failed' && dismissed.has(dismissKey(n))) { hidden.add(n.id); return kids.some(Boolean) }
     const expired = n.state === 'done' && // Falhou and Precisa de você are never auto-removed
        n.end !== undefined && now - n.end > HIDE_AFTER_MS
     const vis = !expired || kids.some(Boolean)

@@ -7,8 +7,9 @@ export type Ui = {
   view: 'compact' | 'map'; mode: Mode; filter: 'all' | 'failed'; sort: 'time' | 'state' | 'name'
   searching: boolean; selected: string; attach: string; query: string; expanded: string[]
   modeChosen: boolean // the user picked the mode (g, button, /office mode): v from the map keeps it
+  dismissed?: string[] // alerts removed by the user, keys id:state; kept across sessions (optional: older fixtures omit it)
 }
-export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [], modeChosen: false })
+export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [], modeChosen: false, dismissed: [] })
 // Session start: every persisted view/filter/search field goes back to the default (map view, the agent org chart), so a
 // previous session's map view, filter or query never leaks into the new one.
 export const startUi = (): Ui => ({ ...initialUi() })
@@ -46,6 +47,12 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
     return { state: { ...s, selected: '' } }
   }
   if (a.startsWith('open:')) return { state: { ...s, selected: a.slice(5), attach: '' } }
+  // dismiss:<id>:<state> removes the banner/failed card; from its detail view the pane goes back to the list
+  if (a.startsWith('dismiss:')) {
+    const k = a.slice(8), id = k.slice(0, k.lastIndexOf(':'))
+    const dismissed = s.dismissed ?? []
+    return { state: { ...s, dismissed: dismissed.includes(k) ? dismissed : [...dismissed, k], selected: s.selected === id ? '' : s.selected, attach: s.selected === id ? '' : s.attach } }
+  }
   if (a.startsWith('grp:')) {
     const k = a.slice(4)
     return { state: { ...s, expanded: s.expanded.includes(k) ? s.expanded.filter(x => x !== k) : [...s.expanded, k] } }

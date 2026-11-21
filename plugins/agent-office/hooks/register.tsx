@@ -61,6 +61,7 @@ const searchingAt = atom({ plugin: 'agent-office', key: 'searching' } as const, 
 const queryAt = atom({ plugin: 'agent-office', key: 'query' } as const, '')
 const modeChosenAt = atom({ plugin: 'agent-office', key: 'modeChosen' } as const, false)
 const expandedAt = atom({ plugin: 'agent-office', key: 'expanded' } as const, [])
+const dismissedAt = atom({ plugin: 'agent-office', key: 'dismissed' } as const, [] as string[]) // alerts removed by the user, id:state; kept across sessions
 const attachAt = atom({ plugin: 'agent-office', key: 'attach' } as const, '')
 
 // OFFICE_CAPTURE_IO=1 (exactly) turns on masked tool input/output capture; read fresh, any failure means off.
@@ -289,13 +290,14 @@ async function readUi($: EngineInterface): Promise<Ui> {
     filter: (await read($, filterAt)) === 'failed' ? 'failed' : 'all', sort: (await read($, sortAt)) as Ui['sort'],
     searching: await read($, searchingAt), selected: await read($, selectedAt), attach: await read($, attachAt),
     query: await read($, queryAt), expanded: await read($, expandedAt), modeChosen: await read($, modeChosenAt),
+    dismissed: await read($, dismissedAt),
   }
 }
 async function writeUi($: EngineInterface, n: Ui) {
   await update($, viewAt, () => n.view); await update($, autoViewAt, () => false); await update($, modeAt, () => n.mode); await update($, filterAt, () => n.filter)
   await update($, sortAt, () => n.sort); await update($, searchingAt, () => n.searching); await update($, selectedAt, () => n.selected)
   await update($, attachAt, () => n.attach); await update($, queryAt, () => n.query); await update($, expandedAt, () => n.expanded)
-  await update($, modeChosenAt, () => n.modeChosen)
+  await update($, modeChosenAt, () => n.modeChosen); await update($, dismissedAt, () => n.dismissed ?? [])
 }
 // one entry for every button and hotkey: pure reducer, then persist, redraw, keep the keys on the pane
 // whether the tree shows a collapsed group right now (decides if g has something to open)
@@ -641,7 +643,7 @@ export const register: Register = on => {
     const compactView: CView = {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
-      expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, chrome: !isAppSurface((e as { surface?: string }).surface), scroll: await read($, scrollAt), branch: sgit?.branch,
+      expanded: new Set((await read($, expandedAt)) as string[]), dismissed: new Set((await read($, dismissedAt)) as string[]), maxCardRows: 4, chrome: !isAppSurface((e as { surface?: string }).surface), scroll: await read($, scrollAt), branch: sgit?.branch,
       maxLines: Math.max(1, paneBodyLines(e.props as { bodyRows?: number; scroll?: { bodyRows?: number } } | undefined, e.viewport) - hkRows),
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, limits: (await read($, sessionLimitsAt)) ?? undefined, ahead: aheadNow(),
@@ -821,12 +823,13 @@ export const register: Register = on => {
     const TABS = VIEW_TABS.map(([k, label]) => [k, label, `tab:${k}`] as const) // mesma fonte das abas do terminal
     const curTab = view === 'map' ? 'map' : (await read($, modeAt)) as string
     const limLines = usageLimits((await read($, sessionLimitsAt)) ?? undefined, now)
+    const dis = new Set(await read($, dismissedAt) as string[]) // read here: appChrome below is sync
     const appChrome = () => {
       const g = buildGraph(all, now, sgit)
       const ags = [...g.nodes.values()].filter(n => n.kind === 'agent')
       const cnt = (st: string) => ags.filter(n => n.state === st).length
       const proj = cwd.split('/').filter(Boolean).pop() ?? ''
-      const failed = appCards(all, now, {}).filter(c => c.state === 'failed')
+      const failed = appCards(all, now, { dismissed: dis }).filter(c => c.state === 'failed')
       return (
         <Box flexDirection="column" gap="xs">
           <Box flexDirection="row" flexWrap="wrap" gap="sm">
@@ -858,7 +861,7 @@ export const register: Register = on => {
     // app surfaces (desktop, vscode, mobile): graphical cards of the Chips design (title, chips, state on border and glyph);
     // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
     if (onApp && view === 'map' && !attach && (!selected || sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' }))) {
-      const tree = appMap(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
+      const tree = appMap(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit, dismissed: new Set(await read($, dismissedAt) as string[]) })
       const body = tree.card.id === 'session' && tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root', APP_CARD_W, cols)
       return (
         <Box flexDirection="column" gap="sm">
@@ -877,7 +880,7 @@ export const register: Register = on => {
       )
     }
     if (isAppSurface((e as { surface?: string }).surface) && view === 'compact' && !selected && !attach && ['map', 'cards'].includes((await read($, modeAt)) as string)) { // app: map and cards modes both draw the graphical grid
-      const cards = appCards(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
+      const cards = appCards(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', dismissed: new Set(await read($, dismissedAt) as string[]) })
       return (
         <Box flexDirection="column" gap="sm">
           {appChrome()}

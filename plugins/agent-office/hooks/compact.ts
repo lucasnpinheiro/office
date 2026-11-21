@@ -2,7 +2,7 @@
 // attachment preview and terminal capability detection. Pure (no engine APIs): the caller passes `now`.
 // Terminal and app share this state model; only the drawing of the Lines differs.
 import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, maxDepthOf, fmtMMSS, fmtHMS, fmtDur, uniqueNames, clipName,
-  truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError, hiddenIds } from './monitor'
+  truncRunes, lineWidth, strWidth, takeWidth, padWidth, charWidth, isOpenNode, STATE_COLOR, WORKTREE_COLOR, MAX_DEPTH, isQuotaError, hiddenIds, dismissKey } from './monitor'
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
 import { spinnerGlyph } from './motion'
@@ -81,6 +81,7 @@ export const DEFAULT_MODE: Mode = 'map'
 export const NEXT_MODE: Record<Mode, Mode> = { map: 'tree', tree: 'grouped', grouped: 'cards', cards: 'waterfall', waterfall: 'cost', cost: 'tools', tools: 'workflow', workflow: 'map' }
 export type CView = {
   width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; scroll?: number; branch?: string
+  dismissed?: Set<string> // alerts the user removed, keys id:state (dismissKey)
   filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities
   ahead?: Record<string, AheadInfo> // by worktree key: real base + commits ahead; absent = unknown (AC-023)
   model?: RunModel // built once by the caller (register.tsx) with the session tokens; built here from the agents when absent
@@ -267,14 +268,14 @@ function pinnedLines(g: Graph, nm: Map<string, string>, keep: Set<string>, v: CV
   // só a falha tem ação hoje (retry); a decisão (needs-you, ◆) entra com T-011 e o estado correspondente
   const ret = bindable(v.capabilities ?? CAPABILITIES, 'terminal').find(e => e.act === 'retry')
   const bad = [...g.nodes.values()]
-    .filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'attention' || n.state === 'failed'))
+    .filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'attention' || n.state === 'failed') && !v.dismissed?.has(dismissKey(n)))
     .sort((a, b) => Number(b.state === 'attention') - Number(a.state === 'attention'))
   const out: Line[] = []
   for (const n of bad.slice(0, 2)) {
     const col_ = stateColor(n.state), name = nm.get(n.id) ?? n.name
     const left: Line = [seg(c, `${glyph(c, n.state)} ${n.state === 'failed' ? `${name} falhou` : `Precisa de você: ${name}`}`, col_, { bold: true, node: n.id }), seg(c, n.error ? '  ' + n.error : '', undefined)]
     const e = n.state === 'failed' ? ret : undefined
-    out.push(...ROUND_BOX(c, v.width, left, [...(e ? [seg(c, `${e.key} ${e.label}  `, DIM)] : []), seg(c, '[Ver]', col_, { node: n.id })], col_))
+    out.push(...ROUND_BOX(c, v.width, left, [...(e ? [seg(c, `${e.key} ${e.label}  `, DIM)] : []), seg(c, '[Ver]', col_, { node: n.id }), seg(c, '[x]', DIM, { act: `dismiss:${dismissKey(n)}` })], col_))
   }
   if (bad.length > 2) out.push(fit([seg(c, `${glyph(c, 'failed')} +${bad.length - 2} ${bad.length - 2 === 1 ? 'outro alerta' : 'outros alertas'} · ${keyOf('failed') ?? 'f'} ${labelOf('failed') ?? 'só falhas'}`, STATE_COLOR.failed)], v.width))
   return out
@@ -784,14 +785,14 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const g = buildGraph(agents, now)
   if (layoutLevel(w) === 'line') {
     // abaixo de 36 colunas só a lista: falha e decisão primeiro, depois as linhas da árvore
-    const nm0 = names(g), keep0 = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
+    const nm0 = names(g), keep0 = visibleSet(g, v.query, hiddenIds(g, now, v.dismissed), v.filter)
     if (agents.length === 0) return [fit([seg(v.caps, 'Aguardando agentes…', DIM)], w)]
     const list = [...pinnedLines(g, nm0, keep0, v), ...treeLines(g, nm0, keep0, now, { ...v, mode: 'tree' })]
     return list.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
   }
   const nm = names(g)
   // Concluído cards leave 30 s after they end (hiddenIds); the header still counts them all
-  const keep = visibleSet(g, v.query, hiddenIds(g, now), v.filter)
+  const keep = visibleSet(g, v.query, hiddenIds(g, now, v.dismissed), v.filter)
   const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
   // order of the design: header, alert banners, view tabs, then the view itself
   const chrome = v.chrome !== false
