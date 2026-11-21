@@ -53,7 +53,7 @@ cap) and the layout is recomputed on every resize.
   Cards always keep the full 7-row anatomy; a short pane scrolls by card row. A card of a workflow run shows `⟳ <runId>` in rose (`#FF8FB1`).
 - Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
 - Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
-- Scrolling: the engine exposes no mouse-wheel event, so `j`/`k` scroll (shown in the footer as `j: descer`, `k: subir`); the position shows as `n/total` with `↑`/`↓`. Cards show persona, model and effort as text like the design (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`; models 🪶 Haiku, 🎼 Sonnet, 👑 Opus; effort 🟢 baixo, 🟡 médio, 🔴 alto), wrapping to a second row when too long, and the role (`orquestrador`, `agente`, `subagente`) on the branch row.
+- Scrolling: the engine exposes no mouse-wheel event to plugins (a Box `onWheel`/`onEvent` is rejected by the plugin validator), so mouse scroll is by click. The `↑ mais n/total` and `↓ mais n/total` notes and the scrollbar track are clickable: a click above the thumb scrolls up, below it scrolls down, 3 lines per click. `j`/`k` (footer `j: descer`, `k: subir`) remain. The Cards tab has no scrollbar and scrolls by `j`/`k` only; the Mapa mode only draws the scrollbar. Cards show persona, model and effort as text like the design (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`; models 🪶 Haiku, 🎼 Sonnet, 👑 Opus; effort 🟢 baixo, 🟡 médio, 🔴 alto), wrapping to a second row when too long, and the role (`orquestrador`, `agente`, `subagente`) on the branch row.
 
 Not shipped: Allow, Decline, Stop, Retry, Pause and open-in-chat controls, and the "needs you" (`◆`) decision state. They stay
 hidden until the manual probes listed in ADR 0002 are run (see `.specs/features/office-agent-monitor-v2/spec/06-gaps.md`).
@@ -130,7 +130,8 @@ Screenshots in this README are real captures only; none was generated for this s
 ### Footer and keys
 
 Three centred rows: the status legend, the glyph legend, then the keys, grouped as filtros (`g o f s`) | visão (`v`) | sair
-(`b q`) with the navigation hints last (`j: descer`, `k: subir`, `Tab`, `Enter`, `ctrl+x tab`). Key letters are buttons, the
+(`b q`) with the navigation hints last (`j: descer`, `k: subir`, `Tab`, `Enter`, `ctrl+x tab`). `e: dispensar` joins the
+keys only while an alert (failure or **Precisa de você**) exists. Key letters are buttons, the
 hints are dim. Rows wrap by width one whole item at a time, so a lone `x:` never appears. In a detail the footer reads
 `b: voltar · p/n irmão · j: rolar ↓ · k: rolar ↑ · q: fechar`. `j` / `k` are the `scrollDown` / `scrollUp` actions: in the cards
 view they move the window one card block at a time; in a detail they scroll the body 3 lines per press (clamped, reset when a
@@ -151,7 +152,20 @@ State is always carried by glyph and label as well as color.
 ### Finished cards leave after 30 seconds
 
 A **Concluído** card disappears 30 s after the agent ends (all views). **Falhou** and **Precisa de você** cards are never removed
-automatically. A finished parent stays while any child is still shown, and leaves 30 s after its last child leaves, so the
+automatically by age, but see the dismissal rules below.
+
+### Dismissing failures and alerts
+
+- **Falhou** cards leave on their own 2 minutes after the failure (`FAIL_HIDE_MS` in `office.ts`), or earlier when dismissed,
+  whichever comes first. A retry that fails again returns the card and restarts the 2 minutes.
+- The failed banner has `[x]`, and the failed agent detail has `[x] remover`. Hotkey `e` (`e: dispensar`, shown in the footer only
+  while an alert exists) dismisses the first visible alert. `d` is decide, `x` is stop; they are not dismiss keys.
+- **Precisa de você** (orange banner) takes the same `[x]` and `e`. Dismissing it leaves the agent card in the tree; attention is
+  never auto-hidden.
+- Dismissals persist across sessions (last 200 kept).
+- The header `falha` counter ignores hidden failures.
+
+UNVERIFIED: live panel check of the dismiss controls, the `e` hotkey and click scroll (tests only). A finished parent stays while any child is still shown, and leaves 30 s after its last child leaves, so the
 tree never has orphans. The header counters (`concluídos`) keep counting every finished agent.
 
 ### Keeping the install current
