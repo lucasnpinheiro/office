@@ -28,6 +28,9 @@ const QUOTED = [
   '\\{(?:[^{}]|\\{[^{}]*\\})*(?:\\}|$)', // {..} objects
 ].join('|')
 const flags = 'gi'
+// wrapped token: the next line starts with a 4+ char token run (optional backslash continuation); CONT consumes the rest
+const WRAP = String.raw`(?=\\?\r?\n[ \t]*[A-Za-z0-9_-]{4,})`
+const CONT = String.raw`(?:\\?\r?\n[ \t]*[A-Za-z0-9_-]{4,})*`
 
 // Order matters: Bearer first so "Authorization:\n Bearer\n <token>" is fully covered by the Authorization rule.
 const RULES: [RegExp, string][] = [
@@ -50,9 +53,12 @@ const RULES: [RegExp, string][] = [
   // (sk- 20: "risk-assessment" body is 10): sk- 20, sk_/rk_ live|test 16, gh[pousr]_ 30 (spec example body is 34),
   // xox 10, AKIA exactly 16 ("AKIAN" stays clear), AIza 16, npm_ 30, eyJ 10 + 2 dots. A long token wrapped onto the
   // next line (optionally after a backslash) is one token.
-  [/(?:sk-[A-Za-z0-9_-]{20,}|[sr]k_(?:live|test)_[A-Za-z0-9]{16,}|gh[pousr]_(?:[A-Za-z0-9]{30,}|[A-Za-z0-9]{8,}(?=\\?\r?\n[ \t]*[A-Za-z0-9_-]{4,}))|xox[A-Za-z]-[\w-]{10,}|AKIA[0-9A-Z]{16}|AIza[\w-]{16,}|npm_[A-Za-z0-9]{30,}|eyJ[\w-]{10,}\.[\w-]+\.[\w-]*)(?:\\?\r?\n[ \t]*[A-Za-z0-9_-]{4,})*/g, MASK],
-  // GitHub fine-grained PAT: case-insensitive ("xGITHUB_PAT_..."), body floor 40 (real bodies are ~70)
-  [/github_pat_\w{40,}/gi, MASK],
+  // Every floored prefix also takes a first chunk of 8+ chars when a wrapped line continues it (WRAP), so a real token
+  // cut at any column is one token, as on main. Bare "sk-" (and sk-ant-) needs a digit or uppercase letter in its first
+  // 20 body chars: real keys are mixed case, kebab slugs ("risk-assessment-...") are not.
+  [new RegExp(`(?:sk-(?:(?=[A-Za-z0-9_-]{0,19}[0-9A-Z])[A-Za-z0-9_-]{20,}|[A-Za-z0-9_-]{8,200}${WRAP})|[sr]k_(?:live|test)_(?:[A-Za-z0-9]{16,}|[A-Za-z0-9]{8,200}${WRAP})|gh[pousr]_(?:[A-Za-z0-9]{30,}|[A-Za-z0-9]{8,200}${WRAP})|xox[A-Za-z]-(?:[\\w-]{10,}|[\\w-]{8,200}${WRAP})|AKIA(?:[0-9A-Z]{16,}|[0-9A-Z]{8,200}${WRAP})|AIza(?:[\\w-]{16,}|[\\w-]{8,200}${WRAP})|npm_(?:[A-Za-z0-9]{30,}|[A-Za-z0-9]{8,200}${WRAP})|eyJ[\\w-]{10,}\\.[\\w-]+\\.[\\w-]*)${CONT}`, 'g'), MASK],
+  // GitHub fine-grained PAT: case-insensitive ("xGITHUB_PAT_..."), body floor 40 or 8 + wrapped line
+  [new RegExp(`github_pat_(?:\\w{40,}|\\w{8,200}${WRAP})${CONT}`, 'gi'), MASK],
   // Slack incoming webhooks carry the secret in the path
   [/(hooks\.slack\.com\/services\/)[A-Za-z0-9/_-]+/g, `$1${MASK}`],
   // ?key=... / &key=... in URLs

@@ -212,3 +212,43 @@ const clear = ['risk-assessment', 'task-runner', 'disk-usage', 'ask-me-later', '
 for (const t of clear) test(`0.28.44 FP: "${t}" passa intacto`, () => {
   expect(maskText(t)).toBe(t)
 })
+
+// 0.28.44 review: a real-length token wrapped at 80 cols (newline, optional backslash) is masked for every prefix,
+// at every cut position. No 6-char window of the token may survive (same harness idea as the reviewer's h.mjs).
+const WRAP_TOKENS: [string, string][] = [
+  ['sk-', 'sk-' + 'Ep18zhnK7nw5rrblP3oh5LkEqcMY8n7d9OB8NRZ3MkoCKTKI'],
+  ['sk-ant-', 'sk-ant-api03-' + '8dUqLmN2pQrS5tUvW3xYz7AbCdEfGh9JkLmNpQrStUvWxYzAbCdEf'],
+  ['github_pat_', 'github_pat_' + 'PnmjgrhDKDREIvlCn3w1ij0QrStUvWxYz5AbCdEfGhIjKlMnOpQrStUvWxYz'],
+  ['npm_', 'npm_' + 'Y1beuN5RLmskmvbJn4rLwkjxQ6CYdAbCdEfGhIj'],
+  ['AKIA', 'AKIAKJZE7DJLN7L2KQYSXYZ'],
+  ['sk_live_', 'sk_live_' + 'UrqDz5gyZuKNVBekwQgfTPLH'],
+  ['ghp_', 'ghp_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'],
+  ['xoxb-', 'xoxb-' + '123456789012-1234567890123-AbCdEfGhIjKlMnOpQrStUvWx'],
+  ['AIza', 'AIza' + 'SyA-1234567890abcdefghijkLmNoPqRs'],
+]
+for (const [name, tok] of WRAP_TOKENS) test(`0.28.44 wrap: ${name} wrapped at every cut is masked, no 6-char window survives`, () => {
+  // cuts before prefix + 8 body chars leave a first line too short for main to mask either: not a regression, skipped
+  for (let cut = name.length + 8; cut < tok.length - 4; cut++) {
+    for (const sep of ['\\\n', '\n']) {
+      const input = `x="${tok.slice(0, cut)}${sep}  ${tok.slice(cut)}" y`
+      const out = maskText(input)
+      for (let i = 0; i + 6 <= tok.length; i++) {
+        const w = tok.slice(i, i + 6)
+        if (out.includes(w)) throw new Error(`leak ${name} cut=${cut} sep=${JSON.stringify(sep)} window=${w} out=${JSON.stringify(out)}`)
+      }
+    }
+  }
+})
+
+// bare sk- needs a digit or uppercase letter in the first 20 body chars; kebab slugs stay clear
+const SLUGS = ['task-runner-for-nightly-builds', 'risk-assessment-for-payments-module', 'disk-usage-report-weekly-2026',
+  'ask-before-deploying-to-production', 'risk-management-dashboard-v2', 'frisk-the-whole-codebase-now',
+  'docs/task-runner-for-nightly-builds/README.md', 'src/risk-assessment-for-payments-module/index.ts',
+  'reports/disk-usage-report-weekly-2026.csv', 'ask-before-deploying-to-production/steps.md']
+for (const t of SLUGS) test(`0.28.44 FP slug: "${t}" passa intacto`, () => {
+  expect(maskText(t)).toBe(t)
+})
+test('0.28.44: deploy_sk-A1b2C3d4E5f6g7h8I9j0K1l2 still masked', () => {
+  const s = 'deploy_sk-A1b2C3d4E5f6g7h8I9j0K1l2'
+  expect(maskText(s)).not.toContain('A1b2C3d4E5f6g7h8I9j0K1l2')
+})

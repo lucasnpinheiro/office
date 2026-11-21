@@ -4,7 +4,7 @@
 
 - Fix: `hooks/mask.ts` masks known-prefix secrets wherever the prefix sits (glued to letters, `_` or digits). The lookbehind `(?<![A-Za-z0-9_])` is gone from the prefix rule, so `deploy_ghp_...`, `tokenghp_...`, `deploysk-...`, `CI_sk-...` and `xGITHUB_PAT_...` no longer leak. Key words, `Bearer`, `Authorization`, `api key` and `mysql -p` lost their lookbehind too (the key or flag is the anchor, a glued prefix is not a delimiter).
 - Per-pattern body floors (real token length, or a length no common word reaches):
-  - `sk-` 20+ body chars `[A-Za-z0-9_-]` (`risk-assessment`, `disk-usage`, `sk-learn` stay clear)
+  - `sk-` (and `sk-ant-`) 20+ body chars `[A-Za-z0-9_-]`, and a digit or uppercase letter in the first 20 body chars (real keys are mixed case; kebab slugs are not). `risk-assessment-*`, `disk-usage-*`, `task-runner-*`, `ask-before-*`, `frisk-*` stay clear, with or without a path prefix. `deploy_sk-A1b2C3d4E5f6g7h8I9j0K1l2` still masks.
   - `sk_live_` / `rk_test_` 16+
   - `gh[pousr]_` 30+ (the spec example body is 34); a token wrapped onto the next line keeps 8+ on the first chunk
   - `github_pat_` 40+, case-insensitive (`xGITHUB_PAT_`)
@@ -14,8 +14,11 @@
   - `npm_` 30+ (`npm_install_all` stays clear)
   - `eyJ` 10+ then two dots (`eyJ short` stays clear)
   - `Bearer` has no word boundary before it; the token after it is masked
-- False-positive list (must pass intact, `hooks/mask.test.ts`): `risk-assessment`, `task-runner`, `disk-usage`, `ask-me-later`, `desk-check`, `mask-views`, `skeleton`, `bask_in_light`, `ghost_protocol`, `npm_install_all`, `AKIAN`, `eyJ short`, `eyJx.y`, `sk-learn.py`, `sk_learn`, `gho_`, `Dev: revisar migração`, `T-401 agora`.
-- Known limit: a secret below its body floor is not masked by its prefix rule; the key-word rules (`token=`, `password:`) still cover those.
+- False-positive list (must pass intact, `hooks/mask.test.ts`): `risk-assessment`, `task-runner`, `disk-usage`, `ask-me-later`, `desk-check`, `mask-views`, `skeleton`, `bask_in_light`, `ghost_protocol`, `npm_install_all`, `AKIAN`, `eyJ short`, `eyJx.y`, `sk-learn.py`, `sk_learn`, `gho_`, `Dev: revisar migração`, `T-401 agora`, `task-runner-for-nightly-builds`, `risk-assessment-for-payments-module`, `disk-usage-report-weekly-2026`, `ask-before-deploying-to-production`, `risk-management-dashboard-v2`, `frisk-the-whole-codebase-now`, and the same slugs behind a path (`docs/…/README.md`, `src/…/index.ts`, `reports/….csv`).
+- Wrapped tokens: every floored prefix (`sk-`, `sk_live_`, `gh*_`, `github_pat_`, `xox*-`, `AKIA`, `AIza`, `npm_`) also masks a first line chunk of 8+ chars when the next line continues the token (WRAP lookahead), at any cut column. Body runs are capped at 200 chars so the scan stays linear (a 100k `sk-` run masks in tens of ms).
+- Known limit (not masked, by design): test-length tokens below the floor stay unmasked: `sk-` 8-19 body, `ghp_` / `npm_` 8-29, `github_pat_` 8-39, `AKIA` short, `eyJ` header 8-9. Real tokens are at or above the floor; the key-word rules (`token=`, `password:`) still cover a short value.
+- Differential proof (reviewer harness, main vs this PR): real-length tokens (sk- 48, sk-ant- 95, ghp_ 36, github_pat_ 82, AKIA 16, npm_ 36, xoxb-, sk_live_, AIza 35, JWT) in 12 contexts including newline and backslash-newline wraps at 12 and 20 columns: 0 strings masked by main and not by this PR.
+- Intended change in the other direction: `sk-learn-pipeline-for-text` was masked by main and is clear here (kebab slug FP fix).
 - Tests: `hooks/mask.test.ts` (16 glued cases, RED first, then GREEN); `hooks/mask-views.test.ts` glued token at the 80-col boundary for waterfall, tree and cards; `hooks/register-mask.test.ts` (new) renders the real Pane (terminal 80/120, desktop 80) with a glued secret in an agent name and checks the list and the detail header (`d.name`); `hooks/monitor.test.ts` checks the legacy `renderMonitor` frame (header, body, thumb name). The branch chip (`c.name.slice(0, 14)`) is UNVERIFIED headless: it needs a git worktree fixture; it reads the same masked name.
 - Test fixture: `hooks/video-parity.test.ts` S-401 uses a 36-char `ghp_` body (the old 20-char body is below the new floor).
 - `npm test`: 728 pass, 0 fail.
