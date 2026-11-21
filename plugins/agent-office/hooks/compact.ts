@@ -854,8 +854,8 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         const shown = flat.slice(bounds[first], bounds[last])
         const stop = Math.min(first, mi)
         const pos = `${stop + 1}/${mi + 1}` // position in scroll stops (one card each): the last stop reads k/k
-        const note = (t: string): Line => centre([seg(v.caps, t, DIM)], w)
-        if (!shortPane(v)) out.push(note(`${stop > 0 ? (v.caps.ascii ? '^ mais ' : '↑ mais ') : ''}${pos}`))
+        const note = (t: string, act?: string): Line => centre([seg(v.caps, t, DIM, act ? { act } : {})], w) // act: click scrolls (no mouse wheel on Box)
+        if (!shortPane(v)) out.push(note(`${stop > 0 ? (v.caps.ascii ? '^ mais ' : '↑ mais ') : ''}${pos}`, stop > 0 ? 'scrollUp' : undefined))
         // scrollbar: track + thumb on the last column, thumb size and place proportional to the window
         const thumbH = Math.max(1, Math.min(room, Math.round(room * room / total)))
         const top = Math.round((room - thumbH) * (maxRow ? Math.min(off, maxRow) / maxRow : 0))
@@ -863,9 +863,10 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         for (let i = 0; i < room; i++) {
           const l = fit(shown[i] ?? [], w - 1)
           const used = lineWidth(l)
-          out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM)])
+          const click = i < top ? { act: 'scrollUp' } : i >= top + thumbH ? { act: 'scrollDown' } : {} // track click pages toward the press
+          out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM, click)])
         }
-        if (!shortPane(v)) out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`))
+        if (!shortPane(v)) out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`, off < maxRow ? 'scrollDown' : undefined))
       }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
     else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))
