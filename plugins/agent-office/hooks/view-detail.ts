@@ -3,7 +3,7 @@
 // maskText antes de ser desenhado. `detailView` entrega Lines com os segmentos clicáveis (links, p/n, anexos); `detailScreen`
 // entrega só o texto dessas mesmas linhas.
 import { estimateCostUsd } from './price'
-import { buildGraph, durationOf } from './run-model'
+import { buildGraph, durationOf, dismissKey } from './run-model'
 import type { Node } from './run-model'
 import type { AgentLike } from './office'
 import type { Line, Seg } from './monitor'
@@ -128,7 +128,7 @@ export function detailView(agents: AgentLike[], id: string, now: number, o: { ca
   const cells = Math.min(20, Math.max(8, W - 12)), fill = Math.round((pct ?? 0) * cells)
   const out: Line[] = [
     padTo([s('[← voltar]', { fg: DIM, act: 'back' })], W, [s(`Office › ${parentAgent ? nm(parentAgent) + ' › ' : ''}${nm(n)}`)]),
-    [s(`${gv.glyph.trim()} ${nodeView(n.state, { ascii: true, color: false }).label}`, { fg: col, bold: true }), s(`   ${persona.join(' · ')}`, { fg: DIM }), ...(n.state === 'failed' ? [s('   [x] remover', { fg: DIM, act: `dismiss:${id}:failed` })] : [])],
+    [s(`${gv.glyph.trim()} ${nodeView(n.state, { ascii: true, color: false }).label}`, { fg: col, bold: true }), s(`   ${persona.join(' · ')}`, { fg: DIM }), ...(n.state === 'failed' ? [s('   [x] remover', { fg: DIM, act: `dismiss:${dismissKey(n)}` })] : [])],
     [s(metrics.join('  '), { fg: DIM })],
     [s('█'.repeat(fill), { fg: col }), s('░'.repeat(cells - fill), { fg: MUTED }), s(pct === undefined ? '  sem total conhecido' : `  ${Math.round(pct * 100)}%`, { fg: DIM })],
     [],

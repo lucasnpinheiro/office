@@ -263,13 +263,17 @@ function footer(g: Graph, v: CView): Line[] {
 // Topo da árvore: ◆ (decisão) e ✗ (falha) sempre primeiro. A tecla da ação só aparece se a capability for `yes` (AC-018).
 // Banners of the design under the header: one rounded box per agent that needs the user (◆) or failed (✗), its message and
 // [Ver] to open it. At most two boxes; the rest is one line, so the tree keeps its room.
+// Banners in show order: needs-you (attention) first, then failed; dismissed ones left out.
+export function alertsOf(g: Graph, keep: Set<string>, dismissed?: Set<string>): Node[] {
+  return [...g.nodes.values()]
+    .filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'attention' || n.state === 'failed') && !dismissed?.has(dismissKey(n)))
+    .sort((a, b) => Number(b.state === 'attention') - Number(a.state === 'attention'))
+}
 function pinnedLines(g: Graph, nm: Map<string, string>, keep: Set<string>, v: CView): Line[] {
   const c = v.caps
   // só a falha tem ação hoje (retry); a decisão (needs-you, ◆) entra com T-011 e o estado correspondente
   const ret = bindable(v.capabilities ?? CAPABILITIES, 'terminal').find(e => e.act === 'retry')
-  const bad = [...g.nodes.values()]
-    .filter(n => n.kind === 'agent' && keep.has(n.id) && (n.state === 'attention' || n.state === 'failed') && !v.dismissed?.has(dismissKey(n)))
-    .sort((a, b) => Number(b.state === 'attention') - Number(a.state === 'attention'))
+  const bad = alertsOf(g, keep, v.dismissed)
   const out: Line[] = []
   for (const n of bad.slice(0, 2)) {
     const col_ = stateColor(n.state), name = nm.get(n.id) ?? n.name
