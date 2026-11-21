@@ -70,3 +70,12 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - Tests: hooks/mask.test.ts (16 glued RED then GREEN, FP list), hooks/mask-views.test.ts (glued 80-col boundary), hooks/register-mask.test.ts (new, real Pane render), hooks/monitor.test.ts (legacy frame). npm test: 728 pass, 0 fail.
 - UNVERIFIED: register branch chip c.name.slice(0, 14) headless (needs worktree fixture).
 - PR open, not merged. Merge needs gates (CI, review SHA marker).
+
+## 2026-11-21 fix/mask-mysql-redos: PR #140 discarded, mysql -p ReDoS accepted
+- Decision (user): PR #140 closed WITHOUT merge (https://github.com/lucasnpinheiro/office/pull/140). Branch fix/mask-mysql-redos deleted remote and local; worktree office-wt-mysqlredos removed.
+- Known and ACCEPTED: `mysql -p` rule in `plugins/agent-office/hooks/mask.ts` has ReDoS. About 2.6 s per 100 KB of `mysql a b c ` repeated. Unrealistic input in a local panel. Main rule kept.
+- Why the fixes were rejected (each leaked a password that main masks): more than 64 plain tokens before `-p`; quoted content over 2000 chars; unclosed quote plus 32 more chars; 33 mixed units; `\w` suffix over 16 chars.
+- Patch of the discarded branch: ~/.agents/patches-stale/office-fix_mask-mysql-redos-20261121202336.patch (197 lines).
+- Reviewers' harness may be reused if revisited: /private/tmp/claude-501/-Users-lucasnpinheiro-PhpstormProjects-office/53f8ea3f-e838-4abd-b0bb-48189ce6287f/scratchpad (rv, rv2, w).
+- Plugin global stays 0.28.44 = manifest. No version bump in this record.
+- Open: none for this item.
