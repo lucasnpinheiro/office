@@ -97,6 +97,9 @@ const padTo = (l: Line, w: number, right: Line): Line => {
 }
 
 // Agente que sumiu da lista (saiu do limite, foi resetado): `back` true, a tela chama quem desenha de volta à lista com aviso.
+// Plain text of a detail (the `y` copy): segments joined, no colours or ANSI, one line per Line.
+export const detailText = (lines: Line[]): string => lines.map(l => l.map(s => s.t).join('')).join('\n')
+
 export function detailView(agents: AgentLike[], id: string, now: number, o: { captureIo?: boolean; ascii?: boolean; width?: number; frame?: number } = {}): DetailView {
   const a = agents.find(x => x.id === id)
   const g = a ? buildGraph(agents, now) : undefined

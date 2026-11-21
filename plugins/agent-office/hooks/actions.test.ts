@@ -74,10 +74,10 @@ test('hotkeys are unique per view and off while searching', async () => {
   }
   expect(hotkeysFor({ ...s0, searching: true }, false)).toEqual([])
   expect(hotkeysFor(c0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q'])
-  expect(hotkeysFor({ ...c0, selected: 'a' }, false).map(h => h.key)).toEqual(['b', 'q'])
-  expect(hotkeysFor({ ...c0, selected: 'a' }, true).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'b', 'q'])
+  expect(hotkeysFor({ ...c0, selected: 'a' }, false).map(h => h.key)).toEqual(['y', 'b', 'q'])
+  expect(hotkeysFor({ ...c0, selected: 'a' }, true).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'y', 'b', 'q'])
   expect(hotkeysFor(s0, false).map(h => h.key)).toEqual(['g', 'o', 'f', 's', 'v', 'q']) // REQ-503: map footer = every tab's footer
-  expect(hotkeysFor({ ...s0, selected: 'a' }, false).map(h => h.key)).toEqual(['v', 'b', 'q'])
+  expect(hotkeysFor({ ...s0, selected: 'a' }, false).map(h => h.key)).toEqual(['v', 'y', 'b', 'q'])
 })
 
 test('session start always opens the map view, clearing persisted filters and search', async () => {
