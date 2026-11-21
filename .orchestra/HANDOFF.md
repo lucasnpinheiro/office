@@ -25,3 +25,9 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - Plugin agent-office 0.28.35 at user scope (only scope found); restart needed to load it.
 - Open: #118 (T-607 readme, no merge marker; worktree office-wt-t607 kept). Blocked on user: approve #118 merge and this handoff PR.
 - UNVERIFIED: visual check of footer/tabs/window/time/names/ellipsis in the real Office panel (tests only).
+
+## 2026-11-21 office-dismiss-scroll: merged (docs 0.28.37)
+- Merged into main: #123 f09b631 (dismiss alerts), #124 49395da (click scroll). Design artifact U1AY6NTnk43zRojzo3bxZv Rodada 9 v40.
+- Docs PR (worktree office-wt-docs, branch docs/dismiss-scroll): README, CHANGELOG 0.28.37, plugin.json 0.28.36 -> 0.28.37 (0.28.36 already taken by README CLI standard on main).
+- UNVERIFIED: live panel for dismiss, `e` hotkey, click scroll; Cards-tab scroll targets.
+- Worktrees to remove after merge: office-wt-dismiss, office-wt-wheel, office-wt-docs.

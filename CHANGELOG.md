@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.37 (agent-office, dismiss alerts and click scroll)
+
+- Failed cards and the orange "Precisa de você" banner are dismissed with `[x]` (banner) or `[x] remover` (failed detail), or hotkey `e` (`e: dispensar`, shown only while an alert exists). Failures also leave 2 min after the failure (`FAIL_HIDE_MS`); a failed retry restarts it. Dismissals persist (last 200). The `falha` counter ignores hidden failures.
+- README: mouse scroll is by click on the `↑ mais` / `↓ mais` notes and the scrollbar track (3 lines per click); the engine has no wheel event for plugins. UNVERIFIED: live panel check.
+
 ## 0.28.36 (agent-office, README CLI standard)
 
 - README documents the CLI visual standard (REQ-607).
