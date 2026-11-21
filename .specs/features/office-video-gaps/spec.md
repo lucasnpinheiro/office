@@ -1,7 +1,7 @@
 ---
-status: TODO
-progress: 0/4
-updated: 2026-11-17
+status: DONE
+progress: 4/4
+updated: 2026-11-21
 ---
 # office-video-gaps (agent-office, base main + PR #98 0.28.23)
 

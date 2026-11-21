@@ -2,12 +2,12 @@
 id: T-403
 title: Pendente aguarda 1ª ação
 type: frontend
-status: TODO
-progress: 0/2
-updated: 2026-11-17
+status: DONE
+progress: 2/2
+updated: 2026-11-21
 depends_on: [T-401]
 branch: task/T-403-pendente
-pr:
+pr: 102
 covers: [REQ-403]
 estimate: S
 skills: [code-quality]

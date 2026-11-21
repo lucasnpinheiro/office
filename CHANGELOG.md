@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.28.42 (agent-office, video gaps executed and closed)
+
+- Spec execution of `office-video-gaps` (T-401..T-404). The waterfall work (agora column and label, `◂ fim` / `< fim`, `aguarda 1ª ação…`) already shipped in #102 (0.28.24); this release proves it and closes the bundle.
+- Traceability: U-401..U-405 and V-401 are in `hooks/video-parity.test.ts`; new B-401 (tie on the end goes to the first agent) and S-401 (a secret in an agent name is masked in the waterfall label) were added there.
+- Fix (S-401, RED then GREEN): `hooks/compact.ts` waterfall labels now pass through `maskText` (the same masker as tool and detail output), so a `ghp_` token in an agent description no longer appears in the Waterfall. Other views' names are not masked yet (out of scope here).
+- README: the desktop Waterfall capture is marked UNVERIFIED (no real desktop capture yet). The terminal capture at 80x24 and 200x60 was checked from real output.
+- `0.28.24` in the bundle is superseded by this version number (the feature shipped as 0.28.24 in #102).
+- `npm test`: 673 pass, 0 fail.
+
 ## 0.28.41 (agent-office, TypeScript warnings cleared)
 
 - Strict validator: `claude plugin validate --strict` reported 27 TypeScript warnings (none is a runtime error): `hooks/compact.ts` 2, `hooks/register.tsx` 1, `dismiss-all.test.ts` 2, `integration.test.ts` 1, `real-render.test.ts` 10, `video-parity.test.ts` 3, `view-worktrees.test.ts` 8. Fixed with types and fixtures only: readonly tab tuples, `status: 'working'` (the valid `Status`), `workflow` as `{runId, agentIndex}`, `parentAgentId`, `AheadInfo` shape, `globalThis.setTimeout` as the other tests do, non-null after explicit `expect`, typed callbacks, an empty fragment instead of `null` child.

@@ -1,7 +1,7 @@
 ---
-status: TODO
-progress: 0/10
-updated: 2026-11-17
+status: DONE
+progress: 10/10
+updated: 2026-11-21
 ---
 # Tests — office-video-gaps
 Baseline de falhas pré-existentes antes da T-401 (`bun test` em hooks/). Cobertura planejada >= 93% no trecho tocado.

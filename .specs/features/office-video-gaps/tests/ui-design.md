@@ -1,7 +1,7 @@
 ---
 type: ui-design
-status: TODO
-progress: 0/1
+status: DONE
+progress: 1/1
 updated: 2026-11-17
 covers: [REQ-401, REQ-404]
 contract: test-flow/1
@@ -10,4 +10,4 @@ contract: test-flow/1
 
 | ID | Scenario | Given/When/Then | Covers | Level | State | Cleanup | Status |
 |---|---|---|---|---|---|---|---|
-| D-401 | Success | captura real terminal + desktop do waterfall bate com frame do capítulo 9 | REQ-404 | register.tsx | no | - | TODO |
+| D-401 | Success | captura real terminal + desktop do waterfall bate com frame do capítulo 9 | REQ-404 | register.tsx | no | - | UNVERIFIED (terminal half DONE: `scratchpad/vgaps/wf-80x24.png`, `wf-200x60.png`; desktop half UNVERIFIED, no headless desktop capture) |

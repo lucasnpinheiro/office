@@ -79,3 +79,21 @@ test('U-405 pending shows aguarda 1ª ação… and no bar', () => {
   const row = rowsOf(wf(ag)).find(l => l.includes('aguarda 1ª ação…'))!
   expect(row).toBeDefined(); expect(row).not.toMatch(/[█░]/)
 })
+test('B-401 tie on the end: the mark goes to the first agent in order', () => {
+  const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 4000 }), mk('b', { startedAt: T, status: 'done', endedAt: T + 4000 })]
+  const r = rowsOf(wf(ag)).filter(l => l.includes('▕'))
+  expect(r[0]).toContain('◂ fim'); expect(r[1]).not.toContain('◂ fim')
+})
+test('V-401 ASCII caps: bar and now column are ASCII, no unicode glyphs in the waterfall rows', () => {
+  const ag = [mk('a', { startedAt: T, status: 'done', endedAt: T + 1000 }), mk('b', { startedAt: T, status: 'done', endedAt: T + 4000 })]
+  const r = rowsOf(wf(ag, { caps: detectCaps({ OFFICE_ASCII: '1' }) })).filter(l => l.includes('|'))
+  expect(r.length).toBeGreaterThan(0)
+  expect(r.join('\n')).not.toMatch(/[▕▏│█░◂]/)
+  expect(r[1]).toContain('< fim')
+})
+test('S-401 a secret inside the agent name is masked in the waterfall label', () => {
+  const ag = [mk('a', { description: 'Dev: usar ghp_abcdefghijklmnop1234', startedAt: T, status: 'done', endedAt: T + 1000 }), mk('b', { startedAt: T, status: 'done', endedAt: T + 2000 })]
+  const t = rowsOf(wf(ag)).join('\n')
+  expect(t).not.toContain('ghp_abcdefghijklmnop1234')
+  expect(t).toContain('••••••••')
+})

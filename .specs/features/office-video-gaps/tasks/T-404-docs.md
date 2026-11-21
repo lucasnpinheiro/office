@@ -2,12 +2,12 @@
 id: T-404
 title: README, versão 0.28.24, captura desktop
 type: docs
-status: TODO
-progress: 0/2
-updated: 2026-11-17
+status: DONE
+progress: 2/2
+updated: 2026-11-21
 depends_on: [T-401, T-402, T-403]
 branch: task/T-404-docs
-pr:
+pr: "#TBD (this PR)"
 covers: [REQ-404]
 estimate: S
 skills: [code-quality]

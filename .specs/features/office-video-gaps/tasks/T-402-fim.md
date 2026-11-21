@@ -2,12 +2,12 @@
 id: T-402
 title: Marca segura o fim
 type: frontend
-status: TODO
-progress: 0/2
-updated: 2026-11-17
+status: DONE
+progress: 2/2
+updated: 2026-11-21
 depends_on: [T-401]
 branch: task/T-402-fim
-pr:
+pr: 102
 covers: [REQ-402]
 estimate: S
 skills: [code-quality]
