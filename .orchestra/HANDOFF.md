@@ -1,6 +1,16 @@
-# HANDOFF — office (2026-11-17)
+# HANDOFF — office (2026-11-21)
 
-Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implement on literal "executar".
+## 2026-11-21 office-video-gaps: phases 7-9 executed (branch spec/office-video-gaps-exec)
+- Phase: office-video-gaps DONE. T-401..T-403 were already in #102 (0.28.24); T-404 docs closed in this PR (0.28.42).
+- Found: S-401 RED (waterfall label not masked), fixed in `hooks/compact.ts`. B-401 and V-401 passed on first run (pre-existing).
+- Coverage: waterfall section of compact.ts 100% lines in node test-runner run (shim for `claude-code/testing`, unit files); gate 93% met. `claude plugin test` has no coverage flag.
+- Terminal captures: `scratchpad/vgaps/wf-80x24.png`, `wf-200x60.png`. Desktop app half UNVERIFIED.
+- Open PR: the 0.28.42 PR for this branch (no merge; orchestrator/user merges per gates). Live agents: none. Blocked on user: merge.
+- Knowledge: `.specs/features/office-video-gaps/knowledge.md`.
+
+## 2026-11-17 (previous round)
+
+Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implement on literal "executar". (done 2026-11-21)
 
 - Merged: #98 (0.28.25), #99, #100, #101, #102 (0.28.24), #103, #104; agents#213 (validator wires check-sanitized.test.sh, 120125f).
 - Open PRs: none. Live agents: none. Blocked on user: none.

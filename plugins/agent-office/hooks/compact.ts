@@ -6,6 +6,7 @@ import { buildGraph, progressOf, overallProgress, etaOf, durationOf, elapsedOf, 
 import type { Node, State, Seg, Line, Graph } from './monitor'
 import type { AgentLike } from './office'
 import { spinnerGlyph } from './motion'
+import { maskText } from './mask'
 import { nodeView, stateColor, keyOf, labelOf, bindable, noColorSet, truthy, VIEW_TABS } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
 import type { Capabilities } from './capabilities'
@@ -751,7 +752,7 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
     const [ob, cb] = c.ascii ? ['|', '|'] : ['▕', '▏']
     const bar = k.state === 'pending' ? [seg(c, padWidth(truncRunes('aguarda 1ª ação…', cells), cells), DIM)] : overlay(spanBar(k, tl.t0, tl.tot, now, cells, c, frame, growth(c, k, idx, now)))
     out.push(fit([seg(c, glyph(c, k.state, frame) + ' ', stateColor(k.state), { node: k.id }),
-      seg(c, padWidth(clipName('  '.repeat(d) + (nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
+      seg(c, padWidth(clipName('  '.repeat(d) + maskText(nm.get(k.id) ?? k.name), nameW), nameW), undefined, { node: k.id }), seg(c, ' ' + ob, DIM),
       ...bar, seg(c, cb + ' ' + fmtMMSS(durationOf(k, now)), DIM),
       ...(k === last ? [seg(c, c.ascii ? ' < fim' : ' ◂ fim', STATE_COLOR.attention)] : [])], v.width))
   })

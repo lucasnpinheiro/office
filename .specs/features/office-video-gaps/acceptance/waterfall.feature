@@ -1,5 +1,5 @@
-# status: TODO
-# progress: 0/3
+# status: DONE
+# progress: 3/3
 # updated: 2026-11-17
 # language: pt
 Funcionalidade: Waterfall igual ao vídeo

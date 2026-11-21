@@ -2,12 +2,12 @@
 id: T-401
 title: Linha agora + rótulo
 type: frontend
-status: TODO
-progress: 0/2
-updated: 2026-11-17
+status: DONE
+progress: 2/2
+updated: 2026-11-21
 depends_on: []
 branch: task/T-401-agora
-pr:
+pr: 102
 covers: [REQ-401]
 estimate: S
 skills: [code-quality]

@@ -218,6 +218,8 @@ running session keeps the old code until then.
 
 Rendered from the real `appMap` + `appCardW`/`mapRows` layout by `scripts/render-docs.ts` (schematic SVG of the app cell grid, not a screenshot).
 
+UNVERIFIED (office-video-gaps REQ-404): no real capture of the Claude desktop app's Waterfall tab exists yet (the headless run cannot open the app). The terminal Waterfall was checked from real `renderCompact` output at 80x24 and 200x60, not from the desktop app.
+
 | 6 agents, one row | 9 agents, 6 + 3 |
 |---|---|
 | ![app map 6](../../docs/images/app-map-6.svg) | ![app map 9](../../docs/images/app-map-9.svg) |
