@@ -16,7 +16,8 @@
       "base": "low",
       "allowed": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ]
     },
     "sonnet": {
@@ -26,7 +27,8 @@
       "base": "low",
       "allowed": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ]
     },
     "opus": {
@@ -59,7 +61,9 @@
       "tier": "haiku",
       "persona": "Estagiário",
       "efforts": [
-        "low"
+        "low",
+        "medium",
+        "high"
       ],
       "use": "very simple atomic part (lookup, listing, Laya gate call)"
     },
@@ -68,7 +72,8 @@
       "persona": "Junior",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "normal atomic part"
     },
@@ -76,7 +81,9 @@
       "tier": "haiku",
       "persona": "Tech Writer",
       "efforts": [
-        "low"
+        "low",
+        "medium",
+        "high"
       ],
       "use": "summarization"
     },
@@ -85,32 +92,38 @@
       "persona": "Junior",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "schema/result validation"
     },
-    "sonnet.light_analysis": {
-      "tier": "sonnet",
+    "haiku.light_analysis": {
+      "tier": "haiku",
       "persona": "Pleno",
       "efforts": [
-        "low"
+        "low",
+        "medium",
+        "high"
       ],
       "use": "light analysis of Haiku results"
     },
-    "sonnet.adjust": {
-      "tier": "sonnet",
+    "haiku.adjust": {
+      "tier": "haiku",
       "persona": "Pleno",
       "efforts": [
-        "low"
+        "low",
+        "medium",
+        "high"
       ],
       "use": "decompose, adjust, partial synthesis"
     },
-    "sonnet.complex": {
-      "tier": "sonnet",
+    "haiku.complex": {
+      "tier": "haiku",
       "persona": "Senior",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "complex sub-agent work"
     },
@@ -119,62 +132,69 @@
       "persona": "QA",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
-      "pinned": true,
-      "use": "test-runner, judge, verifier, review: pinned Sonnet, never escalates to Opus"
+      "use": "test-runner, judge, verifier, review: starts Sonnet medium, follows the common ladder",
+      "start": "medium"
     },
     "sonnet.escalation": {
       "tier": "sonnet",
       "persona": "Senior",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "incomplete Haiku part, one notch up"
     },
-    "sonnet.sql": {
-      "tier": "sonnet",
+    "haiku.sql": {
+      "tier": "haiku",
       "persona": "DBA",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "idempotent .sql, schema/index analysis (Risk schema: profundo implementer)"
     },
-    "sonnet.security_review": {
-      "tier": "sonnet",
+    "haiku.security_review": {
+      "tier": "haiku",
       "persona": "AppSec",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "OWASP/secrets review (auth/pii raised to profundo)"
     },
-    "sonnet.devops": {
-      "tier": "sonnet",
+    "haiku.devops": {
+      "tier": "haiku",
       "persona": "DevOps",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "CI, hooks, scripts, worktree env"
     },
-    "sonnet.incident": {
-      "tier": "sonnet",
+    "haiku.incident": {
+      "tier": "haiku",
       "persona": "SRE",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "incident RCA, prod reliability (Laya below gate: critical fallback)"
     },
-    "sonnet.performance": {
-      "tier": "sonnet",
+    "haiku.performance": {
+      "tier": "haiku",
       "persona": "Performance",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "performance review, N+1, SQL tuning, k6 load tests"
     },
@@ -183,16 +203,19 @@
       "persona": "UX/UI",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
-      "use": "UI/UX audit, accessibility, design-system consistency"
+      "use": "UI/UX audit, accessibility, design-system consistency",
+      "start": "medium"
     },
-    "sonnet.data_bi": {
-      "tier": "sonnet",
+    "haiku.data_bi": {
+      "tier": "haiku",
       "persona": "Data/BI",
       "efforts": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ],
       "use": "reports, KPIs, analytics, data-quality read-only queries"
     },
@@ -238,7 +261,18 @@
         "low",
         "medium"
       ],
-      "use": "final synthesis / architecture"
+      "use": "final synthesis / architecture (Opus profundo only on explicit request; default orchestrator is padrao Sonnet low)"
+    },
+    "sonnet.designer": {
+      "tier": "sonnet",
+      "persona": "Designer",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "start": "medium",
+      "use": "visual design, mockups, design systems"
     }
   },
   "persona_icons": {
@@ -258,7 +292,8 @@
     "Data/BI": "📊",
     "Junior": "🌱",
     "Tech Writer": "✍️",
-    "Estagiário": "🐣"
+    "Estagiário": "🐣",
+    "Designer": "🖌️"
   },
   "model_display": {
     "haiku": {
@@ -294,7 +329,6 @@
       "rapido"
     ],
     "Squad Leader": [
-      "padrao",
       "rapido"
     ],
     "Especialista": [
@@ -343,11 +377,14 @@
     ],
     "Estagiário": [
       "rapido"
+    ],
+    "Designer": [
+      "rapido"
     ]
   },
   "persona_tiers": {
     "Product Owner": "opus",
-    "Squad Leader": "opus",
+    "Squad Leader": "sonnet",
     "Especialista": "opus",
     "Arquiteto": "opus",
     "Senior": "sonnet",
@@ -362,26 +399,28 @@
     "Data/BI": "sonnet",
     "Junior": "haiku",
     "Tech Writer": "haiku",
-    "Estagiário": "haiku"
+    "Estagiário": "haiku",
+    "Designer": "sonnet"
   },
   "persona_models": {
-    "Product Owner": "opus",
+    "Product Owner": "haiku",
     "Squad Leader": "sonnet",
-    "Especialista": "sonnet",
-    "Arquiteto": "sonnet",
-    "Senior": "sonnet",
-    "Pleno": "sonnet",
+    "Especialista": "haiku",
+    "Arquiteto": "haiku",
+    "Senior": "haiku",
+    "Pleno": "haiku",
     "QA": "sonnet",
-    "DBA": "sonnet",
+    "DBA": "haiku",
     "AppSec": "haiku",
     "DevOps": "haiku",
     "SRE": "haiku",
     "Performance": "haiku",
-    "UX/UI": "haiku",
+    "UX/UI": "sonnet",
     "Data/BI": "haiku",
     "Junior": "haiku",
     "Tech Writer": "haiku",
-    "Estagiário": "haiku"
+    "Estagiário": "haiku",
+    "Designer": "sonnet"
   },
   "escalation": {
     "haiku": "sonnet.escalation"
@@ -471,6 +510,11 @@
       "key": "est",
       "animal": "chick",
       "room": "Estagio"
+    },
+    "Designer": {
+      "key": "design",
+      "animal": "flamingo",
+      "room": "Dev"
     }
   },
   "_note": "Machine copy of docs/model-routing.md Effort matrix and docs/personas.md. Informational: nothing in the router reads it; the agent-office mod mirrors the persona table in its persona.ts."

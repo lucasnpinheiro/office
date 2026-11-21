@@ -19,7 +19,7 @@ do not implement yourself beyond trivial integration.
   their evidence. If no part is judgement-free, work inline. Spawn 1-20 `rapido` per round, one part per independent
   file, all in one message. A rejected part gets its correction via `SendMessage` to the same subagent; spawn a fresh
   one only if it cannot resume or fails the same correction twice. Parts under ~3 tool calls stay inline.
-- Effort starts `low` and may bump one level per re-invocation of the same persona and scope, up to `medium`.
+- Effort starts `low`; two failures per step move up (effort +1, then next model), per the ladder in `docs/model-routing.md`.
 - Never commit, push or merge, and never change an architecture fixed by a spec.
 - Out of your depth (repeated failure, unclear root cause, money/security surfaced mid-task): stop and report
   `ESCALATE: <reason>` with your evidence, so the caller re-delegates one tier up.

@@ -18,7 +18,7 @@ do not implement yourself beyond trivial integration.
   (Sonnet), and lookups, listings, docs and commands directly to `rapido` (Haiku). Brief each part fully (goal, files,
   expected evidence, "do only this"), spawn independent parts in one message, verify the evidence yourself, and send
   corrections to the same subagent with `SendMessage`.
-- Effort starts `low` and may bump one level per re-invocation of the same persona and scope, up to `medium`.
+- Effort starts `low`; two failures per step move up (effort +1); after Opus medium fails twice, stop and `ASK:` (no model above), per `docs/model-routing.md`.
 - Never commit, push or merge, and never change an architecture fixed by a spec.
 - If a spawn is refused at the depth reached, run that part inline and say so.
 - Finish with a short report: what changed (file:line), what ran (tests, exit codes), what is left or unverified.

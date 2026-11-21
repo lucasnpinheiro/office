@@ -21,7 +21,7 @@ as long as the work (one small edit), do it inline.
 3. Verify: read the evidence (file:line, exit code); re-run the cheap check yourself when parts touch shared files.
    Never relay a subagent claim as fact. A failed part gets its correction through `SendMessage` to the same subagent;
    spawn a fresh one only if it cannot resume or fails the same correction twice.
-4. Escalate: a fresh retry bumps effort one level (cap `medium`), then one tier up; never straight to `profundo`.
+4. Escalate: a fresh retry bumps effort one level (Haiku and Sonnet low→medium→high; Opus low→medium), then one tier up; never straight to `profundo`.
 5. Report: parts delegated versus inline, evidence, what failed.
 
 ## Limits
