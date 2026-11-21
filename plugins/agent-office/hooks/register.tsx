@@ -310,7 +310,7 @@ async function alertKeyOf($: EngineInterface, ui: Ui): Promise<string | undefine
 }
 async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolean; workflow: boolean }> {
   const list = (await read($, office)) as OfficeAgent[]
-  return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter }), workflow: hasWorkflow(list) } // workflow: g only stops there while a run exists
+  return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter, dismissed: new Set(ui.dismissed ?? []) }), workflow: hasWorkflow(list) } // workflow: g only stops there while a run exists
 }
 async function dispatch($: EngineInterface, a: string) {
   if ((a === 'scrollDown' || a === 'scrollUp') && (await readUi($)).selected) { // detail open: j/k scroll its body

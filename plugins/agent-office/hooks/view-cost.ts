@@ -33,7 +33,7 @@ export const fmtTokensK = (n: number): string => {
  * régua de tempo 0s..Ns e barra █ na cor do estado deslocada pelo início do agente. Tokens sem dado = `—`, nunca 0;
  * custo por agente é sempre `—` (sem tabela de preço). Pure: mesma entrada de `costLines`.
  */
-export function wideCostLines(model: RunModel, now: number, v: { width: number; caps: Caps; sessionUsd?: number; removed?: boolean }): Line[] {
+export function wideCostLines(model: RunModel, now: number, v: { width: number; caps: Caps; sessionUsd?: number; removed?: boolean; all?: RunNode[] }): Line[] {
   const c = v.caps, w = v.width
   const nameW = 24, cells = Math.max(10, w - nameW - 30)
   const [fill, track] = c.ascii ? ['#', '.'] : ['█', '▒']
@@ -42,7 +42,7 @@ export function wideCostLines(model: RunModel, now: number, v: { width: number; 
   const starts = nodes.map(n => n.startedAt).filter((x): x is number => x !== undefined)
   const t0 = starts.length ? Math.min(...starts) : now
   const span = Math.max(1, ...nodes.map(n => (n.startedAt === undefined ? 0 : (n.endedAt ?? now) - t0)))
-  const top = nodes.filter(n => n.usage.tokens !== undefined).sort((a, b) => (b.usage.tokens ?? 0) - (a.usage.tokens ?? 0))[0]
+  const top = (v.all ?? nodes).filter(n => n.usage.tokens !== undefined).sort((a, b) => (b.usage.tokens ?? 0) - (a.usage.tokens ?? 0))[0]
   const totalTok = t.tokens === undefined ? '—' : fmtTokensK(t.tokens) + (t.partial ? ' parcial' : '')
   const usd = v.sessionUsd === undefined ? '~$ —' : fmtUsd(v.sessionUsd)
   const out: Line[] = [[seg(`Custo ${usd} · ${totalTok} tokens${v.removed ? ' (inclui removidos)' : ''} · mais caro: ${top ? top.name : '—'}`, undefined, { bold: true })]]
@@ -79,7 +79,7 @@ export function wideCostLines(model: RunModel, now: number, v: { width: number; 
 /** Segundos inteiros para a régua de tempo: 4000 -> "4s". */
 const fmtSec = (ms: number): string => fmtMMSS(ms)
 
-export function costLines(model: RunModel, now: number, v: { width: number; caps: Caps; sessionUsd?: number; removed?: boolean }): Line[] {
+export function costLines(model: RunModel, now: number, v: { width: number; caps: Caps; sessionUsd?: number; removed?: boolean; all?: RunNode[] }): Line[] {
   if (v.width >= 100) return wideCostLines(model, now, v)
   const c = v.caps, w = v.width
   const nameW = w >= 100 ? 24 : 14
@@ -90,7 +90,7 @@ export function costLines(model: RunModel, now: number, v: { width: number; caps
   const t = model.totals
   const totalTxt = t.tokens === undefined ? '—' : fmtTokens(t.tokens) + (t.partial ? ' parcial' : '')
   // most expensive by tokens: there is no cost figure to rank by, so this is the honest proxy
-  const top = nodes.filter(n => n.usage.tokens !== undefined).sort((a, b) => (b.usage.tokens ?? 0) - (a.usage.tokens ?? 0))[0]
+  const top = (v.all ?? nodes).filter(n => n.usage.tokens !== undefined).sort((a, b) => (b.usage.tokens ?? 0) - (a.usage.tokens ?? 0))[0]
   const out: Line[] = [[seg(`Custo · total ${totalTxt}${v.removed ? ' (inclui removidos)' : ''} · sessão ${v.sessionUsd === undefined ? '~$ —' : fmtUsd(v.sessionUsd)} · ${top ? `maior consumo ${top.name} ${fmtTokens(top.usage.tokens!)}` : 'maior consumo —'}`, undefined, { bold: true })]]
   if (!nodes.length) return [...out, [seg('Sem agentes com custo', DIM)]]
   for (const n of nodes) {

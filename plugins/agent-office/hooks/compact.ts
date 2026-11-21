@@ -881,7 +881,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         if (!shortPane(v)) out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`, off < maxRow ? 'scrollDown' : undefined))
       }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
-    else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd, removed }))
+    else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd, removed, all: model0.nodes }))
     else if (v.mode === 'tools') out.push(...toolLines(model, now, { width: w, caps: v.caps }, v.captureIo === true))
     else if (v.mode === 'workflow') {
       const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? a.description, state: RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], workflow: a.workflow }))
