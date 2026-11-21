@@ -57,3 +57,17 @@ test('short pane (80x24 body): no notes, only the track', () => {
   expect(segs(short).some(s => s.act && s.t.includes('mais'))).toBe(false)
   expect(track(short).length).toBeGreaterThan(0)
 })
+
+// every row fits the pane width; a row carrying the track ends exactly on the last column (no row wider than w)
+import { lineWidth } from './monitor'
+for (const mode of TABS) for (const width of [80, 200]) {
+  test(`${mode} ${width} cols: no row wider than the pane, track in the last column`, () => {
+    for (const scroll of [0, 3, 99999]) {
+      for (const l of view(mode, scroll, caps, 30, width)) {
+        expect(lineWidth(l)).toBeLessThanOrEqual(width)
+        const last = l[l.length - 1]
+        if (last && ['░', '█', '|', '#'].includes(last.t)) expect(lineWidth(l)).toBe(width)
+      }
+    }
+  })
+}
