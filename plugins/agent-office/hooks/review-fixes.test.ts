@@ -27,10 +27,10 @@ test('grouped filter button targets cards and highlights only in cards mode (fin
   const b = ls.flat().find(s => s.t.includes('Todos os cards'))!
   expect(b.act).toBe('mode:cards'); expect(b.variant).toBe('secondary')
 })
-test('g landing on map goes to the map view, leaving map mode keeps the view (finding 3)', () => {
+test('g landing on map goes to the map view, leaving map mode keeps the view; g on Mapa goes to the tree view (finding 3)', () => {
   const w = { ...initialUi(), view: 'compact' as const, mode: 'workflow' as const }
   expect(applyAction(w, 'group', { workflow: true }).state).toMatchObject({ mode: 'map', view: 'map' })
-  expect(applyAction({ ...initialUi(), view: 'map' as const }, 'group').state).toMatchObject({ mode: 'tree', view: 'map' })
+  expect(applyAction({ ...initialUi(), view: 'map' as const }, 'group').state).toMatchObject({ mode: 'tree', view: 'compact' })
 })
 test('v hotkey label promises no sequence (finding 7)', () => {
   expect(hotkeysFor({ ...initialUi(), view: 'map' }, false).find(h => h.act === 'view')!.label).toBe('visão')

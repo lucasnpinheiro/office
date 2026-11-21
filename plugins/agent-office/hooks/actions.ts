@@ -24,9 +24,11 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
   if (a === 'dismissAlert') return ctx.alert ? applyAction(s, `dismiss:${ctx.alert}`) : { state: s }
   // g em árvore: primeiro recolhe irmãos iguais em grupos (opt-in; o padrão mostra todos), depois passa ao modo seguinte.
   if (a === 'group') {
+    // g on the Mapa tab goes to the Árvore tab (mode tree, compact view), so the tab highlight and the drawn screen agree
+    if (s.view === 'map') return { state: { ...s, mode: 'tree', view: 'compact', modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_FOLD) } }
     if (s.mode === 'tree' && ctx.collapsed !== false && !s.expanded.includes(TREE_FOLD)) return { state: { ...s, expanded: [...s.expanded, TREE_FOLD] } }
     const mode = nextModeOf(s.mode, ctx.workflow === true)
-    // the app's Mapa tab is the map view: g landing on map goes there, any other mode leaves it (tab highlight = what is drawn)
+    // g landing on the map mode goes to the Mapa tab; any other mode keeps the current view (tab highlight = what is drawn)
     return { state: { ...s, mode, view: mode === 'map' ? 'map' : s.view, modeChosen: true, expanded: s.expanded.filter(k => k !== TREE_FOLD) } }
   }
   // tabs of the app pane: Mapa = map view; every other tab is the compact view in that mode
