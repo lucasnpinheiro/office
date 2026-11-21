@@ -53,7 +53,7 @@ cap) and the layout is recomputed on every resize.
   Cards always keep the full 7-row anatomy; a short pane scrolls by card row. A card of a workflow run shows `⟳ <runId>` in rose (`#FF8FB1`).
 - Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
 - Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
-- Scrolling: the engine exposes no mouse-wheel event to plugins (a Box `onWheel`/`onEvent` is rejected by the plugin validator), so mouse scroll is by click. The `↑ mais n/total` and `↓ mais n/total` notes and the scrollbar track are clickable: a click above the thumb scrolls up, below it scrolls down, 3 lines per click. `j`/`k` (footer `j: desce`, `k: sobe`) remain. The Cards tab has no scrollbar and scrolls by `j`/`k` only; the Mapa mode only draws the scrollbar. Cards show persona, model and effort as text like the design (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`; models 🪶 Haiku, 🎼 Sonnet, 👑 Opus; effort 🟢 baixo, 🟡 médio, 🔴 alto), wrapping to a second row when too long, and the role (`orquestrador`, `agente`, `subagente`) on the branch row.
+- Scrolling: the engine exposes no mouse-wheel event to plugins (a Box `onWheel`/`onEvent` is rejected by the plugin validator), so mouse scroll is by click. The `↑ mais n/total` and `↓ mais n/total` notes and the scrollbar track are clickable: a click above the thumb scrolls up, below it scrolls down, 3 lines per click. `j`/`k` (footer `j: desce`, `k: sobe`) remain. The same click scroll and scrollbar track work in all 8 tabs (Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow): the Cards tab moves by whole card per click, and a short pane that fits everything shows the track only. In ASCII the notes read `^ mais` / `v mais` and the track uses `|` / `#`. Cards show persona, model and effort as text like the design (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`; models 🪶 Haiku, 🎼 Sonnet, 👑 Opus; effort 🟢 baixo, 🟡 médio, 🔴 alto), wrapping to a second row when too long, and the role (`orquestrador`, `agente`, `subagente`) on the branch row.
 
 Not shipped: Allow, Decline, Stop, Retry, Pause and open-in-chat controls, and the "needs you" (`◆`) decision state. They stay
 hidden until the manual probes listed in ADR 0002 are run (see `.specs/features/office-agent-monitor-v2/spec/06-gaps.md`).
@@ -137,6 +137,34 @@ hints are dim. Rows wrap by width one whole item at a time, so a lone `x:` never
 view they move the window one card block at a time; in a detail they scroll the body 3 lines per press (clamped, reset when a
 detail opens or closes).
 
+### Keyboard shortcuts
+
+Key audit (0.28.38): `key x view` coverage is tested in `key-audit.test.ts` (PR #126). The keys come from `KEY_MAP` in `vocabulary.ts`:
+
+| Key | Action |
+|---|---|
+| `d` | decide (needs-you agents) |
+| `r` | retry |
+| `b` | back |
+| `x` | stop |
+| `e` | dismiss the first visible alert (shown only while an alert exists) |
+| `p` / `n` | previous / next sibling |
+| `u` | pause and resume |
+| `a` | open in chat |
+| `y` | copy (no action wired yet) |
+| `v` | view |
+| `f` | only failures |
+| `s` | search |
+| `g` | mode (from Mapa it switches the mode to tree while the Mapa tab stays drawn) |
+| `o` | sort |
+| `q` | close |
+| `y` / `n` | confirm / cancel (confirm context only) |
+| `1` / `2` / `3` | decision option (decision context only) |
+
+Current behaviour only. Open user decisions: remove or implement `y` copy, and the `g` from Mapa behaviour.
+
+UNVERIFIED: real key delivery in the live panel and the `ctrl+x tab` focus path.
+
 ### Statuses
 
 | Status | Glyph | Color (dark) |
@@ -156,12 +184,15 @@ automatically by age, but see the dismissal rules below.
 
 ### Dismissing failures and alerts
 
+- Dismissal and removal apply in **every view**: Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow and the app map and cards. A dismissed agent (`e`, `[x]`, or `[x] remover`) vanishes from all of them at once.
 - **Falhou** cards leave on their own 2 minutes after the failure (`FAIL_HIDE_MS` in `office.ts`), or earlier when dismissed,
   whichever comes first. A retry that fails again returns the card and restarts the 2 minutes.
 - The failed banner has `[x]`, and the failed agent detail has `[x] remover`. Hotkey `e` (`e: dispensar`, shown in the footer only
   while an alert exists) dismisses the first visible alert. `d` is decide, `x` is stop; they are not dismiss keys.
-- **Precisa de você** (orange banner) takes the same `[x]` and `e`. Dismissing it leaves the agent card in the tree; attention is
-  never auto-hidden.
+- **Precisa de você** (orange banner) takes the same `[x]` and `e`. A dismissed attention agent also vanishes from every view.
+  Attention is never removed automatically by age; only a manual dismiss removes it.
+- **Custo**: rows of removed agents are hidden. The session total and token counts still include them, and the header shows
+  `(inclui removidos)`. "mais caro" and "maior consumo" are computed over all agents, so they can name a removed one.
 - Dismissals persist across sessions (last 200 kept).
 - The header `falha` counter ignores hidden failures.
 
