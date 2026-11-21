@@ -16,7 +16,8 @@
       "base": "low",
       "allowed": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ]
     },
     "sonnet": {
@@ -26,7 +27,8 @@
       "base": "low",
       "allowed": [
         "low",
-        "medium"
+        "medium",
+        "high"
       ]
     },
     "opus": {
