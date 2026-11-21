@@ -236,3 +236,17 @@ test('estado concluído usa ✓ e a cor da tabela', () => {
   expect(icon.t).toBe('✓ ')
   expect(icon.fg).toBe(STATE_TABLE.done.dark)
 })
+
+// 0.28.44: legacy monitor frame (renderMonitor) masks a glued secret in the agent name, in lines and in the thumbnail name
+test('0.28.44 monitor: glued secret in name is absent from header, body and thumb; ••••••••• present', () => {
+  const GH = 'ghp_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'
+  const a = mk('s', { description: `deploy_${GH}`, status: 'working', shot: { host: 'shop.example.com', has: true } } as any)
+  const f = renderMonitor([a], T0 + 5000, view({ thumbs: true }) as any)
+  const all = JSON.stringify(f)
+  expect(all).not.toContain(GH)
+  expect(all).not.toContain(GH.slice(0, 10))
+  expect(all).toContain('••••••••')
+  expect(f.thumbs.length).toBe(1)
+  expect(f.thumbs[0]!.name).not.toContain(GH.slice(0, 10))
+  expect(f.thumbs[0]!.name).toContain('••••••••')
+})

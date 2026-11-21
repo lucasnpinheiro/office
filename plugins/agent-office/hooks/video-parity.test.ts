@@ -92,8 +92,8 @@ test('V-401 ASCII caps: bar and now column are ASCII, no unicode glyphs in the w
   expect(r[1]).toContain('< fim')
 })
 test('S-401 a secret inside the agent name is masked in the waterfall label', () => {
-  const ag = [mk('a', { description: 'Dev: usar ghp_abcdefghijklmnop1234', startedAt: T, status: 'done', endedAt: T + 1000 }), mk('b', { startedAt: T, status: 'done', endedAt: T + 2000 })]
+  const ag = [mk('a', { description: 'Dev: usar ghp_abcdefghijklmnopqrstuvwxyz0123456789', startedAt: T, status: 'done', endedAt: T + 1000 }), mk('b', { startedAt: T, status: 'done', endedAt: T + 2000 })]
   const t = rowsOf(wf(ag)).join('\n')
-  expect(t).not.toContain('ghp_abcdefghijklmnop1234')
+  expect(t).not.toContain('ghp_abcdefghijklmnopqrstuvwxyz0123456789')
   expect(t).toContain('••••••••')
 })

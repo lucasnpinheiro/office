@@ -64,3 +64,9 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - PR #138 (https://github.com/lucasnpinheiro/office/pull/138): open, do not merge without gates.
 - UNVERIFIED: register.tsx (desktop branch button, d.name) and monitor.ts legacy frame not tested directly; they read the masked run model.
 - Known gap: mask.ts token rule needs a non-word char before the prefix (glued `x`*N + `ghp_` not masked).
+
+## 2026-11-21 fix/mask-glued-tokens: secrets glued to letters masked (agent-office 0.28.44)
+- Worktree office-wt-maskfix, branch fix/mask-glued-tokens from origin/main (c6ec1af). hooks/mask.ts prefix rules no longer need a non-word char before the prefix; per-pattern body floors in CHANGELOG 0.28.44.
+- Tests: hooks/mask.test.ts (16 glued RED then GREEN, FP list), hooks/mask-views.test.ts (glued 80-col boundary), hooks/register-mask.test.ts (new, real Pane render), hooks/monitor.test.ts (legacy frame). npm test: 728 pass, 0 fail.
+- UNVERIFIED: register branch chip c.name.slice(0, 14) headless (needs worktree fixture).
+- PR open, not merged. Merge needs gates (CI, review SHA marker).

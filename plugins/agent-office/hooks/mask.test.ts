@@ -173,3 +173,148 @@ for (const [name, input, secret] of more) {
 test('SEC: sem exagero em comandos comuns', () => {
   for (const t of ['git push -u origin main', 'ls -path foo', 'npm run build --silent', 'curl -u onlyuser https://x.test', 'mysql -u root db', 'see https://example.com:8080/a/b@2x.png']) expect(maskText(t)).toBe(t)
 })
+
+// 0.28.44: secrets glued to letters, "_" or digits before the known prefix are masked (no lookbehind on prefixes)
+const GHB = 'A1b2C3d4E5f6g7h8I9j0K1l2M3n4O5p6Q7'
+const SKB = 'A1b2C3d4E5f6g7h8I9j0K1l2M3n4'
+const PATB = '11ABCDEFG0abcdefghijkl_mnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUV'
+const glued: [string, string][] = [
+  ['deploy_ghp_', 'deploy_ghp_' + GHB],
+  ['tokenghp_', 'tokenghp_' + GHB],
+  ['deploysk- (glued to letters)', 'deploysk-' + SKB],
+  ['CI_sk- (glued to "_")', 'CI_sk-proj-Ab12Cd34Ef56Gh78Ij90Kl12Mn34'],
+  ['xGITHUB_PAT_ (case-insensitive)', 'xGITHUB_PAT_' + PATB],
+  ['github_pat_ glued', 'x9github_pat_' + PATB],
+  ['xoxb- glued', 'myxoxb-123456789012-1234567890123-AbCdEfGhIjKlMnOpQrStUvWx'],
+  ['AKIA glued', 'myAKIAIOSFODNN7EXAMPLE'],
+  ['AIza glued', 'myAIzaSyA-1234567890abcdefghijk'],
+  ['npm_ glued', 'mynpm_abcdefghij0123456789ABCDEFGHIJ'],
+  ['eyJ JWT glued', 'myeyJzdWIiOiIxMjM0NTY3ODkwIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r'],
+  ['sk_live_ glued', 'shsk_live_AbCdEfGh12345678'],
+  ['Bearer glued', 'xBearer abcDEF123ghiJKL456mnoPQR'],
+  ['authorization glued', 'xauthorization: Basic dXNlcjpwYXNz'],
+  ['api key glued', 'myapi key: abc999zzz'],
+  ['mysql -p glued', 'xmysql -phunter2 db'],
+]
+for (const [name, input] of glued) {
+  test(`0.28.44 RED: mascara glued ${name}`, () => {
+    const out = maskText(input)
+    expect(out).toContain(MASK)
+    for (const s of [GHB, SKB, PATB, 'hbGciOi', '123456789012', 'IOSFODNN7EXAMPLE', 'SyA-1234567890', 'abcdefghij0123456789', 'Ab12Cd34', 'AbCdEfGh12345678', 'abcDEF123ghiJKL', 'dXNlcjpwYXNz', 'abc999zzz', 'hunter2', 'eyJzdWIi', 'AbCdEfGhIjKl'])
+      if (input.includes(s)) expect(out).not.toContain(s)
+  })
+}
+
+// false positives: common words and ids stay clear (real tokens have long bodies, see the rule table in the PR)
+const clear = ['risk-assessment', 'task-runner', 'disk-usage', 'ask-me-later', 'desk-check', 'mask-views', 'skeleton',
+  'bask_in_light', 'ghost_protocol', 'npm_install_all', 'AKIAN', 'eyJ short', 'eyJx.y', 'sk-learn.py', 'sk_learn',
+  'gho_', 'Dev: revisar migração', 'T-401 agora']
+for (const t of clear) test(`0.28.44 FP: "${t}" passa intacto`, () => {
+  expect(maskText(t)).toBe(t)
+})
+
+// 0.28.44 review: a real-length token wrapped at 80 cols (newline, optional backslash) is masked for every prefix,
+// at every cut position. No 6-char window of the token may survive (same harness idea as the reviewer's h.mjs).
+const WRAP_TOKENS: [string, string][] = [
+  ['sk-', 'sk-' + 'Ep18zhnK7nw5rrblP3oh5LkEqcMY8n7d9OB8NRZ3MkoCKTKI'],
+  ['sk-ant-', 'sk-ant-api03-' + '8dUqLmN2pQrS5tUvW3xYz7AbCdEfGh9JkLmNpQrStUvWxYzAbCdEf'],
+  ['github_pat_', 'github_pat_' + 'PnmjgrhDKDREIvlCn3w1ij0QrStUvWxYz5AbCdEfGhIjKlMnOpQrStUvWxYz'],
+  ['npm_', 'npm_' + 'Y1beuN5RLmskmvbJn4rLwkjxQ6CYdAbCdEfGhIj'],
+  ['AKIA', 'AKIAKJZE7DJLN7L2KQYSXYZ'],
+  ['sk_live_', 'sk_live_' + 'UrqDz5gyZuKNVBekwQgfTPLH'],
+  ['ghp_', 'ghp_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'],
+  ['xoxb-', 'xoxb-' + '123456789012-1234567890123-AbCdEfGhIjKlMnOpQrStUvWx'],
+  ['AIza', 'AIza' + 'SyA-1234567890abcdefghijkLmNoPqRs'],
+]
+for (const [name, tok] of WRAP_TOKENS) test(`0.28.44 wrap: ${name} wrapped at every cut is masked, no 6-char window survives`, () => {
+  // cuts before prefix + 8 body chars leave a first line too short for main to mask either: not a regression, skipped
+  for (let cut = name.length + 8; cut < tok.length - 4; cut++) {
+    for (const sep of ['\\\n', '\n']) {
+      const input = `x="${tok.slice(0, cut)}${sep}  ${tok.slice(cut)}" y`
+      const out = maskText(input)
+      for (let i = 0; i + 6 <= tok.length; i++) {
+        const w = tok.slice(i, i + 6)
+        if (out.includes(w)) throw new Error(`leak ${name} cut=${cut} sep=${JSON.stringify(sep)} window=${w} out=${JSON.stringify(out)}`)
+      }
+    }
+  }
+})
+
+// bare sk- needs a digit or uppercase letter in the first 20 body chars; kebab slugs stay clear
+const SLUGS = ['task-runner-for-nightly-builds', 'risk-assessment-for-payments-module', 'disk-usage-report-weekly-2026',
+  'ask-before-deploying-to-production', 'risk-management-dashboard-v2', 'frisk-the-whole-codebase-now',
+  'docs/task-runner-for-nightly-builds/README.md', 'src/risk-assessment-for-payments-module/index.ts',
+  'reports/disk-usage-report-weekly-2026.csv', 'ask-before-deploying-to-production/steps.md']
+for (const t of SLUGS) test(`0.28.44 FP slug: "${t}" passa intacto`, () => {
+  expect(maskText(t)).toBe(t)
+})
+test('0.28.44: deploy_sk-A1b2C3d4E5f6g7h8I9j0K1l2 still masked', () => {
+  const s = 'deploy_sk-A1b2C3d4E5f6g7h8I9j0K1l2'
+  expect(maskText(s)).not.toContain('A1b2C3d4E5f6g7h8I9j0K1l2')
+})
+
+// 0.28.44 review (blocking 1): the eyJ rule must not be quadratic on repeated "eyJ" starts (main: ~5 ms)
+const timeMask = (s: string): number => {
+  const t0 = performance.now()
+  maskText(s)
+  return performance.now() - t0
+}
+const PERF_MS = 200 // generous: flakes avoided, the quadratic input took 8 s
+for (const [name, s] of [
+  ['eyJ x33000', 'eyJ'.repeat(33000)],
+  ['(eyJ+aaaaaaa) x10000', ('eyJ' + 'a'.repeat(7)).repeat(10000)],
+  ['eyJ + 99k a', 'eyJ' + 'a'.repeat(99990)],
+] as [string, string][]) test(`0.28.44 perf: ${name} masks in < ${PERF_MS} ms`, () => {
+  const ms = timeMask(s)
+  if (ms >= PERF_MS) throw new Error(`${name} took ${Math.round(ms)} ms`)
+})
+for (const p of ['sk-', 'sk_live_', 'ghp_', 'github_pat_', 'AKIA', 'AIza', 'npm_', 'xoxb-', 'eyJ']) test(`0.28.44 perf: ${p} repeated to 100 KB masks in < ${PERF_MS} ms`, () => {
+  const s = p.repeat(Math.ceil(100_000 / p.length))
+  const ms = timeMask(s)
+  if (ms >= PERF_MS) throw new Error(`${p} x100K took ${Math.round(ms)} ms`)
+})
+
+// deterministic pseudo-random base64url run (no periodic windows that could hide a leak)
+const runOf = (n: number, seed: number): string => {
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+  let x = seed
+  let out = ''
+  for (let i = 0; i < n; i++) {
+    x = (x * 1103515245 + 12345) & 0x7fffffff
+    out += A[x % A.length]
+  }
+  return out
+}
+// 0.28.44 review: a real JWT of 600 chars (header 100, payload 300, signature 190) is still fully masked
+test('0.28.44 cap: 600-char JWT fully masked, no 6-char window survives', () => {
+  const jwt = 'eyJ' + runOf(97, 1) + '.' + runOf(300, 2) + '.' + runOf(190, 3)
+  const out = maskText(`token=${jwt} end`)
+  for (let i = 0; i + 6 <= jwt.length; i++) {
+    const w = jwt.slice(i, i + 6)
+    if (out.includes(w)) throw new Error(`leak window=${w} out=${out.slice(0, 80)}`)
+  }
+})
+
+// 0.28.44 review (blocking 2): AKIA cut so the continuation holds 1-3 chars is masked, as on main
+for (const [name, s] of [
+  ['13 body + 3 tail', 'AKIAABCDEFGHJKLMN\nR5P'],
+  ['13 body + 3 tail, 4-space indent', 'AKIAABCDEFGHJKLMN\n    R5P'],
+  ['15 body + 1 tail', 'AKIAABCDEFGHJKLMNPQ\nR'],
+  ['13 body + 3 tail, backslash-newline', 'AKIAABCDEFGHJKLMN\\\nR5P'],
+  ['13 body + 3 tail, CRLF', 'AKIAABCDEFGHJKLMN\r\nR5P'],
+] as [string, string][]) test(`0.28.44 AKIA wrap: ${name} first chunk masked`, () => {
+  const out = maskText(s)
+  if (out.includes('ABCDEFGH')) throw new Error(`leak out=${JSON.stringify(out)}`)
+})
+
+// 0.28.44 review: every prefix keeps a 1-3 char tail masked (main masks these), not only AKIA
+for (const [name, tok] of [...WRAP_TOKENS, ['AKIA', 'AKIAABCDEFGHJKLMNPQR']] as [string, string][]) test(`0.28.44 wrap: ${name} with a 1-3 char tail line is masked`, () => {
+  for (let cut = Math.max(name.length + 8, tok.length - 3); cut < tok.length; cut++) {
+    const input = `x="${tok.slice(0, cut)}\n${tok.slice(cut)}" y`
+    const out = maskText(input)
+    for (let i = 0; i + 6 <= tok.length; i++) {
+      const w = tok.slice(i, i + 6)
+      if (out.includes(w)) throw new Error(`leak ${name} cut=${cut} window=${w} out=${JSON.stringify(out)}`)
+    }
+  }
+})

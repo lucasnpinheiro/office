@@ -61,3 +61,12 @@ for (const [where, mode] of [['waterfall', 'waterfall'], ['tree', 'tree'], ['car
     for (let k = 6; k <= GH.length; k++) expect({ n, leak: out.includes(GH.slice(0, k)) }).toEqual({ n, leak: false })
   }
 })
+
+// 0.28.44: the token glued to the filler (no space before it) at the 80-col boundary, no 6+ char prefix survives
+for (const [where, mode] of [['waterfall', 'waterfall'], ['tree', 'tree'], ['cards', 'cards']] as const) test(`mask-views: glued token boundary ${where} 80 cols`, () => {
+  for (let n = 30; n <= 60; n += 3) {
+    const long = [{ id: 'g1', description: 'x'.repeat(n) + GH + ' tail', status: 'working', startedAt: T, seenAt: T + 9000, steps: [] } as any]
+    const out = renderCompact(long, T + 10_000, { ...base, width: 80, mode } as any).map(l => l.map(x => x.t).join('')).join('\n')
+    for (let k = 6; k <= GH.length; k++) expect({ n, leak: out.includes(GH.slice(0, k)) }).toEqual({ n, leak: false })
+  }
+})
