@@ -79,3 +79,13 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - Reviewers' harness: reviewer harness dirs rv, rv2, w in the session scratchpad (not in the repo; may be gone).
 - Plugin global stays 0.28.44 = manifest. No version bump in this record.
 - Open: none for this item.
+
+## 2026-11-21 cleanup: stale branch fix/atencao-dup-falhou removed
+- Branch fix/atencao-dup-falhou deleted (local and remote) by user approval. Reconfirmed before delete: 0 commits ahead of main (135 behind); no remote branch; no worktree used it. Hygiene had kept it as "unmerged, no merged PR".
+- Its 0-byte stale patches removed (18 files). No other stale patch touched. Hygiene apply afterwards: actions=0, kept=0; it did not recreate a patch.
+- No open branches or worktrees left from this flow besides main.
+- Plugin global stays 0.28.44 = manifest. No plugin.json or CHANGELOG change in this record.
+- Open known items:
+  - Accepted: mysql -p ReDoS (see the previous block).
+  - UNVERIFIED live-panel items: dismiss, `e` hotkey, click scroll, `y` copy with real clipboard, wheel up and natural direction, branch chip mask test.
+  - Unmasked: eyJ header over 300 chars, short test tokens, AWS session tokens.
