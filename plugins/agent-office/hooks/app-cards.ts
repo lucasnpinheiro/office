@@ -1,6 +1,6 @@
 // Graphical cards for the app surfaces (desktop, vscode, mobile): same Graph as the terminal cards, different drawing.
 // Pure: the caller (register.tsx) turns each AppCard into Box/Text. The terminal keeps the text cards of compact.ts.
-import { buildGraph, hiddenIds, progressOf, durationOf, fmtMMSS } from './monitor'
+import { buildGraph, progressOf, durationOf, fmtMMSS } from './monitor'
 import type { Node, State } from './monitor'
 import type { AgentRecord } from './office'
 import { buildRunModel, RUN_STATE } from './run-model'
@@ -8,7 +8,7 @@ import type { RunModel, RunNode, RunState } from './run-model'
 import { CAPABILITIES } from './capabilities'
 import { chips } from './persona'
 import { nodeView } from './vocabulary'
-import { names, visibleSet } from './compact'
+import { names, keepOf } from './compact'
 import { gitLabel } from './git'
 import type { GitInfo } from './git'
 
@@ -57,7 +57,7 @@ const runsOf = (agents: readonly AgentRecord[], now: number, m?: RunModel) => ne
 
 export function appCards(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; model?: RunModel; dismissed?: Set<string> }): AppCard[] {
   const g = buildGraph(agents, now)
-  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now, o.dismissed), o.filter), by = runsOf(agents, now, o.model) // Concluído leaves 30 s after it ends
+  const nm = names(g), keep = keepOf(g, now, { query: o.query ?? '', filter: o.filter, dismissed: o.dismissed }), by = runsOf(agents, now, o.model) // Concluído leaves 30 s after it ends
   return [...g.nodes.values()].filter((n: Node) => n.kind === 'agent' && keep.has(n.id)).map(n => cardOf(n, nm, now, by.get(n.id)))
 }
 
@@ -66,7 +66,7 @@ export const MAP_MAX_DEPTH = 10 // visible sublevels under the root (root = 0); 
 export type AppMapNode = { card: AppCard; children: AppMapNode[]; hidden?: number } // hidden: descendants not drawn at the depth cap ("+N ocultos")
 export function appMap(agents: AgentRecord[], now: number, o: { query?: string; filter?: 'all' | 'failed'; git?: GitInfo; model?: RunModel; dismissed?: Set<string> }): AppMapNode {
   const g = buildGraph(agents, now, o.git)
-  const nm = names(g), keep = visibleSet(g, o.query ?? '', hiddenIds(g, now, o.dismissed), o.filter), by = runsOf(agents, now, o.model)
+  const nm = names(g), keep = keepOf(g, now, { query: o.query ?? '', filter: o.filter, dismissed: o.dismissed }), by = runsOf(agents, now, o.model)
   const kidsOf = (n: Node) => n.children.filter(k => k.kind === 'agent' && keep.has(k.id))
   const count = (n: Node): number => kidsOf(n).reduce((a, k) => a + 1 + count(k), 0)
   const walk = (n: Node, depth = 0): AppMapNode => ({

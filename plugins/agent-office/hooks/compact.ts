@@ -174,6 +174,9 @@ export function visibleSet(g: Graph, q: string, hidden: Set<string>, filter: 'al
   return keep
 }
 
+// ONE place where every tab's keep-set comes from: hiddenIds (Concluído 30 s, failed 2 min, dismissed alerts) + query + filter.
+export const keepOf = (g: Graph, now: number, v: Pick<CView, 'query' | 'filter' | 'dismissed'>): Set<string> => visibleSet(g, v.query, hiddenIds(g, now, v.dismissed), v.filter)
+
 const ROUND_BOX = (c: Caps, w: number, left: Line, right: Line, color = '#6b7280'): Line[] => {
   const b = boxChars(c), inner = w - 2
   return [[seg(c, b.tl + b.h.repeat(inner) + b.tr, color)],
@@ -757,9 +760,9 @@ function waterfallLines(g: Graph, nm: Map<string, string>, keep: Set<string>, no
 }
 
 // True when the tree (mode tree, g not yet opened) would show at least one `Rodando ×N` group: same rule as treeLines.
-export function treeHasCollapsed(agents: AgentLike[], now: number, v: Pick<CView, 'query' | 'filter'>): boolean {
+export function treeHasCollapsed(agents: AgentLike[], now: number, v: Pick<CView, 'query' | 'filter' | 'dismissed'>): boolean {
   const g = buildGraph(agents, now)
-  const keep = visibleSet(g, v.query, new Set<string>(), v.filter)
+  const keep = keepOf(g, now, v)
   const pinned = (k: Node) => k.state === 'failed' || k.state === 'attention'
   return [g.root, ...g.nodes.values()].some(n => {
     const counts = new Map<State, number>()
@@ -790,15 +793,18 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   const g = buildGraph(agents, now)
   if (layoutLevel(w) === 'line') {
     // abaixo de 36 colunas só a lista: falha e decisão primeiro, depois as linhas da árvore
-    const nm0 = names(g), keep0 = visibleSet(g, v.query, hiddenIds(g, now, v.dismissed), v.filter)
+    const nm0 = names(g), keep0 = keepOf(g, now, v)
     if (agents.length === 0) return [fit([seg(v.caps, 'Aguardando agentes…', DIM)], w)]
     const list = [...pinnedLines(g, nm0, keep0, v), ...treeLines(g, nm0, keep0, now, { ...v, mode: 'tree' })]
     return list.map(l => (v.caps.ascii ? asciiLine(fit(l, w)) : fit(l, w)))
   }
   const nm = names(g)
   // Concluído cards leave 30 s after they end (hiddenIds); the header still counts them all
-  const keep = visibleSet(g, v.query, hiddenIds(g, now, v.dismissed), v.filter)
-  const model = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
+  const keep = keepOf(g, now, v)
+  const model0 = v.model ?? buildRunModel(agents, now, v.capabilities ?? CAPABILITIES)
+  // Custo and Ferramentas list RunNodes: a removed agent's row goes, the session totals stay (Custo says so)
+  const model = { ...model0, nodes: model0.nodes.filter(n => !g.nodes.has(n.id) || keep.has(n.id)) }
+  const removed = model.nodes.length < model0.nodes.length
   // order of the design: header, alert banners, view tabs, then the view itself
   const chrome = v.chrome !== false
   const out: Line[] = [...(chrome ? header(g, agents, now, v) : []), ...(agents.length && (v.mode === 'tree' || v.mode === 'map') ? pinnedLines(g, nm, keep, v) : []), ...(chrome ? [tabsLine(agents, v)] : []), ...(v.mode === 'grouped' ? [filterBar(g, v)] : [])]
@@ -875,7 +881,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         if (!shortPane(v)) out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`, off < maxRow ? 'scrollDown' : undefined))
       }
     } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
-    else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd }))
+    else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd, removed }))
     else if (v.mode === 'tools') out.push(...toolLines(model, now, { width: w, caps: v.caps }, v.captureIo === true))
     else if (v.mode === 'workflow') {
       const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? a.description, state: RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], workflow: a.workflow }))
