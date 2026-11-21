@@ -31,3 +31,10 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - Docs PR (worktree office-wt-docs, branch docs/dismiss-scroll): README, CHANGELOG 0.28.37, plugin.json 0.28.36 -> 0.28.37 (0.28.36 already taken by README CLI standard on main).
 - UNVERIFIED: live panel for dismiss, `e` hotkey, click scroll; Cards-tab scroll targets.
 - Worktrees to remove after merge: office-wt-dismiss, office-wt-wheel, office-wt-docs.
+
+## 2026-11-21 office-dismiss-scroll: phase dismiss + click scroll + key audit merged (docs 0.28.38)
+- Merged into main: #126 5af72d3 (key audit), #127 7751a84 (dismiss in every view), #128 3b4e62e (click scroll in every tab).
+- Design artifact U1AY6NTnk43zRojzo3bxZv Rodada 10: pending/published (check before next round).
+- Docs PR (worktree office-wt-docs2, branch docs/views-dismiss-scroll): README (dismiss, click scroll, keyboard shortcuts), CHANGELOG 0.28.38, plugin.json 0.28.37 -> 0.28.38.
+- UNVERIFIED: live panel for dismiss, `e` hotkey, click scroll in all tabs, real key delivery and `ctrl+x tab`.
+- Open user decisions: remove or implement `y` (copy has no action yet); `g` from Mapa (switches mode to tree, Mapa stays drawn).
