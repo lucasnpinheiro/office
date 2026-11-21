@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.40 (agent-office, state keys declared)
+
+- Types contract: `autoView` (boolean), `dismissed` (string[]) and `scroll` (number) are declared in `'agent-office'` PluginState in `types/index.d.ts`, so `claude plugin validate plugins/agent-office` passes with exit 0 (it reported 3 undeclared-key errors in 0.28.39). `copied` was already declared.
+- No runtime change. `npm test` is unchanged apart from the validator now passing.
+- Known follow-up, not in this release: `npm run validate` runs `--strict`, so its TypeScript warnings (`hooks/compact.ts`, several `*.test.ts`, `register.tsx:756`) and the `network.hosts` note in `plugin.json` still fail it. Out of scope here.
+- No contract test: hook modules cannot read source files, so the validator stays the drift guard.
+
 ## 0.28.39 (agent-office, wheel scroll, y copy, g to Árvore)
 
 - Mouse wheel: the host raises `ui.scroll` on the pane body (wheel or scroll keys); the pane maps it to the same scroll as `j`/`k` in every tab and the detail view, 3 lines per tick (at most 5 ticks per event), disabled while searching. Click scroll on the notes and track stays. Natural direction is the host's; no Button/Box wheel prop, only `ui.scroll`. UNVERIFIED: real-trackpad check and wheel-up in the live panel.
