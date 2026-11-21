@@ -231,9 +231,9 @@ function tabsLine(agents: AgentLike[], v: CView): Line {
   const c = v.caps
   const tabs: readonly (readonly [Mode, string])[] = VIEW_TABS
   const noWf = !agents.some(a => a.workflow) // workflow stays listed, dimmed while no run exists
-  const one = ([m, label]: [Mode, string]): Seg[] => [seg(c, v.mode === m ? ` [${label}] ` : ` ${label} `, noWf && m === 'workflow' && v.mode !== m ? DIM : undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
+  const one = ([m, label]: readonly [Mode, string]): Seg[] => [seg(c, v.mode === m ? ` [${label}] ` : ` ${label} `, noWf && m === 'workflow' && v.mode !== m ? DIM : undefined, { act: `mode:${m}`, btn: true, variant: v.mode === m ? 'primary' : 'secondary', bold: v.mode === m }), ...sp(1)]
   // too narrow for every tab: the strip scrolls, dropping tabs from the left until the active one is visible (design: tabs scroll horizontally)
-  const wOf = (t: [Mode, string]) => strWidth(t[1]) + 5
+  const wOf = (t: readonly [Mode, string]) => strWidth(t[1]) + 5
   const act = Math.max(0, tabs.findIndex(t => t[0] === v.mode))
   let from = 0
   while (from < act && tabs.slice(from, act + 1).reduce((a, t) => a + wOf(t), from ? 2 : 0) > v.width) from++

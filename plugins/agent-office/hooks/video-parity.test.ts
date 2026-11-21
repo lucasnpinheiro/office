@@ -24,12 +24,12 @@ test('U-302 without a workflow the workflow tab is dimmed, not hidden', () => {
   const tabs = draw([mk('a')], 'map').find(l => l.some(s => s.act === 'mode:workflow'))!
   const wf = tabs.find(s => s.act === 'mode:workflow')!
   expect(wf.fg).toBeDefined()
-  const withWf = draw([mk('a', { workflow: 'w' })], 'map').find(l => l.some(s => s.act === 'mode:workflow'))!
+  const withWf = draw([mk('a', { workflow: { runId: 'r1', agentIndex: 0 } })], 'map').find(l => l.some(s => s.act === 'mode:workflow'))!
   expect(withWf.find(s => s.act === 'mode:workflow')!.fg).toBeUndefined()
 })
 test('U-303 default is map (bus); cards is a plain grid without bus', () => {
   expect(DEFAULT_MODE).toBe('map')
-  const ag = [mk('p', { agentId: 'P' }), mk('c1', { parentId: 'P' }), mk('c2', { parentId: 'P' })]
+  const ag = [mk('p', { agentId: 'P' }), mk('c1', { parentAgentId: 'P' }), mk('c2', { parentAgentId: 'P' })]
   expect(txt(draw(ag, 'map'))).toMatch(/[┬┴]/)
   const grid = txt(draw(ag, 'cards'))
   expect(grid).not.toMatch(/[┬┴┄]/)

@@ -227,7 +227,7 @@ test('T-007 grupos: cada agente uma só vez, sob o divisor do seu worktree; agen
 
 // ---- T-007 AC-023: `+N commits` só com $.process provado, em segundo plano, 30 s de cache ----
 const WT = '/work/meuapp/.claude/worktrees/agent-aa' // sob o cwd da sessão (setup): o git só roda aí
-const tick = () => new Promise(r => setTimeout(r, 30))
+const tick = () => new Promise(r => (globalThis as any).setTimeout(r, 30))
 const okRun = (calls: string[]) => (argv: readonly string[]) => {
   const k = argv.slice(GIT_SAFE_PREFIX.length).join(' ')
   calls.push(k)

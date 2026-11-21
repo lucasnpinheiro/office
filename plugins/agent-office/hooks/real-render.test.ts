@@ -174,8 +174,8 @@ test('desktop map: a single top-level agent with no children is drawn as the roo
   await $.session.start({ cwd: '/work/meuapp', surface: 'desktop', isInteractive: true } as any)
   await $.agent.spawn({ tool_use_id: 's1', prompt: 'p', description: '🧭 Squad Leader · 👑 Opus · 🟢 baixo: Orquestrador' } as any)
   const t = (await (await mountApp($, 120)).findAll({ type: 'Text' })).map((x: any) => String(x.text))
-  expect(t.some(x => x.includes('Orquestrador'))).toBe(true)
-  expect(t.some(x => x.includes('Aguardando agentes'))).toBe(false)
+  expect(t.some((x: string) => x.includes('Orquestrador'))).toBe(true)
+  expect(t.some((x: string) => x.includes('Aguardando agentes'))).toBe(false)
 })
 
 test('desktop map: siblings that do not fit wrap into rows of up to 6 under the parent, each row with its own solid bus, no side trunk (U-009, REQ-004)', async ($, on) => {
@@ -185,11 +185,11 @@ test('desktop map: siblings that do not fit wrap into rows of up to 6 under the 
   const u1 = await mountApp($, 112)
   const k = await boxKeys(u1) // 8 siblings -> 16-wide cards, 6 per row -> 2 rows
   await u1.unmount()
-  expect(k.filter(x => x.startsWith('trunk-'))).toEqual([])
-  expect(k.filter(x => x.startsWith('row-session-')).length).toBe(2)
+  expect(k.filter((x: string) => x.startsWith('trunk-'))).toEqual([])
+  expect(k.filter((x: string) => x.startsWith('row-session-')).length).toBe(2)
   const k2 = await boxKeys(await mountApp($, 400)) // wide pane still caps at 6 per row (user 2026-11-15)
-  expect(k2.filter(x => x.startsWith('trunk-')).length).toBe(0)
-  expect(k2.filter(x => x.startsWith('row-session-')).length).toBe(2)
+  expect(k2.filter((x: string) => x.startsWith('trunk-')).length).toBe(0)
+  expect(k2.filter((x: string) => x.startsWith('row-session-')).length).toBe(2)
 })
 
 test('desktop map: role on every card', async ($, on) => {
@@ -211,10 +211,10 @@ test('T-501 desktop: one header, plural counters and tabs in every mode, empty a
   for (const m of ['tree', 'cards', 'waterfall', 'cost', 'tools', 'workflow', 'grouped']) {
     await $.command.run({ command: 'office', args: `mode ${m}` } as any)
     const t = await texts()
-    expect(t.filter(x => x === 'Office').length, m).toBe(1) // single header source
-    expect(t.some(x => /0 falhas/.test(x)), m).toBe(true)
-    expect(t.some(x => x.includes('#abcdef')), m).toBe(true)
-    expect(t.some(x => x.includes('Office · meuapp')), m).toBe(false) // no ANSI header line
+    expect(t.filter((x: string) => x === 'Office').length, m).toBe(1) // single header source
+    expect(t.some((x: string) => /0 falhas/.test(x)), m).toBe(true)
+    expect(t.some((x: string) => x.includes('#abcdef')), m).toBe(true)
+    expect(t.some((x: string) => x.includes('Office · meuapp')), m).toBe(false) // no ANSI header line
     expect(t, m).toContain('Mapa')
   }
 })
