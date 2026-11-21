@@ -40,7 +40,7 @@ type Row = { key: string; desc: string; from: Ui; ctx?: { collapsed?: boolean; w
 const rows: Row[] = [
   { key: 'g', desc: 'tree folds siblings first when collapsed', from: base({ mode: 'tree' }), ctx: { collapsed: true }, check: s => s.expanded.includes('tree:fold') && s.mode === 'tree' },
   { key: 'g', desc: 'tree goes to grouped when nothing collapsed', from: base({ mode: 'tree' }), ctx: { collapsed: false }, check: s => s.mode === 'grouped' && !s.expanded.includes('tree:fold') },
-  { key: 'g', desc: 'map view -> tree keeps the map view (review-fixes contract)', from: base({ mode: 'map', view: 'map' }), check: s => s.mode === 'tree' && s.view === 'map' },
+  { key: 'g', desc: 'g on Mapa -> tree view (Árvore tab drawn and highlighted)', from: base({ mode: 'map', view: 'map' }), check: s => s.mode === 'tree' && s.view === 'compact' },
   { key: 'g', desc: 'tools -> map when no workflow run', from: base({ mode: 'tools' }), ctx: { workflow: false }, check: s => s.mode === 'map' },
   { key: 'g', desc: 'tools -> workflow with a run', from: base({ mode: 'tools' }), ctx: { workflow: true }, check: s => s.mode === 'workflow' },
   { key: 'o', desc: 'sort time -> state', from: base(), check: s => s.sort === 'state' },

@@ -114,7 +114,7 @@ test('g em árvore sem grupos colapsados pula direto ao próximo modo', async ()
 test('g alcança Custo e Ferramentas; Workflow só entra no ciclo com uma execução em curso (T-008, T-010)', async () => {
   const cycle = (ctx: { workflow?: boolean }) => {
     const seen: string[] = []
-    let s = { ...s0, mode: 'tree' as const }
+    let s = { ...s0, view: 'compact' as const, mode: 'tree' as const }
     for (let i = 0; i < 8; i++) { s = applyAction(s, 'group', { collapsed: false, ...ctx }).state as typeof s; seen.push(s.mode) }
     return seen
   }
@@ -123,14 +123,14 @@ test('g alcança Custo e Ferramentas; Workflow só entra no ciclo com uma execu�
   expect(cycle({ workflow: true }).slice(0, 7)).toEqual(['grouped', 'cards', 'waterfall', 'cost', 'tools', 'workflow', 'map'])
   // v continua mapa > árvore > cards > mapa, mesmo depois de g ter passado por Custo
   const viaCost = applyAction(applyAction(applyAction(applyAction(applyAction(s0, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state // map > tree > grouped > cards > waterfall > cost
-  expect(applyAction(viaCost, 'view').state).toMatchObject({ view: 'compact', mode: 'cost' })
+  expect(applyAction(applyAction(viaCost, 'view').state, 'view').state).toMatchObject({ view: 'compact', mode: 'cost' }) // compact cost -> v -> Mapa -> v -> cost
 })
 
 test('v do mapa mantém o modo que o usuário escolheu; sem escolha entra na árvore', async () => {
   const chosen = applyAction(applyAction(s0, 'mode:grouped').state, 'view').state
   expect(chosen).toMatchObject({ view: 'compact', mode: 'grouped' })
   const viaG = applyAction(applyAction(applyAction(applyAction(s0, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state, 'group', { collapsed: false }).state // g escolhe waterfall
-  expect(applyAction(viaG, 'view').state).toMatchObject({ view: 'compact', mode: 'waterfall' })
+  expect(applyAction(applyAction(viaG, 'view').state, 'view').state).toMatchObject({ view: 'compact', mode: 'waterfall' }) // g leaves a compact view: v goes to Mapa first
   expect(applyAction(s0, 'view').state).toMatchObject({ view: 'compact', mode: 'tree' })
   expect(startUi().modeChosen).toBe(false)
 })
