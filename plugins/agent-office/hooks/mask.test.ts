@@ -274,6 +274,17 @@ for (const p of ['sk-', 'sk_live_', 'ghp_', 'github_pat_', 'AKIA', 'AIza', 'npm_
   if (ms >= PERF_MS) throw new Error(`${p} x100K took ${Math.round(ms)} ms`)
 })
 
+// 0.28.45: the mysql -p rule was quadratic (each "mysql" start scanned to the end: ~2.7 s at 100 KB on 0.28.44)
+for (const [name, s] of [
+  ['mysql a b c x8500', 'mysql a b c '.repeat(8500)],
+  ['mysql -u root -p x', 'mysql -u root -p'.repeat(6000)],
+  ['mysql a x50000', 'mysql ' + 'a '.repeat(50000)],
+  ['mysql -h x -P 3306 x', 'mysql -h x -P 3306 '.repeat(6000)],
+] as [string, string][]) test(`0.28.45 perf: mysql -p rule ${name} masks in < ${PERF_MS} ms`, () => {
+  const ms = timeMask(s)
+  if (ms >= PERF_MS) throw new Error(`${name} took ${Math.round(ms)} ms`)
+})
+
 // deterministic pseudo-random base64url run (no periodic windows that could hide a leak)
 const runOf = (n: number, seed: number): string => {
   const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'

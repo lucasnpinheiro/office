@@ -1,5 +1,11 @@
 # HANDOFF — office (2026-11-21)
 
+## 2026-11-21 fix/mask-mysql-redos (0.28.45)
+- Found: mysql -p rule quadratic in `hooks/mask.ts` (main: 2662 ms on `'mysql a b c '.repeat(8500)`, 1627 ms on `'mysql -h x -P 3306 '.repeat(6000)`). RED perf tests added to `mask.test.ts`.
+- Fixed: options scan bounded to `{0,64}` tokens. After: 2-15 ms on the same inputs. Stated limit: `-p` more than 64 tokens after `mysql` is not masked.
+- Differential 0.28.44 vs 0.28.45: 0 changed outputs over ~60k command lines. Reviewer differential: 0 regressions over 278880 cases.
+- Open PR: fix/mask-mysql-redos (no merge; orchestrator/user merges per gates). Live agents: none. Blocked on user: merge.
+
 ## 2026-11-21 office-video-gaps: phases 7-9 executed (branch spec/office-video-gaps-exec)
 - Phase: office-video-gaps DONE. T-401..T-403 were already in #102 (0.28.24); T-404 docs closed in this PR (0.28.42).
 - Found: S-401 RED (waterfall label not masked), fixed in `hooks/compact.ts`. B-401 and V-401 passed on first run (pre-existing).

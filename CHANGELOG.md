@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.45 (agent-office, linear mysql -p mask rule)
+
+- Fix: the `mysql -p` rule in `hooks/mask.ts` was quadratic. Each `mysql` start scanned the rest of the line for `-p`. At 100 KB, `'mysql a b c '.repeat(8500)` took ~2.7 s on 0.28.44 and `'mysql -h x -P 3306 '.repeat(6000)` ~1.6 s. The options scan is now `{0,64}` tokens, so each start is bounded.
+- Bound (stated limit): a `-p` more than 64 whitespace-separated tokens after `mysql` is not masked. Real command lines have a handful of options. The 0.28.44 rule masked it.
+- Differential vs 0.28.44 over ~60k mysql command lines (0-30 options, all `-p`/`--password` forms, wrappers): 0 changed outputs. The only change is the token cap above.
+- Perf after: 100 KB inputs run in 2-15 ms (the perf test cap is 200 ms).
+
 ## 0.28.44 (agent-office, secrets glued to letters are masked)
 
 - Fix: `hooks/mask.ts` masks known-prefix secrets wherever the prefix sits (glued to letters, `_` or digits). The lookbehind `(?<![A-Za-z0-9_])` is gone from the prefix rule, so `deploy_ghp_...`, `tokenghp_...`, `deploysk-...`, `CI_sk-...` and `xGITHUB_PAT_...` no longer leak. Key words, `Bearer`, `Authorization`, `api key` and `mysql -p` lost their lookbehind too (the key or flag is the anchor, a glued prefix is not a delimiter).
