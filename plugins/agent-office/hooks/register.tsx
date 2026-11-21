@@ -608,6 +608,14 @@ export const register: Register = on => {
     return next(e)
   }).catch(passOn)
 
+  // mouse wheel: the host raises ui.scroll over the pane body (by > 0 down, < 0 up). The pane draws its own window, so the
+  // engine moves nothing (no next): each tick runs the same step as j/k, in every tab and in the detail. Typing a search keeps its keys.
+  on('ui.scroll', { requestId: PANE }, async ($, e) => {
+    if (e.by === 0 || (await readUi($)).searching) return {}
+    const a = e.by > 0 ? 'scrollDown' : 'scrollUp'
+    for (let i = 0; i < Math.min(Math.abs(e.by), 5); i++) await dispatch($, a) // shortcut: ticks that crowd in flight sum into by; capped at 5 steps
+    return {}
+  })
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const els = $.ui.resolve(e) as unknown as { Box: any; Text: any; Button: any; Input: any; Image?: any } // Image exists on the terminal surface only
     const { Box, Text, Button, Image, Input } = els
