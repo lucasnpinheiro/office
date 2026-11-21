@@ -2,7 +2,7 @@ import { test, expect } from 'claude-code/testing'
 import { applyAction, initialUi, hotkeysFor, footerRows } from './actions'
 import type { Ui } from './actions'
 import { detailText } from './view-detail'
-import { copyNoteOn, COPY_NOTE_MS } from './copy'
+import { copyNoteOn, COPY_NOTE_MS, copyOk } from './copy'
 import { maskText, MASK } from './mask'
 import { bindable } from './vocabulary'
 import { CAPABILITIES } from './capabilities'
@@ -43,4 +43,16 @@ test('copy capability is not-verified (ADR 0002): not in bindable, but the foote
   expect(CAPABILITIES.copy).toEqual({ terminal: 'not-verified', app: 'not-verified' })
   expect(bindable(CAPABILITIES, 'terminal').map(e => e.act)).not.toContain('copy')
   expect(footerRows(base({ selected: 'a1' }), false, 200).flat().map(x => x.t).join(' ')).toContain('y: copiar')
+})
+
+test('copyOk accepts both host answer shapes and rejects everything else', async () => {
+  expect(copyOk({ isCopied: true })).toBe(true)
+  expect(copyOk({ copied: true })).toBe(true)
+  expect(copyOk({})).toBe(false)
+  expect(copyOk({ isCopied: false, reason: 'unanswered' })).toBe(false)
+  expect(copyOk({ copied: false, reason: 'no-clipboard' })).toBe(false)
+  expect(copyOk(undefined)).toBe(false)
+  expect(copyOk(null)).toBe(false)
+  expect(copyOk(false)).toBe(false)
+  expect(copyOk('copied')).toBe(false)
 })

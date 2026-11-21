@@ -26,7 +26,7 @@ import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLa
 import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf, errorText, toolArgs } from './capture'
 import { captureIoOn, maskText } from './mask'
 import { detailText, detailView as detailViewOf } from './view-detail'
-import { COPY_NOTE_MS, copyNoteOn } from './copy'
+import { COPY_NOTE_MS, copyNoteOn, copyOk } from './copy'
 import { resolveGit, aheadOf, cachedAhead } from './git'
 import { toggleAction } from './status'
 import { statusLines } from './status'
@@ -349,8 +349,8 @@ async function copySelected($: EngineInterface): Promise<void> {
   if (!sel) return
   const all = (await read($, office)) as OfficeAgent[]
   const text = maskText(detailText(detailViewOf(all, sel, Date.now(), { captureIo: await captureIoOf($) }).lines))
-  const r = await Promise.resolve($.ui.copy({ text })).catch((): { isCopied: boolean; reason?: string } => ({ isCopied: false, reason: 'error' })) as { isCopied: boolean; reason?: string }
-  if (!r.isCopied) { $.ui.log(`Não copiado: ${r.reason ?? 'sem resposta'}`); return }
+  const r: unknown = await Promise.resolve($.ui.copy({ text })).catch(() => ({ isCopied: false, reason: 'error' })) // a throw never carries the text
+  if (!copyOk(r)) { $.ui.log(`Não copiado: ${(r as { reason?: string } | null)?.reason ?? 'sem resposta'}`); return }
   await update($, copiedAt, () => Date.now())
   $.ui.invalidate('ui.render')
   $.clock.after(COPY_NOTE_MS, () => $.ui.invalidate('ui.render'))
