@@ -61,6 +61,6 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - Choke point: `plugins/agent-office/hooks/run-model.ts` `buildGraph` sets the display name with `maskText` (agent label and task content). All views read that name, so they inherit it. Ids keep dismiss, keys and hidden sets.
 - Tests: `hooks/mask-views.test.ts` (per-view RED then GREEN, plus 80-col boundary test). `npm test`: 687 pass, 0 fail.
 - Docs bundle office-video-gaps: 0.28.24 replaced by shipped 0.28.42 (original target kept as note).
-- PR: open, do not merge without gates (number added in the next commit).
+- PR #138 (https://github.com/lucasnpinheiro/office/pull/138): open, do not merge without gates.
 - UNVERIFIED: register.tsx (desktop branch button, d.name) and monitor.ts legacy frame not tested directly; they read the masked run model.
 - Known gap: mask.ts token rule needs a non-word char before the prefix (glued `x`*N + `ghp_` not masked).
