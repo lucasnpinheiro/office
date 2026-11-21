@@ -53,7 +53,7 @@ cap) and the layout is recomputed on every resize.
   Cards always keep the full 7-row anatomy; a short pane scrolls by card row. A card of a workflow run shows `⟳ <runId>` in rose (`#FF8FB1`).
 - Tabs that do not fit scroll horizontally (a leading `‹`) so the active one stays visible.
 - Every card is shown, always open, by default: nothing is hidden to fit. Overflow is handled by the scroll and the scrollbar. Collapsing identical siblings (`Rodando xN`) is opt-in: in the tree, `g` folds them, the next `g` moves to the next mode.
-- Scrolling: the engine exposes no mouse-wheel event to plugins (a Box `onWheel`/`onEvent` is rejected by the plugin validator), so mouse scroll is by click. The `↑ mais n/total` and `↓ mais n/total` notes and the scrollbar track are clickable: a click above the thumb scrolls up, below it scrolls down, 3 lines per click. `j`/`k` (footer `j: descer`, `k: subir`) remain. The Cards tab has no scrollbar and scrolls by `j`/`k` only; the Mapa mode only draws the scrollbar. Cards show persona, model and effort as text like the design (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`; models 🪶 Haiku, 🎼 Sonnet, 👑 Opus; effort 🟢 baixo, 🟡 médio, 🔴 alto), wrapping to a second row when too long, and the role (`orquestrador`, `agente`, `subagente`) on the branch row.
+- Scrolling: the engine exposes no mouse-wheel event to plugins (a Box `onWheel`/`onEvent` is rejected by the plugin validator), so mouse scroll is by click. The `↑ mais n/total` and `↓ mais n/total` notes and the scrollbar track are clickable: a click above the thumb scrolls up, below it scrolls down, 3 lines per click. `j`/`k` (footer `j: desce`, `k: sobe`) remain. The Cards tab has no scrollbar and scrolls by `j`/`k` only; the Mapa mode only draws the scrollbar. Cards show persona, model and effort as text like the design (`🧭 Squad Leader · 👑 Opus · 🟢 baixo`; models 🪶 Haiku, 🎼 Sonnet, 👑 Opus; effort 🟢 baixo, 🟡 médio, 🔴 alto), wrapping to a second row when too long, and the role (`orquestrador`, `agente`, `subagente`) on the branch row.
 
 Not shipped: Allow, Decline, Stop, Retry, Pause and open-in-chat controls, and the "needs you" (`◆`) decision state. They stay
 hidden until the manual probes listed in ADR 0002 are run (see `.specs/features/office-agent-monitor-v2/spec/06-gaps.md`).
@@ -130,10 +130,10 @@ Screenshots in this README are real captures only; none was generated for this s
 ### Footer and keys
 
 Three centred rows: the status legend, the glyph legend, then the keys, grouped as filtros (`g o f s`) | visão (`v`) | sair
-(`b q`) with the navigation hints last (`j: descer`, `k: subir`, `Tab`, `Enter`, `ctrl+x tab`). `e: dispensar` joins the
+(`b q`) with the navigation hints last (`j: desce`, `k: sobe`, `Tab`, `Enter`, `ctrl+x tab`). `e: dispensar` joins the
 keys only while an alert (failure or **Precisa de você**) exists. Key letters are buttons, the
 hints are dim. Rows wrap by width one whole item at a time, so a lone `x:` never appears. In a detail the footer reads
-`b: voltar · p/n irmão · j: rolar ↓ · k: rolar ↑ · q: fechar`. `j` / `k` are the `scrollDown` / `scrollUp` actions: in the cards
+`b: voltar · p/n irmão · j: desce · k: sobe · q: fechar`. `j` / `k` are the `scrollDown` / `scrollUp` actions: in the cards
 view they move the window one card block at a time; in a detail they scroll the body 3 lines per press (clamped, reset when a
 detail opens or closes).
 
@@ -213,7 +213,7 @@ Rendered from the real `appMap` + `appCardW`/`mapRows` layout by `scripts/render
 - **0.28.14**: map nests every parent's children in rows of up to 6 (card 18..34 cols, columns drop before data is cut, depth 10 then "+N ocultos"); j/k scroll the map; state pill on every card replaces ✓; chips never split; legend "j: desce"/"k: sobe"; single "[← voltar]" in the detail view.
 - **0.28.13**: app map cards shrink with the sibling count (26 down to 15 cols) so up to 6 sit side by side before wrapping (was 3-4); card content unchanged. The app surface is a cell grid, so width is the scale lever (no font-size control).
 - **0.28.12**: app cards 25% smaller (26 cols, was 34; no inner padding); the running line segment blinks, waiting (Na fila / Aguarda você) is white, a failed card takes the red line color as its background.
-- **0.28.11**: root rule from the design legend (Orquestrador over one top agent, Claude Code over two or more); `j`/`k` scroll the detail body, with `j: rolar ↓` / `k: rolar ↑` in the detail footer.
+- **0.28.11**: root rule from the design legend (Orquestrador over one top agent, Claude Code over two or more); `j`/`k` scroll the detail body, with `j: desce` / `k: sobe` in the detail footer.
 
 Full history: [CHANGELOG.md](../../CHANGELOG.md).
 
@@ -223,8 +223,8 @@ Full history: [CHANGELOG.md](../../CHANGELOG.md).
 - `/office view [map|compact]` (no value toggles), `/office mode map|tree|grouped|cards|waterfall|cost|tools|workflow`,
   `/office sort time|state|name`, `/office filter failed|all`, `/office search <text>`, `/office open <id>`,
   `/office width <cols>`, `/office collapse | expand`.
-- Hotkeys work only while the pane has the focus: press **ctrl+x tab** (or click the pane) first. Each view draws its own keys in
-  its footer; a key is hidden where it does nothing (for example `f` and `s` in Cost, Tools and Workflow):
+- Hotkeys work only while the pane has the focus: press **ctrl+x tab** (or click the pane) first. Every tab draws the same keys in
+  its footer (`g o f s v q`); a key is hidden only where it does nothing (`e` without an alert, the list keys in a detail):
 
   | Key | Action |
   |---|---|

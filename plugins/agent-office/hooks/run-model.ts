@@ -219,8 +219,8 @@ export function hiddenIds(g: Graph, now: number, dismissed: Set<string> = new Se
     const kids = n.children.filter(k => k.kind === 'agent').map(visit)
     if (n.kind !== 'agent') return true
     // failed: gone at once when dismissed, else FAIL_HIDE_MS after its end (a retry that fails again has a new end, so it restarts)
-    // an attention alert dismissed only leaves the banner on purpose: its card stays in the tree
-    if (n.state === 'failed' && (dismissed.has(dismissKey(n)) || (n.end !== undefined && now - n.end >= FAIL_HIDE_MS))) { hidden.add(n.id); return kids.some(Boolean) }
+    // a dismissed alert (failed or attention) leaves every view at once; attention is never auto-hidden, only a manual dismiss removes it
+    if ((n.state === 'failed' || n.state === 'attention') && dismissed.has(dismissKey(n)) || (n.state === 'failed' && n.end !== undefined && now - n.end >= FAIL_HIDE_MS)) { hidden.add(n.id); return kids.some(Boolean) }
     const expired = n.state === 'done' && // Precisa de você is never auto-removed; failed ones leave by the rule above
        n.end !== undefined && now - n.end > HIDE_AFTER_MS
     const vis = !expired || kids.some(Boolean)

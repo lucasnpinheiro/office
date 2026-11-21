@@ -9,9 +9,9 @@ import { frameFor, nextDelay, parseSub, paneWidth, paneBodyLines, drawSig, ticke
 import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS, strWidth } from './monitor'
 import { TONE as TONE_OF } from './app-cards'
 import { VIEW_TABS } from './vocabulary'
-import { mapScrollStep, renderCompact, titleRows, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES, alertsOf, visibleSet } from './compact'
+import { mapScrollStep, renderCompact, titleRows, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES, alertsOf, keepOf } from './compact'
 import type { CView } from './compact'
-import { buildRunModel, limitsRawOf, usageLimits, hiddenIds, dismissKey } from './run-model'
+import { buildRunModel, limitsRawOf, usageLimits, dismissKey } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
 import { sideDetail } from './layout'
 import { detailView, detailScrollStep } from './view-detail'
@@ -305,12 +305,12 @@ async function writeUi($: EngineInterface, n: Ui) {
 async function alertKeyOf($: EngineInterface, ui: Ui): Promise<string | undefined> {
   const list = (await read($, office)) as OfficeAgent[], now = Date.now()
   const g = buildGraph(list, now), dis = new Set(ui.dismissed ?? [])
-  const n = alertsOf(g, visibleSet(g, ui.query, hiddenIds(g, now, dis), ui.filter), dis)[0]
+  const n = alertsOf(g, keepOf(g, now, { query: ui.query, filter: ui.filter, dismissed: dis }), dis)[0]
   return n ? dismissKey(n) : undefined
 }
 async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolean; workflow: boolean }> {
   const list = (await read($, office)) as OfficeAgent[]
-  return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter }), workflow: hasWorkflow(list) } // workflow: g only stops there while a run exists
+  return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter, dismissed: new Set(ui.dismissed ?? []) }), workflow: hasWorkflow(list) } // workflow: g only stops there while a run exists
 }
 async function dispatch($: EngineInterface, a: string) {
   if ((a === 'scrollDown' || a === 'scrollUp') && (await readUi($)).selected) { // detail open: j/k scroll its body
