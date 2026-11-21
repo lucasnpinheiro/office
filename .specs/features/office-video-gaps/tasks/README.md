@@ -10,7 +10,7 @@ updated: 2026-11-21
 | T-401 | Linha agora + rótulo | — | DONE |
 | T-402 | Marca segura o fim | T-401 | DONE |
 | T-403 | Pendente aguarda 1ª ação | T-401 | DONE |
-| T-404 | README, versão 0.28.24, captura desktop | T-401, T-402, T-403 | DONE |
+| T-404 | README, versão 0.28.42 (alvo original 0.28.24), captura desktop | T-401, T-402, T-403 | DONE |
 
 ## Skills (baseline)
 - security-engineer: not applicable — render local, sem entrada externa nova; S-401 garante máscara.

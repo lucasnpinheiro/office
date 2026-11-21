@@ -56,3 +56,11 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - Plugin install updated to 0.28.39: final step, after merge (not done in this PR).
 - UNVERIFIED: live panel for dismiss, `e`, click scroll, `y` copy real clipboard, wheel natural direction and wheel-up.
 - Open decisions: none.
+
+## 2026-11-21 fix/mask-agent-names: mask names in every view (agent-office 0.28.43)
+- Choke point: `plugins/agent-office/hooks/run-model.ts` `buildGraph` sets the display name with `maskText` (agent label and task content). All views read that name, so they inherit it. Ids keep dismiss, keys and hidden sets.
+- Tests: `hooks/mask-views.test.ts` (per-view RED then GREEN, plus 80-col boundary test). `npm test`: 687 pass, 0 fail.
+- Docs bundle office-video-gaps: 0.28.24 replaced by shipped 0.28.42 (original target kept as note).
+- PR: open, do not merge without gates (number added in the next commit).
+- UNVERIFIED: register.tsx (desktop branch button, d.name) and monitor.ts legacy frame not tested directly; they read the masked run model.
+- Known gap: mask.ts token rule needs a non-word char before the prefix (glued `x`*N + `ghp_` not masked).

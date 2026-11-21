@@ -1,5 +1,6 @@
 // Run model: pure graph, progress and the RunModel the renderers read. No engine APIs, no clock, no I/O:
 // the caller passes `now`. Extracted from monitor.ts (T-002); monitor.ts re-exports it until the views migrate.
+import { maskText } from './mask'
 import { estimateCostUsd } from './price'
 import { parseDescription, modelLabel, EFFORT_DISPLAY } from './persona'
 import type { AgentRecord } from './office'
@@ -101,7 +102,7 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
     // no label in the description: fall back to the first prompt line, then the persona
     const label = p.label || firstWords(a.prompt) || p.persona.name
     const n: Node = {
-      id: a.id, parentId: parent.id, name: label,
+      id: a.id, parentId: parent.id, name: maskText(label),
       persona: p.persona.name, model: model ? modelLabel(model) : '', effort: effort ? EFFORT_DISPLAY[effort]?.label : undefined, kind: 'agent', git: a.git,
       state: a.status === 'error' ? (isQuotaError(a.error) ? 'attention' : 'failed') : a.status === 'done' ? (a.endUnknown ? 'inactive' : 'done') : stale ? 'attention' : a.active === false ? 'pending' : 'running',
       depth: parent.depth + 1, start: a.startedAt, end: a.endedAt, children: [], dependsOn: [],
@@ -117,7 +118,7 @@ export function buildGraph(agents: readonly AgentRecord[], now: number, sessionG
       const tp = clampParent(g, n)
       const id = `${n.id}#${i}`
       const task: Node = {
-        id, parentId: tp.id, name: t.content, persona: n.persona, model: n.model, effort: n.effort, kind: 'task',
+        id, parentId: tp.id, name: maskText(t.content), persona: n.persona, model: n.model, effort: n.effort, kind: 'task',
         state: todoState(t.status), depth: tp.depth + 1, children: [], dependsOn: prev ? [prev] : [],
       }
       tp.children.push(task)

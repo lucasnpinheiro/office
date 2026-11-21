@@ -1,6 +1,6 @@
 ---
 id: T-404
-title: README, versão 0.28.24, captura desktop
+title: README, versão 0.28.42 (alvo original 0.28.24), captura desktop
 type: docs
 status: DONE
 progress: 2/2
@@ -13,7 +13,7 @@ estimate: S
 skills: [code-quality]
 executor: "✍️ Tech Writer · 🪶 Haiku · 🟢 baixo"
 ---
-# README, versão 0.28.24, captura desktop
+# README, versão 0.28.42 (alvo original 0.28.24), captura desktop
 
 Executor: ✍️ Tech Writer · 🪶 Haiku · 🟢 baixo
 
