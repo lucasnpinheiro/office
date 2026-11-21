@@ -16,13 +16,13 @@ Models: 🪶 Haiku (`rapido`) · 🎼 Sonnet (`padrao`) · 👑 Opus (`profundo`
 | Arquiteto | 📐 | `profundo` | Sonnet | `padrao`, `rapido` | architecture, planning, UI design mode |
 | Senior | 🦉 | `padrao` | Sonnet | `rapido` | complex build, debugging, impact analysis, escalation |
 | Pleno | 🛠️ | `padrao` | Sonnet | `rapido` | implementer, backend/frontend engineer, tests |
-| QA | 🧪 | `padrao` | Sonnet | `rapido` (raw runs only) | test runner, judge, verifier, code-quality review |
+| QA | 🧪 | `padrao` | Sonnet (medium start) | `rapido` (raw runs only) | test runner, judge, verifier, code-quality review |
 | DBA | 🗄️ | `padrao` | Sonnet | `rapido` | SQL, schema and index analysis |
 | AppSec | 🛡️ | `padrao` | Haiku | `rapido` | OWASP and secrets review |
 | DevOps | ⚙️ | `padrao` | Haiku | `rapido` | CI, hooks, scripts, environment upkeep |
 | SRE | 🚨 | `padrao` | Haiku | `rapido` | incident investigation, runtime errors |
 | Performance | ⚡ | `padrao` | Haiku | `rapido` | N+1, SQL tuning, load tests |
-| UX/UI | 🎨 | `padrao` | Haiku | `rapido` | UI audit, accessibility, design-system consistency |
+| UX/UI | 🎨 | `padrao` | Sonnet (medium start) | `rapido` | UI audit, accessibility, design-system consistency |
 | Data/BI | 📊 | `padrao` | Haiku | `rapido` | reports, KPIs, read-only analytics |
 | Junior | 🌱 | `rapido` | Haiku | `rapido` (leaves) | exact-diff edits, validators |
 | Tech Writer | ✍️ | `rapido` | Haiku | `rapido` (leaves) | docs, summaries |
@@ -33,3 +33,12 @@ Rules:
 - A persona served on Haiku but hosted by `padrao` is spawned as `rapido` with `model` omitted.
 - Judge is never the implementer. Money, auth, schema and concurrency judgement stays with `profundo`.
 - Machine copy: `data/effort-matrix.json` (icons, tiers, spawn rules, effort ladders). Informational only.
+
+Persona to skill map (load only when the request names it; names are current skills):
+- AppSec: `security-engineer`. QA: `code-quality`. Architect: `software-design`. Performance: `incident-investigator`.
+- Spec work: `spec-research`. DBA: `mysql`. UX/UI: `frontend-architect`.
+
+Caveman level: `lite` for Product Owner, Architect, AppSec, Senior in code review, and LGPD audits; otherwise `full`.
+Questions to the user go through `AskUserQuestion` (pt-BR); a subagent returns `ASK: <question> | <options>` instead.
+Merge gates: never merge before all CI checks pass; a merge into `main` needs a passed review.
+Project repos: move-only changes (as stated in the project rules).

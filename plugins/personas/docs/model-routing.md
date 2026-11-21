@@ -19,9 +19,14 @@ and `personas:profundo` (`<plugin>:<agent>`).
 
 ## Effort ladder
 
-Every spawn starts at `low`. On a re-invocation of the same persona in the same scope (a retry after a rejected
-result) the effort goes up one level: `low` to `medium`. The cap for every tier is `medium`; `high`, `xhigh` and `max`
-are never set automatically. The per-role ladders are in `data/effort-matrix.json` (`roles`).
+Every spawn starts at `low`. Two failures per (model, effort) step, whatever the reason, move to the next step:
+effort +1, then the next model. Haiku low, medium, high, then Sonnet low, medium, high, then Opus low, medium.
+After Opus medium fails twice, stop and replan or `ASK:`. The ladder has no attempt quota; markers `[ladder step=N]`
+are enforced by `hooks/model-ladder-guard.sh` in the main session.
+
+Start points: Haiku (`rapido`) low for every persona, judge and AppSec included. UX/UI, Designer, QA and code review
+start Sonnet medium. The orchestrator is `padrao` (Sonnet low, tag `[orchestrator]`); `profundo` (Opus low) only on
+explicit user request. Per-role ladders: `data/effort-matrix.json` (`roles`). Never `xhigh` or `max`.
 
 ## Prompt router (optional hook)
 
