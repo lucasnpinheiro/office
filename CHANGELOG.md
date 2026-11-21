@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.28.43 (agent-office, names masked in every view)
+
+- Fix: agent names and task labels are masked in every view (tree, grouped, cards, map, waterfall, cost, tools, workflow, detail, app cards and app map). The choke point is `hooks/run-model.ts` `buildGraph`: the display name is `maskText(label)` there, so every view that reads `Node.name` or `RunNode.name` inherits it. The fallback in `hooks/compact.ts` workflow list is masked too. Ids keep dismiss, keys and hidden sets; sort and search run on the masked display name.
+- Tests: `hooks/mask-views.test.ts` (RED first on 10 views, GREEN after the choke point). Long-name boundary test at 80 cols for waterfall, tree and cards: no 6+ char prefix of the token survives.
+- Known gap (not changed): the token rule in `hooks/mask.ts` needs a non-word character before the prefix, so `x`*N glued to `ghp_...` is not masked. The boundary test uses a space before the token.
+- Docs: office-video-gaps bundle now cites the shipped version 0.28.42 (original target 0.28.24 kept as a note).
+- `npm test`: 687 pass, 0 fail.
+
 ## 0.28.42 (agent-office, video gaps executed and closed)
 
 - Spec execution of `office-video-gaps` (T-401..T-404). The waterfall work (agora column and label, `◂ fim` / `< fim`, `aguarda 1ª ação…`) already shipped in #102 (0.28.24); this release proves it and closes the bundle.

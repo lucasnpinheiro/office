@@ -911,7 +911,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         if (v.mode === 'cost') return costLines(model, now, { width, caps: v.caps, sessionUsd: v.sessionUsd, removed, all: model0.nodes })
         if (v.mode === 'tools') return toolLines(model, now, { width, caps: v.caps }, v.captureIo === true)
         if (v.mode === 'workflow') {
-          const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? a.description, state: RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], workflow: a.workflow }))
+          const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? maskText(a.description), state: RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], workflow: a.workflow }))
           return workflowView(wf, vocabOf(v.caps))
         }
         if (v.mode === 'grouped') return groupedLines(g, agents, nm, keep, now, vv)
