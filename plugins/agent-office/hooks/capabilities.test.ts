@@ -6,7 +6,7 @@ const KEYS: CapabilityKey[] = [
   'pause', 'stop', 'retry', 'allow', 'decline', 'openInChat',
   'toolTiming', 'tokensPerAgent', 'costPerAgent', 'permissionEvent',
   'workflowEvent', 'worktreeFromDefinition', 'commitsAhead',
-  'containerWidth', 'appMotion', 'reducedMotionSignal',
+  'containerWidth', 'appMotion', 'reducedMotionSignal', 'copy',
 ]
 
 test('CAPABILITIES has one row per CapabilityKey, both surfaces, valid verdicts', () => {
@@ -33,6 +33,7 @@ test('CAPABILITIES matches ADR 0002 exactly', () => {
     containerWidth: { terminal: 'not-verified', app: 'not-verified' },
     appMotion: { terminal: 'not-verified', app: 'not-verified' },
     reducedMotionSignal: { terminal: 'not-verified', app: 'not-verified' },
+    copy: { terminal: 'not-verified', app: 'not-verified' },
   })
 })
 

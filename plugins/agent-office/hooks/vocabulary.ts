@@ -74,7 +74,7 @@ export const KEY_MAP: KeyEntry[] = [
   { key: 'n', act: 'nextSibling', label: 'irmão seguinte' },
   { key: 'u', act: 'pauseResume', label: 'pausar e retomar', cap: 'pause' },
   { key: 'a', act: 'openInChat', label: 'abrir no chat', cap: 'openInChat' },
-  { key: 'y', act: 'copy', label: 'copiar' },
+  { key: 'y', act: 'copy', label: 'copiar', cap: 'copy' },
   { key: 'v', act: 'view', label: 'visão' },
   { key: 'f', act: 'failed', label: 'só falhas' },
   { key: 's', act: 'search', label: 'buscar' },

@@ -25,6 +25,8 @@ import type { Thumb } from './monitor'
 import { applyTool, noteTool, shotFrom, pruneShots, endedAtFrom, firstLine, isLaunchAck, launchedAgentId, worktreeOf, isolatedCall } from './stats'
 import { addSessionTokens, addUsage, recordSafely, toolStep, usageOf, errorText, toolArgs } from './capture'
 import { captureIoOn, maskText } from './mask'
+import { detailText, detailView as detailViewOf } from './view-detail'
+import { COPY_NOTE_MS, copyNoteOn } from './copy'
 import { resolveGit, aheadOf, cachedAhead } from './git'
 import { toggleAction } from './status'
 import { statusLines } from './status'
@@ -62,6 +64,7 @@ const queryAt = atom({ plugin: 'agent-office', key: 'query' } as const, '')
 const modeChosenAt = atom({ plugin: 'agent-office', key: 'modeChosen' } as const, false)
 const expandedAt = atom({ plugin: 'agent-office', key: 'expanded' } as const, [])
 const dismissedAt = atom({ plugin: 'agent-office', key: 'dismissed' } as const, [] as string[]) // alerts removed by the user, id:state; kept across sessions
+const copiedAt = atom({ plugin: 'agent-office', key: 'copied' } as const, 0) // ms of the last successful y copy (copy.ts)
 const attachAt = atom({ plugin: 'agent-office', key: 'attach' } as const, '')
 
 // OFFICE_CAPTURE_IO=1 (exactly) turns on masked tool input/output capture; read fresh, any failure means off.
@@ -327,6 +330,7 @@ async function dispatch($: EngineInterface, a: string) {
     $.ui.invalidate('ui.render')
     return
   }
+  if (a === 'copy') return copySelected($)
   const ui = await readUi($)
   // a selection that left the list (agent dropped by the 60-entry cap, /office reset) is cleared by the next action, whichever it is
   if (ui.selected && !((await read($, office)) as OfficeAgent[]).some(x => x.id === ui.selected)) ui.selected = ''
@@ -337,6 +341,19 @@ async function dispatch($: EngineInterface, a: string) {
   $.ui.invalidate('ui.render')
   if (a === 'view' || r.state.view !== ui.view) bg(resizeIfNeeded($)) // map and compact want different pane sizes (g on Mapa changes the view too)
   if (!r.state.searching) bg($.ui.focus({ requestId: PANE, key: 'hk-first' }))
+}
+
+// y: copia o texto do detalhe selecionado (já mascarado) pelo host ($.ui.copy); o feedback "copiado" dura COPY_NOTE_MS.
+async function copySelected($: EngineInterface): Promise<void> {
+  const sel = (await readUi($)).selected
+  if (!sel) return
+  const all = (await read($, office)) as OfficeAgent[]
+  const text = maskText(detailText(detailViewOf(all, sel, Date.now(), { captureIo: await captureIoOf($) }).lines))
+  const r = await Promise.resolve($.ui.copy({ text })).catch((): { isCopied: boolean; reason?: string } => ({ isCopied: false, reason: 'error' })) as { isCopied: boolean; reason?: string }
+  if (!r.isCopied) { $.ui.log(`Não copiado: ${r.reason ?? 'sem resposta'}`); return }
+  await update($, copiedAt, () => Date.now())
+  $.ui.invalidate('ui.render')
+  $.clock.after(COPY_NOTE_MS, () => $.ui.invalidate('ui.render'))
 }
 
 export const register: Register = on => {
@@ -707,7 +724,8 @@ export const register: Register = on => {
     // footer hotkeys for the current view (actions.ts): one letter each, none while the search Input has the keys
     // the hint tail is dropped before the row can wrap; then the labels shrink to the bare keys
     // footer: grouped, wrapped by width and centred like the legend (footerRows, actions.ts); j/k are visible items, not empty hidden buttons
-    const keysRow = (<>{footerRows(ui, side, cols, alertOn).map((row, i) => (
+    const copied = copyNoteOn(Number(await read($, copiedAt)) || 0, Date.now())
+    const keysRow = (<>{footerRows(ui, side, cols, alertOn, copied).map((row, i) => (
       <Box key={`foot-${i}`} flexDirection="row" justifyContent="center">{row.map((x, j) => x.act && x.hotkey
         ? <Box key={`hb-${x.hotkey}`} flexShrink={0}><Button plain hotkey={ui.searching ? undefined : x.hotkey} key={`h-${x.hotkey}`} label={x.t.slice(3)} onPress={() => void act(x.act!)}>{x.t.slice(3)}</Button></Box>
         : <Box key={`ft-${j}`} flexShrink={0}><Text dimColor={x.dim}>{x.t}</Text></Box>)}</Box>

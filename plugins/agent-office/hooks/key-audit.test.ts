@@ -87,8 +87,8 @@ test('y, n, 1-3 (confirm/decision/copy) are no-ops in the view reducer', async (
 
 test('footer exact sets: list tab, map with selection, detail, searching, alert', async () => {
   expect(rowKeys(base({ mode: 'tree' }))).toEqual(['f', 'g', 'j', 'k', 'o', 'q', 's', 'v'])
-  expect(hotkeysOf(base({ view: 'map', selected: 'a1' }))).toEqual(['b', 'q', 'v'])
-  expect(hotkeysOf(base({ selected: 'a1' }))).toEqual(['b', 'q'])
+  expect(hotkeysOf(base({ view: 'map', selected: 'a1' }))).toEqual(['b', 'q', 'v', 'y'])
+  expect(hotkeysOf(base({ selected: 'a1' }))).toEqual(['b', 'q', 'y'])
   expect(footerRows(base({ selected: 'a1' }), false, 200).flat().map(x => x.t).join('')).toContain('p/n irmão')
   expect(hotkeysOf(base({ searching: true }), true)).toEqual([])
   expect(hotkeysOf(base(), true)).toContain('e')

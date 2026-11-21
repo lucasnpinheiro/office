@@ -79,9 +79,11 @@ export function hotkeysFor(s: Ui, side: boolean, alert = false): Hotkey[] {
   const view = hk('view')
   // map footer (design Term5): v visão · f falhas · q fechar (the v cycle differs by surface, so no sequence is promised here)
   const mapView: Hotkey = view
-  if (s.view === 'map' && s.selected) return [mapView, back, close]
-  if (s.selected && !side) return [back, close]
-  return s.selected ? [...list, back, close] : [...list, close]
+  // y copia o detalhe selecionado (register.tsx); sem seleção não aparece
+  const copy: Hotkey[] = s.selected ? [hk('copy')] : []
+  if (s.view === 'map' && s.selected) return [mapView, ...copy, back, close]
+  if (s.selected && !side) return [...copy, back, close]
+  return s.selected ? [...list, ...copy, back, close] : [...list, close]
 }
 
 // Footer text: hotkeys joined by " · ", tail hint set off by " · " (never glued like "visão q:").
@@ -101,7 +103,9 @@ export function footerTail(s: Ui): string {
 export type FooterSeg = { t: string; act?: string; hotkey?: string; dim?: boolean }
 const GROUP_SEP = '  |  '
 const groupOf = (act: string): number => (act === 'group' || act === 'sort' || act === 'failed' || act === 'search' ? 1 : act === 'view' ? 2 : act === 'back' || act === 'close' ? 3 : 0)
-export function footerRows(s: Ui, side: boolean, cols0: number, alert = false): FooterSeg[][] {
+// `copied`: the copy note is on, so the y label reads "copiado" (copy.ts, 2 s).
+export function footerRows(s: Ui, side: boolean, cols0: number, alert = false, copied = false): FooterSeg[][] {
+  const copyText = (h: Hotkey): string => (h.act === 'copy' && copied ? 'copiado' : `${h.key}: ${h.label}`)
   const cols = Math.max(10, cols0 - 2) // REQ-601: the host pane is narrower than the reported cols; a full row would make the flex layout shrink every label
   const scroll = !s.searching && s.view === 'compact' && !s.selected // j/k scroll every list tab (REQ-603): shown, not hidden buttons
   const nav: FooterSeg[] = [
@@ -110,7 +114,7 @@ export function footerRows(s: Ui, side: boolean, cols0: number, alert = false): 
   ]
   if (s.selected && !side && !s.searching) { // detail: b voltar · p/n irmão · j/k rolar · q fechar
     const items: FooterSeg[] = [
-      ...hotkeysFor(s, side).filter(h => h.act === 'back').map(h => ({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })),
+      ...hotkeysFor(s, side).filter(h => h.act === 'copy' || h.act === 'back').map(h => ({ t: copyText(h), act: h.act, hotkey: h.key })),
       { t: 'p/n irmão', dim: true }, { t: 'j: desce', act: 'scrollDown', hotkey: 'j' }, { t: 'k: sobe', act: 'scrollUp', hotkey: 'k' },
       ...hotkeysFor(s, side).filter(h => h.act === 'close').map(h => ({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })),
     ]
@@ -126,7 +130,7 @@ export function footerRows(s: Ui, side: boolean, cols0: number, alert = false): 
     return rows
   }
   const groups: FooterSeg[][] = [nav, [], [], []]
-  for (const h of hotkeysFor(s, side, alert)) groups[groupOf(h.act)]!.push({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })
+  for (const h of hotkeysFor(s, side, alert)) groups[groupOf(h.act)]!.push({ t: copyText(h), act: h.act, hotkey: h.key })
   // order: filtros, visão, sair first (the keys), navegação last (hints)
   const items: { seg: FooterSeg; g: number }[] = [1, 2, 3, 0].flatMap(g => groups[g]!.map(seg => ({ seg, g })))
   const rows: FooterSeg[][] = []

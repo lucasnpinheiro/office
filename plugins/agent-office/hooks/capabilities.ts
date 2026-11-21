@@ -5,7 +5,7 @@ export type CapabilityKey =
   | 'pause' | 'stop' | 'retry' | 'allow' | 'decline' | 'openInChat'
   | 'toolTiming' | 'tokensPerAgent' | 'costPerAgent' | 'permissionEvent'
   | 'workflowEvent' | 'worktreeFromDefinition' | 'commitsAhead'
-  | 'containerWidth' | 'appMotion' | 'reducedMotionSignal'
+  | 'containerWidth' | 'appMotion' | 'reducedMotionSignal' | 'copy'
 export type Verdict = 'yes' | 'no' | 'not-verified'
 export type Capabilities = Record<CapabilityKey, Record<Surface, Verdict>>
 
@@ -31,4 +31,5 @@ export const CAPABILITIES: Capabilities = {
   containerWidth: nv,
   appMotion: nv,
   reducedMotionSignal: nv,
+  copy: nv, // $.ui.copy({ text }) existe nos strings do engine 2.1.330, sem log de execução: not-verified (ADR 0002)
 }
