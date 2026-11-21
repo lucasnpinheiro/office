@@ -680,7 +680,7 @@ export const register: Register = on => {
     const draw = (line0: typeof f.lines[number]) => { const line = caps.ascii ? asciiLine(line0) : line0; return (
       <Box flexDirection="row">
         {line.length === 0 ? <Text> </Text> : null}
-        {line.map(s =>
+        {line.map((s, j) =>
           s.attach ? (
             <Button plain key={`a-${s.attach}`} onPress={() => void (async () => { await update($, attachAt, () => s.attach!); $.ui.invalidate('ui.render') })()}><Text color={s.fg}>{s.t}</Text></Button>
           ) : s.act && s.hotkey ? (
@@ -688,7 +688,7 @@ export const register: Register = on => {
           ) : s.act && s.btn ? (
             <Button plain key={`b-${s.act}`} label={s.t.trim()} onPress={() => void act(s.act!)}>{s.t.trim()}</Button>
           ) : s.act ? (
-            <Button plain key={`c-${s.act}-${s.t}`} onPress={() => void act(s.act!)}><Text color={s.fg} bold={s.bold} dimColor={s.dim}>{s.t}</Text></Button>
+            <Button plain key={`c-${s.act}-${s.t}-${j}`} onPress={() => void act(s.act!)}><Text color={s.fg} bold={s.bold} dimColor={s.dim}>{s.t}</Text></Button>
           ) : s.node && s.hotkey ? (
             <Button plain hotkey={ui.searching ? undefined : s.hotkey} key={`nh-${s.hotkey}`} label={s.t.slice(3)} onPress={() => void act(`open:${s.node!}`)}>{s.t.slice(3)}</Button>
           ) : s.node ? (
