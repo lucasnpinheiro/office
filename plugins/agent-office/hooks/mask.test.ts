@@ -252,3 +252,69 @@ test('0.28.44: deploy_sk-A1b2C3d4E5f6g7h8I9j0K1l2 still masked', () => {
   const s = 'deploy_sk-A1b2C3d4E5f6g7h8I9j0K1l2'
   expect(maskText(s)).not.toContain('A1b2C3d4E5f6g7h8I9j0K1l2')
 })
+
+// 0.28.44 review (blocking 1): the eyJ rule must not be quadratic on repeated "eyJ" starts (main: ~5 ms)
+const timeMask = (s: string): number => {
+  const t0 = performance.now()
+  maskText(s)
+  return performance.now() - t0
+}
+const PERF_MS = 200 // generous: flakes avoided, the quadratic input took 8 s
+for (const [name, s] of [
+  ['eyJ x33000', 'eyJ'.repeat(33000)],
+  ['(eyJ+aaaaaaa) x10000', ('eyJ' + 'a'.repeat(7)).repeat(10000)],
+  ['eyJ + 99k a', 'eyJ' + 'a'.repeat(99990)],
+] as [string, string][]) test(`0.28.44 perf: ${name} masks in < ${PERF_MS} ms`, () => {
+  const ms = timeMask(s)
+  if (ms >= PERF_MS) throw new Error(`${name} took ${Math.round(ms)} ms`)
+})
+for (const p of ['sk-', 'sk_live_', 'ghp_', 'github_pat_', 'AKIA', 'AIza', 'npm_', 'xoxb-', 'eyJ']) test(`0.28.44 perf: ${p} repeated to 100 KB masks in < ${PERF_MS} ms`, () => {
+  const s = p.repeat(Math.ceil(100_000 / p.length))
+  const ms = timeMask(s)
+  if (ms >= PERF_MS) throw new Error(`${p} x100K took ${Math.round(ms)} ms`)
+})
+
+// deterministic pseudo-random base64url run (no periodic windows that could hide a leak)
+const runOf = (n: number, seed: number): string => {
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+  let x = seed
+  let out = ''
+  for (let i = 0; i < n; i++) {
+    x = (x * 1103515245 + 12345) & 0x7fffffff
+    out += A[x % A.length]
+  }
+  return out
+}
+// 0.28.44 review: a real JWT of 600 chars (header 100, payload 300, signature 190) is still fully masked
+test('0.28.44 cap: 600-char JWT fully masked, no 6-char window survives', () => {
+  const jwt = 'eyJ' + runOf(97, 1) + '.' + runOf(300, 2) + '.' + runOf(190, 3)
+  const out = maskText(`token=${jwt} end`)
+  for (let i = 0; i + 6 <= jwt.length; i++) {
+    const w = jwt.slice(i, i + 6)
+    if (out.includes(w)) throw new Error(`leak window=${w} out=${out.slice(0, 80)}`)
+  }
+})
+
+// 0.28.44 review (blocking 2): AKIA cut so the continuation holds 1-3 chars is masked, as on main
+for (const [name, s] of [
+  ['13 body + 3 tail', 'AKIAABCDEFGHJKLMN\nR5P'],
+  ['13 body + 3 tail, 4-space indent', 'AKIAABCDEFGHJKLMN\n    R5P'],
+  ['15 body + 1 tail', 'AKIAABCDEFGHJKLMNPQ\nR'],
+  ['13 body + 3 tail, backslash-newline', 'AKIAABCDEFGHJKLMN\\\nR5P'],
+  ['13 body + 3 tail, CRLF', 'AKIAABCDEFGHJKLMN\r\nR5P'],
+] as [string, string][]) test(`0.28.44 AKIA wrap: ${name} first chunk masked`, () => {
+  const out = maskText(s)
+  if (out.includes('ABCDEFGH')) throw new Error(`leak out=${JSON.stringify(out)}`)
+})
+
+// 0.28.44 review: every prefix keeps a 1-3 char tail masked (main masks these), not only AKIA
+for (const [name, tok] of [...WRAP_TOKENS, ['AKIA', 'AKIAABCDEFGHJKLMNPQR']] as [string, string][]) test(`0.28.44 wrap: ${name} with a 1-3 char tail line is masked`, () => {
+  for (let cut = Math.max(name.length + 8, tok.length - 3); cut < tok.length; cut++) {
+    const input = `x="${tok.slice(0, cut)}\n${tok.slice(cut)}" y`
+    const out = maskText(input)
+    for (let i = 0; i + 6 <= tok.length; i++) {
+      const w = tok.slice(i, i + 6)
+      if (out.includes(w)) throw new Error(`leak ${name} cut=${cut} window=${w} out=${JSON.stringify(out)}`)
+    }
+  }
+})
