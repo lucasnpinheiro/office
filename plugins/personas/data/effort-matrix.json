@@ -293,7 +293,8 @@
     "Data/BI": "📊",
     "Junior": "🌱",
     "Tech Writer": "✍️",
-    "Estagiário": "🐣"
+    "Estagiário": "🐣",
+    "Designer": "🖌️"
   },
   "model_display": {
     "haiku": {
@@ -378,6 +379,9 @@
     ],
     "Estagiário": [
       "rapido"
+    ],
+    "Designer": [
+      "rapido"
     ]
   },
   "persona_tiers": {
@@ -397,26 +401,28 @@
     "Data/BI": "sonnet",
     "Junior": "haiku",
     "Tech Writer": "haiku",
-    "Estagiário": "haiku"
+    "Estagiário": "haiku",
+    "Designer": "sonnet"
   },
   "persona_models": {
-    "Product Owner": "opus",
+    "Product Owner": "haiku",
     "Squad Leader": "sonnet",
-    "Especialista": "sonnet",
-    "Arquiteto": "sonnet",
-    "Senior": "sonnet",
-    "Pleno": "sonnet",
+    "Especialista": "haiku",
+    "Arquiteto": "haiku",
+    "Senior": "haiku",
+    "Pleno": "haiku",
     "QA": "sonnet",
-    "DBA": "sonnet",
+    "DBA": "haiku",
     "AppSec": "haiku",
     "DevOps": "haiku",
     "SRE": "haiku",
     "Performance": "haiku",
-    "UX/UI": "haiku",
+    "UX/UI": "sonnet",
     "Data/BI": "haiku",
     "Junior": "haiku",
     "Tech Writer": "haiku",
-    "Estagiário": "haiku"
+    "Estagiário": "haiku",
+    "Designer": "sonnet"
   },
   "escalation": {
     "haiku": "sonnet.escalation"
@@ -506,6 +512,11 @@
       "key": "est",
       "animal": "chick",
       "room": "Estagio"
+    },
+    "Designer": {
+      "key": "design",
+      "animal": "flamingo",
+      "room": "Dev"
     }
   },
   "_note": "Machine copy of docs/model-routing.md Effort matrix and docs/personas.md. Informational: nothing in the router reads it; the agent-office mod mirrors the persona table in its persona.ts."

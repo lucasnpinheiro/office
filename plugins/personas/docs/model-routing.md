@@ -22,7 +22,7 @@ and `personas:profundo` (`<plugin>:<agent>`).
 Every spawn starts at `low`. Two failures per (model, effort) step, whatever the reason, move to the next step:
 effort +1, then the next model. Haiku low, medium, high, then Sonnet low, medium, high, then Opus low, medium.
 After Opus medium fails twice, stop and replan or `ASK:`. The ladder has no attempt quota; markers `[ladder step=N]`
-are enforced by `~/.agents/hooks/model-ladder-guard.sh` in the main session.
+are enforced by the `model-ladder-guard` hook in the main session.
 
 Start points: Haiku (`rapido`) low for every persona, judge and AppSec included. UX/UI, Designer, QA and code review
 start Sonnet medium. The orchestrator is `padrao` (Sonnet low, tag `[orchestrator]`); `profundo` (Opus low) only on
