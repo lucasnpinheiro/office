@@ -40,6 +40,6 @@ export type OfficeAgent = AgentRecord & { subagentType: string }
 
 declare module 'claude-code' {
   interface PluginState {
-    'agent-office': { agents: OfficeAgent[]; open: boolean; collapsed: string[]; selected: string; view: string; mode: string; searching: boolean; filter: string; sort: string; cols: number; sid: string; modeChosen: boolean; query: string; expanded: string[]; attach: string; sessionTokens: number | null; sessionUsd: number | null; sessionLimits: Record<string, unknown> | null; sessionTool: { tool?: string; recent?: string[] }; copied: number }
+    'agent-office': { agents: OfficeAgent[]; open: boolean; collapsed: string[]; selected: string; view: string; mode: string; searching: boolean; filter: string; sort: string; cols: number; sid: string; modeChosen: boolean; query: string; expanded: string[]; attach: string; sessionTokens: number | null; sessionUsd: number | null; sessionLimits: Record<string, unknown> | null; sessionTool: { tool?: string; recent?: string[] }; autoView: boolean; dismissed: string[]; scroll: number; copied: number }
   }
 }
