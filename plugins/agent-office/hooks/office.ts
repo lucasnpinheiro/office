@@ -64,6 +64,7 @@ export function frameFor(agents: AgentLike[], now: number): number {
 }
 
 export const HIDE_AFTER_MS = 30_000 // finished agents leave the map this long after they end
+export const FAIL_HIDE_MS = 120_000 // failed cards leave this long after their failure (node.end), unless dismissed first
 
 // Finished agent still on screen, waiting for its hide deadline: keep the clock ticking.
 export const hasPendingHide = (agents: AgentLike[], now: number): boolean =>
@@ -81,7 +82,11 @@ export function ticker(): { next: () => number; current: (g: number) => boolean 
 export const COMPACT_FRAME_MS = SPIN_FRAME_MS // compact view: 6 fps too (T-014 AC-045)
 export function nextDelay(agents: AgentLike[], now: number = Date.now(), opts?: { reducedMotion?: boolean; compact?: boolean }): number | undefined {
   if (isRunning(agents)) return frameIntervalMs({ running: true, reduced: opts?.reducedMotion, compact: opts?.compact })
-  return hasPendingHide(agents, now) ? TICK_MS : undefined
+  // a failed card leaves FAIL_HIDE_MS after its end: wake the render at that moment, with no user input needed
+  const fail = agents.filter(a => a.status === 'error' && a.endedAt !== undefined).map(a => a.endedAt! + FAIL_HIDE_MS - now).filter(ms => ms > 0)
+  const due = fail.length ? Math.min(...fail) : undefined
+  if (hasPendingHide(agents, now)) return due === undefined ? TICK_MS : Math.min(TICK_MS, due)
+  return due
 }
 
 // Columns of the pane body: the pane's own (`bodyColumns`), not the whole surface's viewport.

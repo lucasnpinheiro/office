@@ -69,6 +69,7 @@ export const KEY_MAP: KeyEntry[] = [
   { key: 'r', act: 'retry', label: 'repetir', cap: 'retry' },
   { key: 'b', act: 'back', label: 'voltar' },
   { key: 'x', act: 'stop', label: 'parar', cap: 'stop' },
+  { key: 'e', act: 'dismissAlert', label: 'dispensar' }, // first visible alert banner; hint only while one exists
   { key: 'p', act: 'prevSibling', label: 'irmão anterior' },
   { key: 'n', act: 'nextSibling', label: 'irmão seguinte' },
   { key: 'u', act: 'pauseResume', label: 'pausar e retomar', cap: 'pause' },

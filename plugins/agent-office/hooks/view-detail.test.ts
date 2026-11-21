@@ -20,7 +20,7 @@ test('AC-027 detalhe: breadcrumb, linha de estado, resultado e linha do tempo na
   })
   const lines = detailScreen([a], 'a1', T0 + 8000).lines
   expect(lines[0]).toMatch(/^\[← voltar\] +Office › Tester$/)
-  expect(lines[1]).toBe('✗ Falhou   Agente · Haiku · baixo')
+  expect(lines[1]).toBe('✗ Falhou   Agente · Haiku · baixo   [x] remover')
   expect(lines[2]).toBe('⧉ spec/checkout-api  ⏱ 00:07')
   expect(lines[3]).toMatch(/^░{20}  sem total conhecido$/)
   expect(lines.join('\n')).toContain('2 de 14 testes falham: cupom não aplicado')

@@ -3,12 +3,14 @@ import { DEFAULT_MODE, NEXT_MODE, TREE_FOLD } from './compact'
 import type { Mode } from './compact'
 import { keyOf, labelOf } from './vocabulary'
 
+export const DISMISSED_CAP = 200 // persisted dismiss keys kept (oldest dropped)
 export type Ui = {
   view: 'compact' | 'map'; mode: Mode; filter: 'all' | 'failed'; sort: 'time' | 'state' | 'name'
   searching: boolean; selected: string; attach: string; query: string; expanded: string[]
   modeChosen: boolean // the user picked the mode (g, button, /office mode): v from the map keeps it
+  dismissed?: string[] // alerts removed by the user, keys id:state; kept across sessions (optional: older fixtures omit it)
 }
-export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [], modeChosen: false })
+export const initialUi = (): Ui => ({ view: 'map', mode: DEFAULT_MODE, filter: 'all', sort: 'time', searching: false, selected: '', attach: '', query: '', expanded: [], modeChosen: false, dismissed: [] })
 // Session start: every persisted view/filter/search field goes back to the default (map view, the agent org chart), so a
 // previous session's map view, filter or query never leaks into the new one.
 export const startUi = (): Ui => ({ ...initialUi() })
@@ -16,8 +18,10 @@ export const startUi = (): Ui => ({ ...initialUi() })
 // `ctx.collapsed` (tree only): false when the tree shows no collapsed group, so g does not waste a press opening nothing.
 // `ctx.workflow`: true only while a workflow run exists; otherwise g skips the Workflow stop (never an always-empty screen).
 export const nextModeOf = (m: Mode, workflow: boolean): Mode => { const n = NEXT_MODE[m]; return n === 'workflow' && !workflow ? NEXT_MODE[n] : n }
-export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workflow?: boolean; terminal?: boolean } = {}): { state: Ui; close?: true } {
+export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workflow?: boolean; terminal?: boolean; alert?: string } = {}): { state: Ui; close?: true } {
   if (a === 'close') return { state: s, close: true }
+  // e: dispensa o primeiro alerta visível (ctx.alert = its dismiss key); sem alerta não faz nada
+  if (a === 'dismissAlert') return ctx.alert ? applyAction(s, `dismiss:${ctx.alert}`) : { state: s }
   // g em árvore: primeiro recolhe irmãos iguais em grupos (opt-in; o padrão mostra todos), depois passa ao modo seguinte.
   if (a === 'group') {
     if (s.mode === 'tree' && ctx.collapsed !== false && !s.expanded.includes(TREE_FOLD)) return { state: { ...s, expanded: [...s.expanded, TREE_FOLD] } }
@@ -46,6 +50,12 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
     return { state: { ...s, selected: '' } }
   }
   if (a.startsWith('open:')) return { state: { ...s, selected: a.slice(5), attach: '' } }
+  // dismiss:<id>:<state> removes the banner/failed card; from its detail view the pane goes back to the list
+  if (a.startsWith('dismiss:')) {
+    const k = a.slice(8), id = k.split(':').slice(0, -2).join(':')
+    const dismissed = s.dismissed ?? []
+    return { state: { ...s, dismissed: dismissed.includes(k) ? dismissed : [...dismissed, k].slice(-DISMISSED_CAP), selected: s.selected === id ? '' : s.selected, attach: s.selected === id ? '' : s.attach } }
+  }
   if (a.startsWith('grp:')) {
     const k = a.slice(4)
     return { state: { ...s, expanded: s.expanded.includes(k) ? s.expanded.filter(x => x !== k) : [...s.expanded, k] } }
@@ -56,12 +66,12 @@ export function applyAction(s: Ui, a: string, ctx: { collapsed?: boolean; workfl
 // Hotkeys shown in the footer of the current view. One letter each (the surface refuses '/', Esc never
 // arrives), unique per view, none while the search Input holds the keys.
 export type Hotkey = { key: string; label: string; act: string }
-export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
+export function hotkeysFor(s: Ui, side: boolean, alert = false): Hotkey[] {
   if (s.searching) return []
   // Letras e rótulos vêm do KEY_MAP único (vocabulary.ts), não de literais por tela.
   const hk = (act: string): Hotkey => ({ key: keyOf(act) ?? '', label: labelOf(act) ?? act, act })
   // REQ-503: o mesmo rodapé em toda aba (modo, ordenar, falhas, buscar, visão), sem condicionar ao modo.
-  const list: Hotkey[] = [hk('group'), hk('sort'), hk('failed'), hk('search'), hk('view')]
+  const list: Hotkey[] = [hk('group'), hk('sort'), hk('failed'), hk('search'), hk('view'), ...(alert && !s.selected ? [hk('dismissAlert')] : [])]
   const back: Hotkey = { ...hk('back'), label: s.attach ? 'fechar preview' : hk('back').label }
   const close = hk('close')
   const view = hk('view')
@@ -74,8 +84,8 @@ export function hotkeysFor(s: Ui, side: boolean): Hotkey[] {
 
 // Footer text: hotkeys joined by " · ", tail hint set off by " · " (never glued like "visão q:").
 export const FOOTER_SEP = ' · '
-export function footerText(s: Ui, side: boolean): string {
-  return hotkeysFor(s, side).map(h => `${h.key}: ${h.label}`).join(FOOTER_SEP)
+export function footerText(s: Ui, side: boolean, alert = false): string {
+  return hotkeysFor(s, side, alert).map(h => `${h.key}: ${h.label}`).join(FOOTER_SEP)
 }
 export function footerTail(s: Ui): string {
   if (s.searching) return 'Enter aplica a busca (vazio limpa)'
@@ -89,7 +99,7 @@ export function footerTail(s: Ui): string {
 export type FooterSeg = { t: string; act?: string; hotkey?: string; dim?: boolean }
 const GROUP_SEP = '  |  '
 const groupOf = (act: string): number => (act === 'group' || act === 'sort' || act === 'failed' || act === 'search' ? 1 : act === 'view' ? 2 : act === 'back' || act === 'close' ? 3 : 0)
-export function footerRows(s: Ui, side: boolean, cols0: number): FooterSeg[][] {
+export function footerRows(s: Ui, side: boolean, cols0: number, alert = false): FooterSeg[][] {
   const cols = Math.max(10, cols0 - 2) // REQ-601: the host pane is narrower than the reported cols; a full row would make the flex layout shrink every label
   const scroll = !s.searching && s.view === 'compact' && !s.selected // j/k scroll every list tab (REQ-603): shown, not hidden buttons
   const nav: FooterSeg[] = [
@@ -114,7 +124,7 @@ export function footerRows(s: Ui, side: boolean, cols0: number): FooterSeg[][] {
     return rows
   }
   const groups: FooterSeg[][] = [nav, [], [], []]
-  for (const h of hotkeysFor(s, side)) groups[groupOf(h.act)]!.push({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })
+  for (const h of hotkeysFor(s, side, alert)) groups[groupOf(h.act)]!.push({ t: `${h.key}: ${h.label}`, act: h.act, hotkey: h.key })
   // order: filtros, visão, sair first (the keys), navegação last (hints)
   const items: { seg: FooterSeg; g: number }[] = [1, 2, 3, 0].flatMap(g => groups[g]!.map(seg => ({ seg, g })))
   const rows: FooterSeg[][] = []

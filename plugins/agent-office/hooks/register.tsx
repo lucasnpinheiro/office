@@ -9,9 +9,9 @@ import { frameFor, nextDelay, parseSub, paneWidth, paneBodyLines, drawSig, ticke
 import { renderMonitor, inlineSize, WORKTREE_COLOR, buildGraph, elapsedOf, fmtMMSS, strWidth } from './monitor'
 import { TONE as TONE_OF } from './app-cards'
 import { VIEW_TABS } from './vocabulary'
-import { mapScrollStep, renderCompact, titleRows, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES } from './compact'
+import { mapScrollStep, renderCompact, titleRows, treeHasCollapsed, previewLines, detectCaps, statusText, asciiLine, DEFAULT_MODE, MODES, alertsOf, visibleSet } from './compact'
 import type { CView } from './compact'
-import { buildRunModel, limitsRawOf, usageLimits } from './run-model'
+import { buildRunModel, limitsRawOf, usageLimits, hiddenIds, dismissKey } from './run-model'
 import { CAPABILITIES, canUse } from './capabilities'
 import { sideDetail } from './layout'
 import { detailView, detailScrollStep } from './view-detail'
@@ -61,6 +61,7 @@ const searchingAt = atom({ plugin: 'agent-office', key: 'searching' } as const, 
 const queryAt = atom({ plugin: 'agent-office', key: 'query' } as const, '')
 const modeChosenAt = atom({ plugin: 'agent-office', key: 'modeChosen' } as const, false)
 const expandedAt = atom({ plugin: 'agent-office', key: 'expanded' } as const, [])
+const dismissedAt = atom({ plugin: 'agent-office', key: 'dismissed' } as const, [] as string[]) // alerts removed by the user, id:state; kept across sessions
 const attachAt = atom({ plugin: 'agent-office', key: 'attach' } as const, '')
 
 // OFFICE_CAPTURE_IO=1 (exactly) turns on masked tool input/output capture; read fresh, any failure means off.
@@ -289,16 +290,24 @@ async function readUi($: EngineInterface): Promise<Ui> {
     filter: (await read($, filterAt)) === 'failed' ? 'failed' : 'all', sort: (await read($, sortAt)) as Ui['sort'],
     searching: await read($, searchingAt), selected: await read($, selectedAt), attach: await read($, attachAt),
     query: await read($, queryAt), expanded: await read($, expandedAt), modeChosen: await read($, modeChosenAt),
+    dismissed: await read($, dismissedAt),
   }
 }
 async function writeUi($: EngineInterface, n: Ui) {
   await update($, viewAt, () => n.view); await update($, autoViewAt, () => false); await update($, modeAt, () => n.mode); await update($, filterAt, () => n.filter)
   await update($, sortAt, () => n.sort); await update($, searchingAt, () => n.searching); await update($, selectedAt, () => n.selected)
   await update($, attachAt, () => n.attach); await update($, queryAt, () => n.query); await update($, expandedAt, () => n.expanded)
-  await update($, modeChosenAt, () => n.modeChosen)
+  await update($, modeChosenAt, () => n.modeChosen); await update($, dismissedAt, () => n.dismissed ?? [])
 }
 // one entry for every button and hotkey: pure reducer, then persist, redraw, keep the keys on the pane
 // whether the tree shows a collapsed group right now (decides if g has something to open)
+// key of the first visible alert banner (needs-you before failed), undefined when none: e dispensa it, the footer hint shows only then
+async function alertKeyOf($: EngineInterface, ui: Ui): Promise<string | undefined> {
+  const list = (await read($, office)) as OfficeAgent[], now = Date.now()
+  const g = buildGraph(list, now), dis = new Set(ui.dismissed ?? [])
+  const n = alertsOf(g, visibleSet(g, ui.query, hiddenIds(g, now, dis), ui.filter), dis)[0]
+  return n ? dismissKey(n) : undefined
+}
 async function groupCtx($: EngineInterface, ui: Ui): Promise<{ collapsed: boolean; workflow: boolean }> {
   const list = (await read($, office)) as OfficeAgent[]
   return { collapsed: treeHasCollapsed(list, Date.now(), { query: ui.query, filter: ui.filter }), workflow: hasWorkflow(list) } // workflow: g only stops there while a run exists
@@ -321,7 +330,7 @@ async function dispatch($: EngineInterface, a: string) {
   const ui = await readUi($)
   // a selection that left the list (agent dropped by the 60-entry cap, /office reset) is cleared by the next action, whichever it is
   if (ui.selected && !((await read($, office)) as OfficeAgent[]).some(x => x.id === ui.selected)) ui.selected = ''
-  const r = applyAction(ui, a, a === 'group' ? await groupCtx($, ui) : { terminal: onTerminal() })
+  const r = applyAction(ui, a, a === 'group' ? await groupCtx($, ui) : a === 'dismissAlert' ? { terminal: onTerminal(), alert: await alertKeyOf($, ui) } : { terminal: onTerminal() })
   if (r.close) return closeOffice($)
   if (r.state.selected !== ui.selected || r.state.mode !== ui.mode || r.state.view !== ui.view) await update($, scrollAt, () => 0) // opening or leaving a detail, or changing tab, starts at the top
   await writeUi($, r.state)
@@ -637,11 +646,12 @@ export const register: Register = on => {
     const ioFlag = await captureIoOf($)
     const usd: number | null = await read($, sessionUsdAt)
     // REQ-603: the hotkey rows are drawn under the compact frame, so the frame gets the pane rows minus them (the footer never leaves the screen)
-    const hkRows = view === 'compact' && !selected ? footerRows({ ...(await readUi($)), selected }, false, cols).length : 0
+    const alertOn = (await alertKeyOf($, await readUi($))) !== undefined
+    const hkRows = view === 'compact' && !selected ? footerRows({ ...(await readUi($)), selected }, false, cols, alertOn).length : 0
     const compactView: CView = {
       width: cols, caps, mode: (await read($, modeAt)) as Mode, query: await read($, queryAt),
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
-      expanded: new Set((await read($, expandedAt)) as string[]), maxCardRows: 4, chrome: !isAppSurface((e as { surface?: string }).surface), scroll: await read($, scrollAt), branch: sgit?.branch,
+      expanded: new Set((await read($, expandedAt)) as string[]), dismissed: new Set((await read($, dismissedAt)) as string[]), maxCardRows: 4, chrome: !isAppSurface((e as { surface?: string }).surface), scroll: await read($, scrollAt), branch: sgit?.branch,
       maxLines: Math.max(1, paneBodyLines(e.props as { bodyRows?: number; scroll?: { bodyRows?: number } } | undefined, e.viewport) - hkRows),
       frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, limits: (await read($, sessionLimitsAt)) ?? undefined, ahead: aheadNow(),
@@ -697,7 +707,7 @@ export const register: Register = on => {
     // footer hotkeys for the current view (actions.ts): one letter each, none while the search Input has the keys
     // the hint tail is dropped before the row can wrap; then the labels shrink to the bare keys
     // footer: grouped, wrapped by width and centred like the legend (footerRows, actions.ts); j/k are visible items, not empty hidden buttons
-    const keysRow = (<>{footerRows(ui, side, cols).map((row, i) => (
+    const keysRow = (<>{footerRows(ui, side, cols, alertOn).map((row, i) => (
       <Box key={`foot-${i}`} flexDirection="row" justifyContent="center">{row.map((x, j) => x.act && x.hotkey
         ? <Box key={`hb-${x.hotkey}`} flexShrink={0}><Button plain hotkey={ui.searching ? undefined : x.hotkey} key={`h-${x.hotkey}`} label={x.t.slice(3)} onPress={() => void act(x.act!)}>{x.t.slice(3)}</Button></Box>
         : <Box key={`ft-${j}`} flexShrink={0}><Text dimColor={x.dim}>{x.t}</Text></Box>)}</Box>
@@ -821,12 +831,13 @@ export const register: Register = on => {
     const TABS = VIEW_TABS.map(([k, label]) => [k, label, `tab:${k}`] as const) // mesma fonte das abas do terminal
     const curTab = view === 'map' ? 'map' : (await read($, modeAt)) as string
     const limLines = usageLimits((await read($, sessionLimitsAt)) ?? undefined, now)
+    const dis = new Set(await read($, dismissedAt) as string[]) // read here: appChrome below is sync
     const appChrome = () => {
       const g = buildGraph(all, now, sgit)
       const ags = [...g.nodes.values()].filter(n => n.kind === 'agent')
       const cnt = (st: string) => ags.filter(n => n.state === st).length
       const proj = cwd.split('/').filter(Boolean).pop() ?? ''
-      const failed = appCards(all, now, {}).filter(c => c.state === 'failed')
+      const failed = appCards(all, now, { dismissed: dis }).filter(c => c.state === 'failed')
       return (
         <Box flexDirection="column" gap="xs">
           <Box flexDirection="row" flexWrap="wrap" gap="sm">
@@ -858,7 +869,7 @@ export const register: Register = on => {
     // app surfaces (desktop, vscode, mobile): graphical cards of the Chips design (title, chips, state on border and glyph);
     // the terminal keeps the text cards below. Only the cards view and no detail: the other views stay text.
     if (onApp && view === 'map' && !attach && (!selected || sideDetail({ cols, containerPx: px, desktop: (e as { surface?: string }).surface === 'desktop' }))) {
-      const tree = appMap(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit })
+      const tree = appMap(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', git: sgit, dismissed: new Set(await read($, dismissedAt) as string[]) })
       const body = tree.card.id === 'session' && tree.children.length === 0 ? <Text dimColor>Aguardando agentes… use o Claude normalmente</Text> : mapTree(tree, 'map-root', APP_CARD_W, cols)
       return (
         <Box flexDirection="column" gap="sm">
@@ -877,7 +888,7 @@ export const register: Register = on => {
       )
     }
     if (isAppSurface((e as { surface?: string }).surface) && view === 'compact' && !selected && !attach && ['map', 'cards'].includes((await read($, modeAt)) as string)) { // app: map and cards modes both draw the graphical grid
-      const cards = appCards(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed' })
+      const cards = appCards(all, now, { model: await runModelOf($, all, now), query: await read($, queryAt), filter: (await read($, filterAt)) as 'all' | 'failed', dismissed: new Set(await read($, dismissedAt) as string[]) })
       return (
         <Box flexDirection="column" gap="sm">
           {appChrome()}
