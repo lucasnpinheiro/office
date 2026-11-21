@@ -33,7 +33,7 @@ test('CAPABILITIES matches ADR 0002 exactly', () => {
     containerWidth: { terminal: 'not-verified', app: 'not-verified' },
     appMotion: { terminal: 'not-verified', app: 'not-verified' },
     reducedMotionSignal: { terminal: 'not-verified', app: 'not-verified' },
-    copy: { terminal: 'yes', app: 'yes' },
+    copy: { terminal: 'not-verified', app: 'not-verified' },
   })
 })
 

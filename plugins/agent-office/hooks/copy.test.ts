@@ -39,8 +39,8 @@ test('footer shows copiado in place of y: copiar while the note is on', async ()
   expect(on).not.toContain('y: copiar')
 })
 
-test('copy capability is bindable on both surfaces', async () => {
-  expect(CAPABILITIES.copy).toBeDefined()
-  expect(bindable(CAPABILITIES, 'terminal').map(e => e.act)).toContain('copy')
-  expect(bindable(CAPABILITIES, 'app').map(e => e.act)).toContain('copy')
+test('copy capability is not-verified (ADR 0002): not in bindable, but the footer still shows y', async () => {
+  expect(CAPABILITIES.copy).toEqual({ terminal: 'not-verified', app: 'not-verified' })
+  expect(bindable(CAPABILITIES, 'terminal').map(e => e.act)).not.toContain('copy')
+  expect(footerRows(base({ selected: 'a1' }), false, 200).flat().map(x => x.t).join(' ')).toContain('y: copiar')
 })

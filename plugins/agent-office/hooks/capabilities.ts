@@ -31,5 +31,5 @@ export const CAPABILITIES: Capabilities = {
   containerWidth: nv,
   appMotion: nv,
   reducedMotionSignal: nv,
-  copy: { terminal: 'yes', app: 'yes' }, // $.ui.copy({ text }) do host (strings do engine 2.1.330); execução não provada (ver RESULT)
+  copy: nv, // $.ui.copy({ text }) existe nos strings do engine 2.1.330, sem log de execução: not-verified (ADR 0002)
 }

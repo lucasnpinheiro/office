@@ -32,7 +32,7 @@ Veredito: `yes` = tipo declara E há log de execução; `no` = tipo não declara
 | containerWidth | not-verified | not-verified | `ui.render` é chamado por "viewport width" (`:3944`) | só tipo. `ui.render` não disparou em `claude -p` (não há tela); precisa sessão interativa. Não provado |
 | appMotion | not-verified | not-verified | `grep motion` no `index.d.ts` sem resultado; nenhuma API de movimento | só tipo, não executado |
 | reducedMotionSignal | not-verified | not-verified | `grep reduce` no `index.d.ts` sem resultado; sinal do sistema não provado | só tipo, não executado |
-| copy | yes | yes | `$.ui.copy({ text, surface })` no binário do engine 2.1.330 (strings: "the app writes `text` to its clipboard and answers `{copied}`"; resposta `isCopied`/`reason`: `no-clipboard`, `unanswered`) | só tipo/strings do binário; cópia real não executada (UNVERIFIED) |
+| copy | not-verified | not-verified | `$.ui.copy({ text, surface })` no binário do engine 2.1.330 (strings: "the app writes `text` to its clipboard and answers `{copied}`"; resposta `isCopied`/`reason`: `no-clipboard`, `unanswered`) | só tipo/strings do binário; cópia real não executada (UNVERIFIED) |
 
 Método de verificação de tipo: `command grep` e busca por regex em Python (`python3 -I`) sobre o arquivo acima; leitura de faixas com `python3 -I`. Execução: ver "Evidência de execução"; linhas sem trecho de log são só de tipo.
 
