@@ -335,7 +335,7 @@ async function dispatch($: EngineInterface, a: string) {
   if (r.state.selected !== ui.selected || r.state.mode !== ui.mode || r.state.view !== ui.view) await update($, scrollAt, () => 0) // opening or leaving a detail, or changing tab, starts at the top
   await writeUi($, r.state)
   $.ui.invalidate('ui.render')
-  if (a === 'view') bg(resizeIfNeeded($)) // map and compact want different pane sizes
+  if (a === 'view' || r.state.view !== ui.view) bg(resizeIfNeeded($)) // map and compact want different pane sizes (g on Mapa changes the view too)
   if (!r.state.searching) bg($.ui.focus({ requestId: PANE, key: 'hk-first' }))
 }
 
