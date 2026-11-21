@@ -773,16 +773,37 @@ export function treeHasCollapsed(agents: AgentLike[], now: number, v: Pick<CView
 
 // REQ-603: window of `avail` rows over a list body, with `↑ N mais` / `↓ N mais` notes taking a row each; the rows above and below
 // are counted, never silently dropped. Sets scrollInfo so j/k clamp to the last window.
-export function windowBody(body: Line[], avail: number, scroll: number, c: Caps, w: number): Line[] {
+// shared click-scroll chrome (every tab): optional `↑`/`↓` notes (click = scrollUp/scrollDown) and a track on the last column.
+// rows: the window (room of them, laid out one column narrower than w). Track above the thumb pages up, below pages down, thumb inert.
+export function scrollChrome(rows: Line[], o: { room: number; total: number; off: number; maxRow: number; up?: { t: string; act: boolean }; down?: { t: string; act: boolean }; w: number; c: Caps }): Line[] {
+  const note = (t: string, act: boolean, dir: string): Line => centre([seg(o.c, t, DIM, act ? { act: dir } : {})], o.w) // act: click scrolls (no mouse wheel on Box)
+  const thumbH = Math.max(1, Math.min(o.room, Math.round(o.room * o.room / o.total)))
+  const top = Math.round((o.room - thumbH) * (o.maxRow ? Math.min(o.off, o.maxRow) / o.maxRow : 0))
+  const [tk, th] = o.c.ascii ? ['|', '#'] : ['░', '█']
+  const body: Line[] = []
+  for (let i = 0; i < o.room; i++) {
+    const l = fit(rows[i] ?? [], o.w - 1)
+    const click = i < top ? { act: 'scrollUp' } : i >= top + thumbH ? { act: 'scrollDown' } : {} // track click pages toward the press
+    body.push([...l, ...sp(o.w - 1 - lineWidth(l)), seg(o.c, i >= top && i < top + thumbH ? th : tk, DIM, click)])
+  }
+  return [...(o.up ? [note(o.up.t, o.up.act, 'scrollUp')] : []), ...body, ...(o.down ? [note(o.down.t, o.down.act, 'scrollDown')] : [])]
+}
+
+// REQ-603: window of `avail` rows over a list body; the `↑ N mais` / `↓ N mais` notes take a row each (none on a short pane,
+// where only the track shows). The rows above and below are counted, never silently dropped. body is laid out one column
+// narrower than w by the caller when it overflows. Sets scrollInfo so j/k clamp to the last window.
+export function windowBody(body: Line[], avail: number, scroll: number, c: Caps, w: number, short = false): Line[] {
   if (body.length <= avail) { scrollInfo.max = 0; scrollInfo.units = []; return body }
-  const maxOff = body.length - avail + 1
+  const maxOff = body.length - avail + (short ? 0 : 1)
   scrollInfo.max = maxOff; scrollInfo.units = []
   const off = Math.min(Math.max(0, scroll), maxOff)
-  let room = avail - (off > 0 ? 1 : 0)
-  if (body.length - off > room) room--
+  let room = avail - (off > 0 && !short ? 1 : 0)
+  if (!short && body.length - off > room) room--
   const below = body.length - off - room
-  const note = (t: string): Line => centre([seg(c, t, DIM)], w)
-  return [...(off > 0 ? [note(`${c.ascii ? '^' : '↑'} ${off} mais`)] : []), ...body.slice(off, off + room), ...(below > 0 ? [note(`${c.ascii ? 'v' : '↓'} ${below} mais`)] : [])]
+  return scrollChrome(body.slice(off, off + room), {
+    room, total: body.length, off, maxRow: maxOff, w, c,
+    ...(short ? {} : { up: off > 0 ? { t: `${c.ascii ? '^' : '↑'} ${off} mais`, act: true } : undefined, down: below > 0 ? { t: `${c.ascii ? 'v' : '↓'} ${below} mais`, act: true } : undefined }),
+  })
 }
 
 export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line[] {
@@ -818,21 +839,30 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
     const bodyStart = out.length
     if (v.mode === 'cards') {
       // same window as the map: whole card rows only, j/k scroll through scrollInfo; a short pane no longer overflows
-      const starts: number[] = []
-      const rows = gridLines(g, nm, keep, now, v, new Map(model.nodes.map(r => [r.id, r])), starts)
+      const runs = new Map(model.nodes.map(r => [r.id, r]))
+      const layout = (width: number) => { const starts: number[] = []; const rows = gridLines(g, nm, keep, now, { ...v, width }, runs, starts); return { rows, starts } }
       const avail = v.maxLines === undefined ? Infinity : Math.max(shortPane(v) ? 5 : MIN_CARD_ROWS, v.maxLines - out.length - foot.length)
-      if (rows.length <= avail) { scrollInfo.max = 0; scrollInfo.units = []; out.push(...rows) }
+      let lay = layout(w)
+      if (lay.rows.length <= avail) { scrollInfo.max = 0; scrollInfo.units = []; out.push(...lay.rows) }
       else {
+        // one column goes to the track: cards are laid out again one column narrower (heights do not change with width)
+        lay = layout(w - 1)
+        const { rows, starts } = lay
+        const room = avail - (shortPane(v) ? 0 : 2) // the two notes (a short pane has no room for them)
         const bounds = [...starts, rows.length]
         let mi = 0
-        while (mi < starts.length - 1 && rows.length - bounds[mi]! > avail) mi++ // last start whose tail still fits
+        while (mi < starts.length - 1 && rows.length - bounds[mi]! > room) mi++ // last start whose tail still fits
         const off = Math.min(Math.max(0, v.scroll ?? 0), bounds[mi]!)
         scrollInfo.max = bounds[mi]!; scrollInfo.units = bounds.slice(0, mi + 1)
         let first = 0
         while (first < starts.length - 1 && bounds[first + 1]! <= off) first++
         let last = first + 1
-        while (last < starts.length && bounds[last + 1]! - bounds[first]! <= avail) last++ // whole card rows only
-        out.push(...rows.slice(bounds[first], bounds[last]))
+        while (last < starts.length && bounds[last + 1]! - bounds[first]! <= room) last++ // whole card rows only
+        const cardNote = (n: number, dir: string) => (v.caps.ascii ? (dir === '↑' ? '^' : 'v') : dir) + ` ${n} mais`
+        out.push(...scrollChrome(rows.slice(bounds[first], bounds[last]), {
+          room, total: rows.length, off, maxRow: bounds[mi]!, w, c: v.caps,
+          ...(shortPane(v) ? {} : { up: first > 0 ? { t: cardNote(first, '↑'), act: true } : { t: '', act: false }, down: last < starts.length ? { t: cardNote(starts.length - last, '↓'), act: true } : { t: '', act: false } }),
+        }))
       }
     }
     else if (v.mode === 'map') {
@@ -866,30 +896,31 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
         const shown = flat.slice(bounds[first], bounds[last])
         const stop = Math.min(first, mi)
         const pos = `${stop + 1}/${mi + 1}` // position in scroll stops (one card each): the last stop reads k/k
-        const note = (t: string, act?: string): Line => centre([seg(v.caps, t, DIM, act ? { act } : {})], w) // act: click scrolls (no mouse wheel on Box)
-        if (!shortPane(v)) out.push(note(`${stop > 0 ? (v.caps.ascii ? '^ mais ' : '↑ mais ') : ''}${pos}`, stop > 0 ? 'scrollUp' : undefined))
-        // scrollbar: track + thumb on the last column, thumb size and place proportional to the window
-        const thumbH = Math.max(1, Math.min(room, Math.round(room * room / total)))
-        const top = Math.round((room - thumbH) * (maxRow ? Math.min(off, maxRow) / maxRow : 0))
-        const [tk, th] = v.caps.ascii ? ['|', '#'] : ['░', '█']
-        for (let i = 0; i < room; i++) {
-          const l = fit(shown[i] ?? [], w - 1)
-          const used = lineWidth(l)
-          const click = i < top ? { act: 'scrollUp' } : i >= top + thumbH ? { act: 'scrollDown' } : {} // track click pages toward the press
-          out.push([...l, ...sp(w - 1 - used), seg(v.caps, i >= top && i < top + thumbH ? th : tk, DIM, click)])
-        }
-        if (!shortPane(v)) out.push(note(`${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`, off < maxRow ? 'scrollDown' : undefined))
+        out.push(...scrollChrome(shown, {
+          room, total, off, maxRow, w, c: v.caps,
+          ...(shortPane(v) ? {} : { up: { t: `${stop > 0 ? (v.caps.ascii ? '^ mais ' : '↑ mais ') : ''}${pos}`, act: stop > 0 }, down: { t: `${off < maxRow ? (v.caps.ascii ? 'v mais ' : '↓ mais ') : ''}${pos}`, act: off < maxRow } }),
+        })) // the shared chrome: notes (click pages) and the track
       }
-    } else if (v.mode === 'waterfall') out.push(...waterfallLines(g, nm, keep, now, v))
-    else if (v.mode === 'cost') out.push(...costLines(model, now, { width: w, caps: v.caps, sessionUsd: v.sessionUsd, removed, all: model0.nodes }))
-    else if (v.mode === 'tools') out.push(...toolLines(model, now, { width: w, caps: v.caps }, v.captureIo === true))
-    else if (v.mode === 'workflow') {
-      const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? a.description, state: RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], workflow: a.workflow }))
-      out.push(...workflowView(wf, vocabOf(v.caps)))
-    } else if (v.mode === 'grouped') out.push(...groupedLines(g, agents, nm, keep, now, v))
-    else out.push(...treeLines(g, nm, keep, now, v))
-    // REQ-603: the list tabs share the map's rule, the body is a window that leaves the footer on screen
-    if (v.mode !== 'map' && v.mode !== 'cards' && v.maxLines !== undefined) out.push(...windowBody(out.splice(bodyStart), Math.max(5, v.maxLines - bodyStart - foot.length), v.scroll ?? 0, v.caps, w))
+    } else {
+      // list tabs (REQ-603): the body is a window with the shared chrome, and the footer stays on screen. When it overflows,
+      // it is laid out again one column narrower so the track fits without cutting data.
+      const listBody = (width: number): Line[] => {
+        const vv: CView = { ...v, width }
+        if (v.mode === 'waterfall') return waterfallLines(g, nm, keep, now, vv)
+        if (v.mode === 'cost') return costLines(model, now, { width, caps: v.caps, sessionUsd: v.sessionUsd, removed, all: model0.nodes })
+        if (v.mode === 'tools') return toolLines(model, now, { width, caps: v.caps }, v.captureIo === true)
+        if (v.mode === 'workflow') {
+          const wf = agents.filter(a => keep.has(a.id)).map(a => ({ id: a.id, name: nm.get(a.id) ?? a.description, state: RUN_STATE[g.nodes.get(a.id)?.state ?? 'running'], workflow: a.workflow }))
+          return workflowView(wf, vocabOf(v.caps))
+        }
+        if (v.mode === 'grouped') return groupedLines(g, agents, nm, keep, now, vv)
+        return treeLines(g, nm, keep, now, vv)
+      }
+      const avail = v.maxLines === undefined ? Infinity : Math.max(5, v.maxLines - bodyStart - foot.length)
+      let body = listBody(w)
+      if (body.length > avail) body = listBody(w - 1)
+      out.push(...windowBody(body, avail, v.scroll ?? 0, v.caps, w, shortPane(v)))
+    }
   }
   out.push(...foot)
   const cut = clipOf(v.caps) // REQ-606: every row is cut with …, never a bare clip
