@@ -38,3 +38,11 @@ Phase: spec-research office-video-gaps DONE (TESTS_GENERATED). Next: spec-implem
 - Docs PR (worktree office-wt-docs2, branch docs/views-dismiss-scroll): README (dismiss, click scroll, keyboard shortcuts), CHANGELOG 0.28.38, plugin.json 0.28.37 -> 0.28.38.
 - UNVERIFIED: live panel for dismiss, `e` hotkey, click scroll in all tabs, real key delivery and `ctrl+x tab`.
 - Open user decisions: remove or implement `y` (copy has no action yet); `g` from Mapa (switches mode to tree, Mapa stays drawn).
+
+## 2026-11-21 office-wheel-copy-g: docs 0.28.39 (PR open, do not merge without gates)
+- Merged into main: #130 ab2e1eb (g on Mapa opens Árvore), #131 2fbb142 (y copies the detail), #132 aec8a25 (copy answer shapes), #133 6d173bf (mouse wheel via ui.scroll).
+- Design artifact U1AY6NTnk43zRojzo3bxZv Rodada 11.
+- Docs PR (worktree office-wt-docs3, branch docs/wheel-copy-g): README (wheel, g to Árvore, y copiar, pt-BR key labels), CHANGELOG 0.28.39, plugin.json 0.28.38 -> 0.28.39.
+- Plugin install updated to 0.28.39: final step, after merge (not done in this PR).
+- UNVERIFIED: live panel for dismiss, `e`, click scroll, `y` copy real clipboard, wheel natural direction and wheel-up.
+- Open decisions: none.
