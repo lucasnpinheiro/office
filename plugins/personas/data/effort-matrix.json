@@ -97,7 +97,7 @@
       ],
       "use": "schema/result validation"
     },
-    "sonnet.light_analysis": {
+    "haiku.light_analysis": {
       "tier": "haiku",
       "persona": "Pleno",
       "efforts": [
@@ -107,7 +107,7 @@
       ],
       "use": "light analysis of Haiku results"
     },
-    "sonnet.adjust": {
+    "haiku.adjust": {
       "tier": "haiku",
       "persona": "Pleno",
       "efforts": [
@@ -117,7 +117,7 @@
       ],
       "use": "decompose, adjust, partial synthesis"
     },
-    "sonnet.complex": {
+    "haiku.complex": {
       "tier": "haiku",
       "persona": "Senior",
       "efforts": [
@@ -140,7 +140,7 @@
       "start": "medium"
     },
     "sonnet.escalation": {
-      "tier": "haiku",
+      "tier": "sonnet",
       "persona": "Senior",
       "efforts": [
         "low",
@@ -149,7 +149,7 @@
       ],
       "use": "incomplete Haiku part, one notch up"
     },
-    "sonnet.sql": {
+    "haiku.sql": {
       "tier": "haiku",
       "persona": "DBA",
       "efforts": [
@@ -159,7 +159,7 @@
       ],
       "use": "idempotent .sql, schema/index analysis (Risk schema: profundo implementer)"
     },
-    "sonnet.security_review": {
+    "haiku.security_review": {
       "tier": "haiku",
       "persona": "AppSec",
       "efforts": [
@@ -169,7 +169,7 @@
       ],
       "use": "OWASP/secrets review (auth/pii raised to profundo)"
     },
-    "sonnet.devops": {
+    "haiku.devops": {
       "tier": "haiku",
       "persona": "DevOps",
       "efforts": [
@@ -179,7 +179,7 @@
       ],
       "use": "CI, hooks, scripts, worktree env"
     },
-    "sonnet.incident": {
+    "haiku.incident": {
       "tier": "haiku",
       "persona": "SRE",
       "efforts": [
@@ -189,7 +189,7 @@
       ],
       "use": "incident RCA, prod reliability (Laya below gate: critical fallback)"
     },
-    "sonnet.performance": {
+    "haiku.performance": {
       "tier": "haiku",
       "persona": "Performance",
       "efforts": [
@@ -210,7 +210,7 @@
       "use": "UI/UX audit, accessibility, design-system consistency",
       "start": "medium"
     },
-    "sonnet.data_bi": {
+    "haiku.data_bi": {
       "tier": "haiku",
       "persona": "Data/BI",
       "efforts": [
@@ -330,7 +330,6 @@
       "rapido"
     ],
     "Squad Leader": [
-      "padrao",
       "rapido"
     ],
     "Especialista": [
@@ -386,7 +385,7 @@
   },
   "persona_tiers": {
     "Product Owner": "opus",
-    "Squad Leader": "opus",
+    "Squad Leader": "sonnet",
     "Especialista": "opus",
     "Arquiteto": "opus",
     "Senior": "sonnet",

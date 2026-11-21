@@ -32,6 +32,7 @@ Models: 🪶 Haiku (`rapido`) · 🎼 Sonnet (`padrao`) · 👑 Opus (`profundo`
 Rules:
 - Spawns only go down a tier. The one sideways exception is `rapido` to `rapido`, once; those children are leaves.
 - A persona served on Haiku but hosted by `padrao` is spawned as `rapido` with `model` omitted.
+- A persona served on Haiku but hosted by `profundo` is spawned as `rapido` too; `profundo` runs only on explicit request or a critical orchestrator tag.
 - Judge is never the implementer. Money, auth, schema and concurrency judgement stays with `profundo`.
 - Machine copy: `data/effort-matrix.json` (icons, tiers, spawn rules, effort ladders). Informational only.
 
