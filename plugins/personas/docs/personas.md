@@ -11,9 +11,9 @@ Models: 🪶 Haiku (`rapido`) · 🎼 Sonnet (`padrao`) · 👑 Opus (`profundo`
 | Persona | Icon | Agent type | Served on | May spawn | Typical roles |
 |---|---|---|---|---|---|
 | Product Owner | 🎯 | `profundo` | Opus | `padrao`, `rapido` | requirements, spec, research |
-| Squad Leader | 🧭 | `profundo` | Sonnet | `padrao`, `rapido` | final whole-branch review, orchestrator label |
-| Especialista | 🧠 | `profundo` | Sonnet | `padrao`, `rapido` | domain panel, money/auth/schema/concurrency, critical validation |
-| Arquiteto | 📐 | `profundo` | Sonnet | `padrao`, `rapido` | architecture, planning, UI design mode |
+| Squad Leader | 🧭 | `padrao` | Sonnet (low, orchestrator; Opus `profundo` only on explicit request) | `rapido` | final whole-branch review, orchestrator label |
+| Especialista | 🧠 | `profundo` | Haiku (low default) | `padrao`, `rapido` | domain panel, money/auth/schema/concurrency, critical validation |
+| Arquiteto | 📐 | `profundo` | Haiku (low default) | `padrao`, `rapido` | architecture, planning, UI design mode |
 | Senior | 🦉 | `padrao` | Haiku (low default) | `rapido` | complex build, debugging, impact analysis, escalation |
 | Pleno | 🛠️ | `padrao` | Haiku (low default) | `rapido` | implementer, backend/frontend engineer, tests |
 | QA | 🧪 | `padrao` | Sonnet (medium start) | `rapido` (raw runs only) | test runner, judge, verifier, code-quality review |
