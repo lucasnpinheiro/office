@@ -758,7 +758,7 @@ export const register: Register = on => {
               {wrap(t1!)}
               <Text color={tc} wrap="truncate-end">{PILL[c.state] ?? ''}</Text>
             </Box>
-            {t2 ? wrap(t2) : null}
+            {t2 ? wrap(t2) : <></>}
           </>)
         })()}
         {/* chips wrap between whole chips: each chip is its own item, the separator leads the next one */}

@@ -10,7 +10,7 @@ const step = { id: 's', tool: 'Bash', label: 'x', startedAt: T, durationMs: 1000
 const mk = (id: string, extra: Partial<AgentLike>): AgentLike => ({ id, description: `Dev: ${id}`, startedAt: T, seenAt: NOW, steps: [step], workflow: { runId: 'r1', agentIndex: 0 }, ...extra } as AgentLike)
 const old = mk('oldfail', { status: 'error', error: 'boom', endedAt: NOW - 130_000 }) // past 2 min
 const fresh = mk('freshfail', { status: 'error', error: 'boom', endedAt: NOW - 5000 })
-const run = mk('runner', { status: 'running', active: true, seenAt: NOW })
+const run = mk('runner', { status: 'working', active: true, seenAt: NOW })
 const all = [old, fresh, run]
 const keyOf = (ag: AgentLike) => dismissKey(buildGraph(all, NOW).nodes.get(ag.id)!)
 const dis = new Set([keyOf(fresh)])
@@ -42,7 +42,7 @@ test('a dismissed attention agent is hidden; undismissed attention is never auto
 
 // MONEY: removing agents never changes the session total; rows go, "mais caro" stays tied to the total.
 const usage = (id: string, tokens: number, costUsd: number, extra: Partial<AgentLike>) => mk(id, { usage: { tokens, costUsd }, ...extra })
-const m_run = usage('runner', 1000, 1, { status: 'running', active: true })
+const m_run = usage('runner', 1000, 1, { status: 'working', active: true })
 const m_old = usage('oldfail', 9000, 9, { status: 'error', error: 'boom', endedAt: NOW - 130_000 })
 const m_dis = usage('freshfail', 5000, 5, { status: 'error', error: 'boom', endedAt: NOW - 5000 })
 const m_fresh2 = usage('freshfail', 5000, 5, { status: 'error', error: 'boom', endedAt: NOW - 5000 })

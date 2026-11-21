@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.41 (agent-office, TypeScript warnings cleared)
+
+- Strict validator: `claude plugin validate --strict` reported 27 TypeScript warnings (none is a runtime error): `hooks/compact.ts` 2, `hooks/register.tsx` 1, `dismiss-all.test.ts` 2, `integration.test.ts` 1, `real-render.test.ts` 10, `video-parity.test.ts` 3, `view-worktrees.test.ts` 8. Fixed with types and fixtures only: readonly tab tuples, `status: 'working'` (the valid `Status`), `workflow` as `{runId, agentIndex}`, `parentAgentId`, `AheadInfo` shape, `globalThis.setTimeout` as the other tests do, non-null after explicit `expect`, typed callbacks, an empty fragment instead of `null` child.
+- Now `claude plugin validate --strict` exits 0 for the root and `plugins/agent-office`, so `npm run validate` exits 0. The `network.hosts` note is still printed (hooks reach no network host); it does not fail the run, so `network` in `plugin.json` is unchanged.
+- No runtime change. `npm test`: 670 pass, 0 fail.
+- Known follow-up, not in this release: `Hosts not declared` note in `plugin.json`. Declare `network.hosts` only if the plugin starts reaching a host.
+
 ## 0.28.40 (agent-office, state keys declared)
 
 - Types contract: `autoView` (boolean), `dismissed` (string[]) and `scroll` (number) are declared in `'agent-office'` PluginState in `types/index.d.ts`, so `claude plugin validate plugins/agent-office` passes with exit 0 (it reported 3 undeclared-key errors in 0.28.39). `copied` was already declared.

@@ -23,7 +23,7 @@ const wtAgents: AgentLike[] = [
 
 // AC-021: agentes por branch sob divisor, com quantidade, falhas, arquivos e base +N commits
 test('AC-021 worktrees: divisor de cada branch com quantidade e falhas', () => {
-  const out = txt(renderCompact(wtAgents, T + 5000, view({ ahead: { 'feat-a': 3 } })))
+  const out = txt(renderCompact(wtAgents, T + 5000, view({ ahead: { 'feat-a': { base: 'origin/main', ahead: 3 } } })))
   const div = out.split('\n').find(l => l.includes('feat-a') && l.includes('━'))
   expect(div).toBeDefined()
   expect(div!).toContain('2 agentes')
@@ -64,10 +64,10 @@ test('ramo principal usa ⎇ e worktree usa ⧉, ambos na cor WORKTREE_COLOR', (
 
 test('divisor preenche a largura com ━ e a linha de agentes vem recuada', () => {
   const g = worktreeGroups(wtAgents).find(x => x.name === 'feat-a')!
-  const [div, ags] = groupDivider(g, undefined, { width: 60 })
+  const [div = [], ags] = groupDivider(g, undefined, { width: 60 })
   expect(strW(div)).toBe(60)
   expect(div.map(s => s.t).join('')).toMatch(/━━━$/)
-  expect(div[0].fg).toBe(WORKTREE_COLOR)
+  expect(div[0]!.fg).toBe(WORKTREE_COLOR)
   expect(ags).toBeUndefined()
   const line = agentsLine(g.agents)
   expect(line.map(s => s.t).join('').startsWith('  ')).toBe(true)
@@ -121,10 +121,10 @@ test('divisor mascara segredo na branch e no nome do worktree vindo do caminho',
 // flow-rules §2: a worktree whose agents are all done and none failed reads "pronto"
 test('divisor mostra pronto só quando todos concluíram sem falha', () => {
   const ok = { key: 'wt', name: 'tela', failed: 0, agents: [{ id: 'a', status: 'done' }, { id: 'b', status: 'done' }] as AgentLike[] }
-  const txtOk = groupDivider(ok, undefined, { width: 80 })[0].map(s => s.t).join('')
+  const txtOk = groupDivider(ok, undefined, { width: 80 })[0]!.map(s => s.t).join('')
   expect(txtOk).toContain('pronto')
   const run = { ...ok, agents: [{ id: 'a', status: 'done' }, { id: 'b', status: 'working' }] as AgentLike[] }
-  expect(groupDivider(run, undefined, { width: 80 })[0].map(s => s.t).join('')).not.toContain('pronto')
+  expect(groupDivider(run, undefined, { width: 80 })[0]!.map(s => s.t).join('')).not.toContain('pronto')
   const bad = { ...ok, failed: 1, agents: [{ id: 'a', status: 'done' }, { id: 'b', status: 'error' }] as AgentLike[] }
-  expect(groupDivider(bad, undefined, { width: 80 })[0].map(s => s.t).join('')).not.toContain('pronto')
+  expect(groupDivider(bad, undefined, { width: 80 })[0]!.map(s => s.t).join('')).not.toContain('pronto')
 })
