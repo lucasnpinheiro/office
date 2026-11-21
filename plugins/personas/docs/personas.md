@@ -37,7 +37,7 @@ Rules:
 - Machine copy: `data/effort-matrix.json` (icons, tiers, spawn rules, effort ladders). Informational only.
 
 Persona to skill map (load only when the request names it; names are current skills):
-- AppSec: `security-engineer`. QA: `code-quality`. Architect: `software-design`. Performance: `incident-investigator`.
+- AppSec: `security-engineer`. QA: `code-quality`. Architect: `software-design`. Performance: `code-quality`.
 - Spec work: `spec-research`. DBA: `mysql`. UX/UI: `frontend-architect`.
 
 Caveman level: `lite` for Product Owner, Architect, AppSec, Senior in code review, and LGPD audits; otherwise `full`.

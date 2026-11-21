@@ -135,8 +135,7 @@
         "medium",
         "high"
       ],
-      "pinned": true,
-      "use": "test-runner, judge, verifier, review: pinned Sonnet, never escalates to Opus",
+      "use": "test-runner, judge, verifier, review: starts Sonnet medium, follows the common ladder",
       "start": "medium"
     },
     "sonnet.escalation": {
@@ -262,7 +261,7 @@
         "low",
         "medium"
       ],
-      "use": "final synthesis / architecture"
+      "use": "final synthesis / architecture (Opus profundo only on explicit request; default orchestrator is padrao Sonnet low)"
     },
     "sonnet.designer": {
       "tier": "sonnet",
