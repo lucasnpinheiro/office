@@ -85,6 +85,7 @@ rows otherwise). Subagents do not count toward the rule.
 - Card anatomy: bold title (wraps to 2 lines) with a status pill, `persona · model · effort`, branch or worktree (purple, can
   wrap) with the role on the right (`orquestrador`, `agente`, `subagente`), a segmented progress bar, and a footer with the last
   tool, `~$cost` and `mm:ss`.
+  On the session card the footer shows the main session's current tool, then the recent ones, and `executando` only when none is known.
 
 ### Cards (flat grid)
 
@@ -241,6 +242,7 @@ UNVERIFIED (office-video-gaps REQ-404): no real capture of the Claude desktop ap
 - **0.28.27**: no agents = waiting line plus legend in every mode, no empty horizontal rule.
 - **0.28.26**: app surfaces (desktop/vscode/mobile) draw one header and tab row (`appChrome`) in every mode; counters use plural (`0 falhas`), the header carries `#sha` and the session cost when known.
 - **0.28.18**: video parity. 8 tabs in one order on terminal and app (Mapa, Árvore, Worktrees, Cards, Waterfall, Custo, Ferramentas, Workflow; Workflow dimmed with no run). **Breaking:** terminal mode `map` is now the default and is the centred org chart with bus (what `cards` was); `cards` is a new plain grid of every agent card; a persisted or scripted `/office mode cards` or `OFFICE_MODE=cards` now shows the grid. Grouped with no worktrees: one divider per state (`Rodando ×N`, failures first). Attention pill reads `Atenção` (was `Aguarda você`). `/office mode <unknown>` keeps the mode and lists the 8.
+- **0.28.45**: the session (Orquestrador) card footer shows the main session's tool in use and recent tools (was always `executando`); `renderCompact` now receives `sessionTool`. With no subagent spawned the header reads `0 rodando` and `Aguardando agentes…`: the counter counts agents only (direct-mode sessions spawn none).
 - **0.28.17**: header shows plan limits (`5h N% · reinicia em Xh Ym`, `Semana N% · reinicia em Xd Yh`, per-model weekly when present) on an extra dim line, only when `$.session.usage()` exposes them; absent or invalid data hides the segment (never zero). Elapsed stays since the 1st agent. Field names are unverified against the engine.
 - **0.28.16**: terminal map parent line runs through a central gap in row 1 to later rows; price table on current Opus/Sonnet/Haiku 5.5 rates.
 - **0.28.15**: estimated per-agent cost (`~$`, tokens x model price table); long card titles wrap to a second line beside the fixed pill.
