@@ -353,3 +353,8 @@ test('T-602 active tab is marked in the text itself (same with or without focus)
     expect(rule).not.toContain(' ')
   }
 })
+
+test('session card shows the main session tool (sessionTool reaches the graph)', () => {
+  const out = txt(renderCompact([], T + 9000, { ...v, mode: 'map', sessionId: 's1', sessionTool: { tool: 'Update', recent: ['Update'] } }))
+  expect(out).toContain('Update')
+})

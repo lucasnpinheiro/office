@@ -83,7 +83,7 @@ export const NEXT_MODE: Record<Mode, Mode> = { map: 'tree', tree: 'grouped', gro
 export type CView = {
   width: number; caps: Caps; mode: Mode; query: string; expanded: Set<string>; maxCardRows: number; maxLines?: number; scroll?: number; branch?: string
   dismissed?: Set<string> // alerts the user removed, keys id:state (dismissKey)
-  filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; capabilities?: Capabilities
+  filter?: 'all' | 'failed'; sort?: 'time' | 'state' | 'name'; frame?: number; project?: string; sessionId?: string; sessionTool?: ToolNote; capabilities?: Capabilities
   ahead?: Record<string, AheadInfo> // by worktree key: real base + commits ahead; absent = unknown (AC-023)
   model?: RunModel // built once by the caller (register.tsx) with the session tokens; built here from the agents when absent
   captureIo?: boolean // OFFICE_CAPTURE_IO=1: the Tools view may show masked input/output
@@ -812,7 +812,7 @@ export function renderCompact(agents: AgentLike[], now: number, v0: CView): Line
   // app com container < 520 px: cards viram linhas de estado, nome e tempo (AC-043)
   const rows = v0.containerPx !== undefined && (v0.mode === 'map' || v0.mode === 'cards') && rowStyle(v0.containerPx) === 'row'
   const v: CView = { ...v0, width: w, mode: rows ? 'tree' : v0.mode }
-  const g = buildGraph(agents, now)
+  const g = buildGraph(agents, now, undefined, v0.sessionTool)
   if (layoutLevel(w) === 'line') {
     // abaixo de 36 colunas só a lista: falha e decisão primeiro, depois as linhas da árvore
     const nm0 = names(g), keep0 = keepOf(g, now, v)

@@ -678,7 +678,7 @@ export const register: Register = on => {
       filter: (await read($, filterAt)) as 'all' | 'failed', sort: (await read($, sortAt)) as 'time' | 'state' | 'name',
       expanded: new Set((await read($, expandedAt)) as string[]), dismissed: new Set((await read($, dismissedAt)) as string[]), maxCardRows: 4, chrome: !isAppSurface((e as { surface?: string }).surface), scroll: await read($, scrollAt), branch: sgit?.branch,
       maxLines: Math.max(1, paneBodyLines(e.props as { bodyRows?: number; scroll?: { bodyRows?: number } } | undefined, e.viewport) - hkRows),
-      frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback,
+      frame: caps.reducedMotion ? 0 : frameFor(all, now), project: cwd.split('/').filter(Boolean).pop() ?? '', sessionId: sessionId || sidFallback, sessionTool: st,
       model: await runModelOf($, all, now), captureIo: ioFlag, sessionUsd: usd ?? undefined, limits: (await read($, sessionLimitsAt)) ?? undefined, ahead: aheadNow(),
       containerPx: canUse(CAPABILITIES, 'containerWidth', 'app') ? (e.viewport as { containerWidth?: number } | undefined)?.containerWidth : undefined,
     }
