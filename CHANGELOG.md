@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.45 (agent-office, main session card shows its tool)
+
+- Fix: the Orquestrador card in the compact views showed `executando` only. `renderCompact` now receives `sessionTool` from the pane, so the main session tool in use and recent tools appear.
+
 ## 0.28.44 (agent-office, secrets glued to letters are masked)
 
 - Fix: `hooks/mask.ts` masks known-prefix secrets wherever the prefix sits (glued to letters, `_` or digits). The lookbehind `(?<![A-Za-z0-9_])` is gone from the prefix rule, so `deploy_ghp_...`, `tokenghp_...`, `deploysk-...`, `CI_sk-...` and `xGITHUB_PAT_...` no longer leak. Key words, `Bearer`, `Authorization`, `api key` and `mysql -p` lost their lookbehind too (the key or flag is the anchor, a glued prefix is not a delimiter).
